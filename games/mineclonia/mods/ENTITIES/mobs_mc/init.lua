@@ -20,6 +20,7 @@ local files = {
 	"axolotl.lua",
 	"bat.lua",
 	"blaze.lua",
+	"camel.lua",
 	"chicken.lua",
 	"cod.lua",
 	"cow+mooshroom.lua",
