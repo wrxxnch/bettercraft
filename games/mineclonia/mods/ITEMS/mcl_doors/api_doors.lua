@@ -135,24 +135,25 @@ function mcl_doors:register_door(name, def)
 
 	local function redstone_connects_to(_, _) return true end
 
-	local function redstone_update_bottom(pos)
-		local pos2 = pos:offset(0, 1, 0)
+	local function redstone_update(pos_bottom, pos_top)
+		local power_top = mcl_redstone.get_power(pos_top)
+		local power_bottom = mcl_redstone.get_power(pos_bottom)
+		local meta_top = core.get_meta(pos_top)
+		local meta_bottom = core.get_meta(pos_bottom)
 
-		if mcl_redstone.get_power(pos) ~= 0 or mcl_redstone.get_power(pos2) ~= 0 then
-			open(pos)
-		else
-			close(pos)
+		local power = math.max(power_top, power_bottom)
+		local previous_power = math.max(meta_top:get_int("redstone_power"), meta_bottom:get_int("redstone_power"))
+
+		if power ~= previous_power then
+			if power ~= 0 then
+				open(pos_bottom)
+			else
+				close(pos_bottom)
+			end
 		end
-	end
 
-	local function redstone_update_top(pos)
-		local pos2 = pos:offset(0, -1, 0)
-
-		if mcl_redstone.get_power(pos) ~= 0 or mcl_redstone.get_power(pos2) ~= 0 then
-			open(pos2)
-		else
-			close(pos2)
-		end
+		meta_top:set_int("redstone_power", power)
+		meta_bottom:set_int("redstone_power", power)
 	end
 
 	local function get_other_half(node_name)
@@ -209,7 +210,7 @@ function mcl_doors:register_door(name, def)
 			if oldmetadata.fields["rotation"] == 1 then
 				oldmetadata.fields["rotation"] = 0
 			else
-				if not core.is_creative_enabled(digger:get_player_name()) then
+				if not digger or (digger and not core.is_creative_enabled(digger:get_player_name())) then
 					core.add_item(pos, name)
 				end
 				core.remove_node(vector.offset(pos, 0, dir, 0))
@@ -226,7 +227,9 @@ function mcl_doors:register_door(name, def)
 		_mcl_redstone = {
 			connects_to = redstone_connects_to,
 			init = function() end,
-			update = redstone_update_bottom
+			update = function(pos)
+				redstone_update(pos, pos:offset(0, 1, 0))
+			end
 		},
 		_on_wind_charge_hit = function(pos)
 			if mcl_doors.is_open(pos) then close(pos) else open(pos) end
@@ -246,7 +249,9 @@ function mcl_doors:register_door(name, def)
 		_mcl_redstone = {
 			connects_to = redstone_connects_to,
 			init = function() end,
-			update = redstone_update_top
+			update = function(pos)
+				redstone_update(pos:offset(0, -1, 0), pos)
+			end
 		},
 		_on_wind_charge_hit = function(pos)
 			pos.y = pos.y - 1
@@ -263,12 +268,14 @@ function mcl_doors:register_door(name, def)
 		}
 	}
 
-	core.register_craftitem(":"..name, {
+	core.register_node(":"..name, {
 		description = def.description,
 		_tt_help = tt_help,
 		_doc_items_longdesc = longdesc,
 		_doc_items_usagehelp = usagehelp,
 		_mcl_burntime = def._mcl_burntime,
+		tiles = {"blank.png"},
+		wield_image = def.inventory_image,
 		inventory_image = def.inventory_image,
 		groups = craftitem_groups,
 		on_place = function(itemstack, placer, pointed_thing)
@@ -276,6 +283,7 @@ function mcl_doors:register_door(name, def)
 				return itemstack
 			end
 
+			local name = itemstack:get_name()
 			local pn = placer:get_player_name()
 			local pt = pointed_thing.above
 			local ptu = pointed_thing.under
@@ -392,11 +400,8 @@ function mcl_doors:register_door(name, def)
 			tt[2].."^[transformFX", tt[1].."^[transformFX", tt[1]
 		}
 	}, tpl_doors, tpl_top))
-	-- Add entry aliases for the Help
-	if core.get_modpath("doc") then
-		doc.add_entry_alias("craftitems", name, "nodes", name.."_b_1")
-		doc.add_entry_alias("craftitems", name, "nodes", name.."_b_2")
-		doc.add_entry_alias("craftitems", name, "nodes", name.."_t_1")
-		doc.add_entry_alias("craftitems", name, "nodes", name.."_t_2")
-	end
+	doc.add_entry_alias("craftitems", name, "nodes", name.."_b_1")
+	doc.add_entry_alias("craftitems", name, "nodes", name.."_b_2")
+	doc.add_entry_alias("craftitems", name, "nodes", name.."_t_1")
+	doc.add_entry_alias("craftitems", name, "nodes", name.."_t_2")
 end

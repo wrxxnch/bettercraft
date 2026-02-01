@@ -20,10 +20,10 @@ msgid "This door is a 2-block high barrier which can only be opened by redstone 
 msgstr "Essa porta é uma barreira de 2 blocos de altura que só pode ser aberta com energia de redstone, não à mão."
 
 msgid "To open or close this door, send a redstone signal to its bottom half."
-msgstr ""
+msgstr "Para abrir ou fechar esta porta, envie um sinal de redstone para a metade inferior dela."
 
 msgid "To open or close this door, rightclick it or send a redstone signal to its bottom half."
-msgstr ""
+msgstr "Para abrir ou fechar esta porta, clique com o botão direito do mouse ou envie um sinal de redstone para a metade inferior dela."
 
 msgid "Openable by redstone power"
 msgstr "Aberto por sinal de redstone"
@@ -32,13 +32,13 @@ msgid "Openable by players and redstone power"
 msgstr "Aberto por jogadores ou sinal de redstone"
 
 msgid "Trapdoors are horizontal barriers which can be opened or closed and climbed like a ladder when open. They occupy the upper or lower part of a block, depending on how they have been placed. This trapdoor can only be opened or closed by redstone power."
-msgstr ""
+msgstr "Alçapões são barreiras horizontais que podem ser abertas ou fechadas e escaladas como uma escada quando abertas. Elas ocupam a parte superior ou inferior de um bloco, dependendo de como foram posicionadas. Este alçapão só pode ser aberto ou fechado com energia de redstone."
 
 msgid "Trapdoors are horizontal barriers which can be opened or closed and climbed like a ladder when open. They occupy the upper or lower part of a block, depending on how they have been placed. This trapdoor can be opened or closed by hand or redstone power."
-msgstr ""
+msgstr "Alçapões são barreiras horizontais que podem ser abertas ou fechadas e escaladas como uma escada quando abertas. Elas ocupam a parte superior ou inferior de um bloco, dependendo de como foram posicionadas. Este alçapão pode ser aberto ou fechado manualmente ou com a ajuda de redstone."
 
 msgid "To open or close this trapdoor, rightclick it or send a redstone signal to it."
-msgstr ""
+msgstr "Para abrir ou fechar este alçapão, clique com o botão direito do mouse ou envie um sinal de redstone para ele."
 
 msgid "Iron Door"
 msgstr "Porta de Ferro"

@@ -212,8 +212,5 @@ function mcl_torches.register_torch(def)
 	}
 	core.register_node(itemstring_wall, walldef)
 
-	-- Add entry alias for the Help
-	if core.get_modpath("doc") then
-		doc.add_entry_alias("nodes", itemstring, "nodes", itemstring_wall)
-	end
+	doc.add_entry_alias("nodes", itemstring, "nodes", itemstring_wall)
 end

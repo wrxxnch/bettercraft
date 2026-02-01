@@ -8,6 +8,13 @@ mcl_lanterns.register_lantern("lantern", {
 	light_level = core.LIGHT_MAX,
 })
 
+mcl_lanterns.register_chain("gold_chain", {
+	description = "Metallic Gold Chain",
+	inventory_image = "mcl_lanterns_gold_chain_inv.png",
+	tiles = {"mcl_lanterns_gold_chain.png"},
+})
+
+
 mcl_lanterns.register_lantern("soul_lantern", {
 	description = S("Soul Lantern"),
 	longdesc = S("Lanterns are light sources which can be placed on the top or the bottom of most blocks."),
@@ -34,5 +41,21 @@ core.register_craft({
 		{"mcl_core:iron_nugget", "mcl_core:iron_nugget"      , "mcl_core:iron_nugget"},
 		{"mcl_core:iron_nugget", "mcl_blackstone:soul_torch" , "mcl_core:iron_nugget"},
 		{"mcl_core:iron_nugget", "mcl_core:iron_nugget"      , "mcl_core:iron_nugget"},
+	},
+})
+
+mcl_lanterns.register_chain("chain", {
+	description = S("Chain"),
+	_doc_items_longdesc = S("Chains are metallic decoration blocks."),
+	inventory_image = "mcl_lanterns_chain_inv.png",
+	tiles = {"mcl_lanterns_chain.png"},
+})
+
+core.register_craft({
+	output = "mcl_lanterns:chain",
+	recipe = {
+		{"mcl_core:iron_nugget"},
+		{"mcl_core:iron_ingot"},
+		{"mcl_core:iron_nugget"},
 	},
 })

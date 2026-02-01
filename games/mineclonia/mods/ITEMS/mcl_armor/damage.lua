@@ -9,6 +9,8 @@ local function use_durability(obj, inv, index, stack, uses)
 	end
 end
 
+mcl_armor.use_durability = use_durability
+
 mcl_damage.register_modifier(function(obj, damage, reason)
 	local flags = reason.flags
 

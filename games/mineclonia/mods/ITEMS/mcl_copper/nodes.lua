@@ -150,6 +150,7 @@ for n, desc in pairs(n_desc) do
 		tiles = {"mcl_copper"..(n == "" and "_block" or n) .."_bulb_on.png"},
 		is_ground_content = false,
 		light_source = bulb_light[n],
+		paramtype = "light",
 		groups = {pickaxey = 2, not_in_creative_inventory = 1, redstone_not_conductive = 1, comparator_signal = 15},
 		sounds = mcl_sounds.node_sound_metal_defaults(),
 		_mcl_blast_resistance = 6,
@@ -165,6 +166,7 @@ for n, desc in pairs(n_desc) do
 		tiles = {"mcl_copper"..(n == "" and "_block" or n) .."_bulb_on_powered.png"},
 		is_ground_content = false,
 		light_source = bulb_light[n],
+		paramtype = "light",
 		groups = {pickaxey = 2, not_in_creative_inventory = 1, redstone_not_conductive = 1, comparator_signal = 15},
 		sounds = mcl_sounds.node_sound_metal_defaults(),
 		_mcl_blast_resistance = 6,
@@ -212,6 +214,7 @@ for n, desc in pairs(n_desc) do
 		wield_image = "mcl_copper_trapdoor"..n..".png",
 		_mcl_hardness = 3
 	})
+
 	mcl_doors:register_door("mcl_copper:door"..n, {
 		description = D(desc .. "Copper Door"),
 		groups = { door = 1, copper = 1, pickaxey = 2, building_block = 1, door_iron = 1,},
@@ -223,7 +226,37 @@ for n, desc in pairs(n_desc) do
 		tiles_top = { "mcl_copper_door"..n.."_top.png^[transformFX", "mcl_copper_door"..n.."_top.png" },
 		_mcl_hardness = 3
 	})
-	mcl_wip.register_wip_item("mcl_copper:door"..n)
+
+	mcl_lanterns.register_lantern("copper_lantern"..n, {
+		description = D(desc .. "Copper Lantern"),
+		longdesc = D(desc .. "Copper Lanterns are light sources which can be placed on the top or the bottom of most blocks."),
+		texture = "mcl_copper_lantern"..n..".png",
+		texture_inv = "mcl_copper_lantern"..n.."_inv.png",
+		light_level = core.LIGHT_MAX,
+	})
+
+	mcl_lanterns.register_chain("copper_chain"..n, {
+		description = D(desc .. "Copper Chain"),
+		_doc_items_longdesc = D(desc .. "Copper Chains are metallic decoration blocks."),
+		inventory_image = "mcl_copper_chain"..n.."_inv.png",
+		tiles = {"mcl_copper_chain"..n..".png"},
+	})
+
+	mcl_panes.register_pane("copper_bar"..n, {
+		description = D(desc .. "Copper Bars"),
+		_doc_items_longdesc = S(desc.."Copper Bars neatly connect to their neighbors as you build them."),
+		textures = {"mcl_copper_pane"..n..".png", "mcl_copper_pane"..n..".png","mcl_copper_pane_top"..n..".png"},
+		inventory_image = "mcl_copper_pane"..n..".png",
+		groups = {pickaxey = 1, copper_bars = 1},
+		sounds = mcl_sounds.node_sound_metal_defaults(),
+		use_texture_alpha = "clip",
+		recipe = {
+			{"mcl_copper:copper_ingot", "mcl_copper:copper_ingot", "mcl_copper:copper_ingot"},
+			{"mcl_copper:copper_ingot", "mcl_copper:copper_ingot", "mcl_copper:copper_ingot"},
+		},
+		_mcl_blast_resistance = 6,
+		_mcl_hardness = 5
+	})
 end
 
 -- These are static translation strings, but use D instead of S, anyway, to get
@@ -254,4 +287,21 @@ mcl_stairs.register_stair_and_slab("copper_oxidized_cut", {
 	description_stair = D("Oxidized Cut Copper Stairs"),
 	description_slab = D("Oxidized Cut Copper Slab"),
 	overrides = {_mcl_stonecutter_recipes = {"mcl_copper:block_oxidized", "mcl_copper:block_oxidized_cut"}, _on_lightning_strike = on_lightning_strike}
+})
+
+mcl_torches.register_torch({
+        name = "copper_torch",
+        description = S("Copper Torch"),
+        doc_items_longdesc = S("Copper Torches are light sources which can be placed at the side or on the top of most blocks."),
+        doc_items_hidden = false,
+        icon = "mcl_copper_torch.png",
+        tiles = {{
+                name = "mcl_copper_torch_animated.png",
+                animation = {type = "vertical_frames", aspect_w = 16, aspect_h = 16, length = 3.3}
+        }},
+        light =  14,
+        groups = {dig_immediate = 3, deco_block = 1},
+        sounds = mcl_sounds.node_sound_wood_defaults(),
+        particles = true,
+        flame_type = 1,
 })

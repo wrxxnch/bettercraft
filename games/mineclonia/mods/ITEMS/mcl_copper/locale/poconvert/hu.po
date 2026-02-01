@@ -20,7 +20,7 @@ msgid "Molten Raw Copper. It is used to craft blocks."
 msgstr "Olvasztott nyers réz. Blokkok barkácsolásához használható."
 
 msgid "Copper Material"
-msgstr ""
+msgstr "Réz Anyag"
 
 msgid "Raw Copper"
 msgstr "Nyers Réz"
@@ -29,346 +29,346 @@ msgid "Raw Copper. Mine a Copper Ore to get it."
 msgstr "Nyers réz. Bányássz rézércet, hogy hozzájuss."
 
 msgid "Block of Copper"
-msgstr ""
+msgstr "Rézblokk"
 
 msgid "Block of Copper is mostly a decorative block."
-msgstr ""
+msgstr "A rézblokk főként díszítőelem."
 
 msgid "Chiseled Copper"
-msgstr ""
+msgstr "Vésett Réz"
 
 msgid "Chiseled Copper is mostly a decorative block."
-msgstr ""
+msgstr "A vésett réz főként díszítőelem."
 
 msgid "Copper Bulb"
-msgstr ""
+msgstr "Rézizzó"
 
 msgid "Copper Bulb On"
-msgstr ""
+msgstr "Bekapcsolt Rézizzó"
 
 msgid "Copper Bulb Powered Off"
-msgstr ""
+msgstr "Kikapcsolt Rézizzó"
 
 msgid "Copper Bulb Powered On"
-msgstr ""
+msgstr "Bekapcsolt Rézizzó"
 
 msgid "Copper Bulb is mostly a decorative block."
-msgstr ""
+msgstr "A rézizzó főként díszítőelem."
 
 msgid "Copper Door"
-msgstr ""
+msgstr "Rézajtó"
 
 msgid "Copper Grate"
-msgstr ""
+msgstr "Rézrács"
 
 msgid "Copper Grate is mostly a decorative block."
-msgstr ""
+msgstr "A rézrács főként díszítőelem."
 
 msgid "Copper Trapdoor"
-msgstr ""
+msgstr "Rézfedél"
 
 msgid "Cut Copper"
-msgstr ""
+msgstr "Csiszolt Réz"
 
 msgid "Cut Copper Slab"
-msgstr ""
+msgstr "Csiszolt Réz Lépőlap"
 
 msgid "Cut Copper Stairs"
-msgstr ""
+msgstr "Csiszolt Réz Lépcső"
 
 msgid "Cut Copper is mostly a decorative block."
-msgstr ""
+msgstr "A csiszolt réz főként díszítőelem."
 
 msgid "Exposed Chiseled Copper"
-msgstr ""
+msgstr "Kiálló Vésett Réz"
 
 msgid "Exposed Chiseled Copper is mostly a decorative block."
-msgstr ""
+msgstr "A kiálló vésett réz főként díszítőelem."
 
 msgid "Exposed Copper"
-msgstr ""
+msgstr "Kiálló Réz"
 
 msgid "Exposed Copper Bulb"
-msgstr ""
+msgstr "Kiálló Rézizzó"
 
 msgid "Exposed Copper Bulb On"
-msgstr ""
+msgstr "Bekapcsolt Kiálló Rézizzó"
 
 msgid "Exposed Copper Bulb Powered Off"
-msgstr ""
+msgstr "Kikapcsolt Kiálló Rézizzó"
 
 msgid "Exposed Copper Bulb Powered On"
-msgstr ""
+msgstr "Bekapcsolt Kiálló Rézizzó"
 
 msgid "Exposed Copper Bulb is mostly a decorative block."
-msgstr ""
+msgstr "A kiálló rézizzó főként díszítőelem."
 
 msgid "Exposed Copper Door"
-msgstr ""
+msgstr "Kiálló Rézajtó"
 
 msgid "Exposed Copper Grate"
-msgstr ""
+msgstr "Kiálló Rézrács"
 
 msgid "Exposed Copper Grate is mostly a decorative block."
-msgstr ""
+msgstr "A kiálló rézrács főként díszítőelem."
 
 msgid "Exposed Copper Trapdoor"
-msgstr ""
+msgstr "Kiálló Rézfedél"
 
 msgid "Exposed Copper is mostly a decorative block."
-msgstr ""
+msgstr "A kiálló réz főként díszítőelem."
 
 msgid "Exposed Cut Copper"
-msgstr ""
+msgstr "Kiálló Csiszolt Réz"
 
 msgid "Exposed Cut Copper Slab"
-msgstr ""
+msgstr "Kiálló Csiszolt Réz Lépőlap"
 
 msgid "Exposed Cut Copper Stairs"
-msgstr ""
+msgstr "Kiálló Csiszolt Réz Lépcső"
 
 msgid "Exposed Cut Copper is mostly a decorative block."
-msgstr ""
+msgstr "A kiálló csiszolt réz főként díszítőelem."
 
 msgid "Oxidized Chiseled Copper"
-msgstr ""
+msgstr "Oxidált Vésett Réz"
 
 msgid "Oxidized Chiseled Copper is mostly a decorative block."
-msgstr ""
+msgstr "Az oxidált vésett réz főként díszítőelem."
 
 msgid "Oxidized Copper"
-msgstr ""
+msgstr "Oxidált Réz"
 
 msgid "Oxidized Copper Bulb"
-msgstr ""
+msgstr "Oxidált Rézizzó"
 
 msgid "Oxidized Copper Bulb On"
-msgstr ""
+msgstr "Bekapcsolt Oxidált Rézizzó"
 
 msgid "Oxidized Copper Bulb Powered Off"
-msgstr ""
+msgstr "Kikapcsolt Oxidált Rézizzó"
 
 msgid "Oxidized Copper Bulb Powered On"
-msgstr ""
+msgstr "Bekapcsolt Oxidált Rézizzó"
 
 msgid "Oxidized Copper Bulb is mostly a decorative block."
-msgstr ""
+msgstr "Az oxidált rézizzó főként díszítőelem."
 
 msgid "Oxidized Copper Door"
-msgstr ""
+msgstr "Oxidált Rézajtó"
 
 msgid "Oxidized Copper Grate"
-msgstr ""
+msgstr "Oxidált Rézrács"
 
 msgid "Oxidized Copper Grate is mostly a decorative block."
-msgstr ""
+msgstr "Az oxidált rézrács főként díszítőelem."
 
 msgid "Oxidized Copper Trapdoor"
-msgstr ""
+msgstr "Oxidált Rézfedél"
 
 msgid "Oxidized Copper is mostly a decorative block."
-msgstr ""
+msgstr "Az oxidált réz főként díszítőelem."
 
 msgid "Oxidized Cut Copper"
-msgstr ""
+msgstr "Oxidált Csiszolt Réz"
 
 msgid "Oxidized Cut Copper Slab"
-msgstr ""
+msgstr "Oxidált Csiszolt Réz Lépőlap"
 
 msgid "Oxidized Cut Copper Stairs"
-msgstr ""
+msgstr "Oxidált Csiszolt Réz Lépcső"
 
 msgid "Oxidized Cut Copper is mostly a decorative block."
-msgstr ""
+msgstr "Az oxidált csiszolt réz főként díszítőelem."
 
 msgid "Waxed Block of Copper"
-msgstr ""
+msgstr "Viaszolt Rézblokk"
 
 msgid "Waxed Chiseled Copper"
-msgstr ""
+msgstr "Viaszolt Vésett Réz"
 
 msgid "Waxed Copper Bulb"
-msgstr ""
+msgstr "Viaszolt Rézizzó"
 
 msgid "Waxed Copper Bulb On"
-msgstr ""
+msgstr "Bekapcsolt Viaszolt Rézizzó"
 
 msgid "Waxed Copper Bulb Powered Off"
-msgstr ""
+msgstr "Kikapcsolt Viaszolt Rézizzó"
 
 msgid "Waxed Copper Bulb Powered On"
-msgstr ""
+msgstr "Bekapcsolt Viaszolt Rézizzó"
 
 msgid "Waxed Copper Grate"
-msgstr ""
+msgstr "Viaszolt Rézrács"
 
 msgid "Waxed Copper Trapdoor"
-msgstr ""
+msgstr "Viaszolt Rézfedél"
 
 msgid "Waxed Cut Copper"
-msgstr ""
+msgstr "Viaszolt Csiszolt Réz"
 
 msgid "Waxed Cut Copper Slab"
-msgstr ""
+msgstr "Viaszolt Csiszolt Réz Lépőlap"
 
 msgid "Waxed Cut Copper Stairs"
-msgstr ""
+msgstr "Viaszolt Csiszolt Réz Lépcső"
 
 msgid "Waxed Double @1"
-msgstr ""
+msgstr "Viaszolt Dupla @1"
 
 msgid "Waxed Exposed Chiseled Copper"
-msgstr ""
+msgstr "Viaszolt Kiálló Vésett Réz"
 
 msgid "Waxed Exposed Copper"
-msgstr ""
+msgstr "Viaszolt Kiálló Réz"
 
 msgid "Waxed Exposed Copper Bulb"
-msgstr ""
+msgstr "Viaszolt Kiálló Rézizzó"
 
 msgid "Waxed Exposed Copper Bulb On"
-msgstr ""
+msgstr "Bekapcsolt Viaszolt Kiálló Rézizzó"
 
 msgid "Waxed Exposed Copper Bulb Powered Off"
-msgstr ""
+msgstr "Kikapcsolt Viaszolt Kiálló Rézizzó"
 
 msgid "Waxed Exposed Copper Bulb Powered On"
-msgstr ""
+msgstr "Bekapcsolt Viaszolt Kiálló Rézizzó"
 
 msgid "Waxed Exposed Copper Grate"
-msgstr ""
+msgstr "Viaszolt Kiálló Rézrács"
 
 msgid "Waxed Exposed Copper Trapdoor"
-msgstr ""
+msgstr "Viaszolt Kiálló Rézfedél"
 
 msgid "Waxed Exposed Cut Copper"
-msgstr ""
+msgstr "Viaszolt Kiálló Csiszolt Réz"
 
 msgid "Waxed Exposed Cut Copper Slab"
-msgstr ""
+msgstr "Viaszolt Kiálló Csiszolt Réz Lépőlap"
 
 msgid "Waxed Exposed Cut Copper Stairs"
-msgstr ""
+msgstr "Viaszolt Kiálló Csiszolt Réz Lépcső"
 
 msgid "Waxed Oxidized Chiseled Copper"
-msgstr ""
+msgstr "Viaszolt Oxidált Vésett Réz"
 
 msgid "Waxed Oxidized Copper"
-msgstr ""
+msgstr "Viaszolt Oxidált Réz"
 
 msgid "Waxed Oxidized Copper Bulb"
-msgstr ""
+msgstr "Viaszolt Oxidált Rézizzó"
 
 msgid "Waxed Oxidized Copper Bulb On"
-msgstr ""
+msgstr "Bekapcsolt Viaszolt Oxidált Rézizzó"
 
 msgid "Waxed Oxidized Copper Bulb Powered Off"
-msgstr ""
+msgstr "Kikapcsolt Viaszolt Oxidált Rézizzó"
 
 msgid "Waxed Oxidized Copper Bulb Powered On"
-msgstr ""
+msgstr "Bekapcsolt Viaszolt Oxidált Rézizzó"
 
 msgid "Waxed Oxidized Copper Grate"
-msgstr ""
+msgstr "Viaszolt Oxidált Rézrács"
 
 msgid "Waxed Oxidized Copper Trapdoor"
-msgstr ""
+msgstr "Viaszolt Oxidált Rézfedél"
 
 msgid "Waxed Oxidized Cut Copper"
-msgstr ""
+msgstr "Viaszolt Oxidált Csiszolt Réz"
 
 msgid "Waxed Oxidized Cut Copper Slab"
-msgstr ""
+msgstr "Viaszolt Oxidált Csiszolt Réz Lépőlap"
 
 msgid "Waxed Oxidized Cut Copper Stairs"
-msgstr ""
+msgstr "Viaszolt Oxidált Csiszolt Réz Lépcső"
 
 msgid "Waxed Upper @1"
-msgstr ""
+msgstr "Viaszolt Felső @1"
 
 msgid "Waxed Weathered Chiseled Copper"
-msgstr ""
+msgstr "Viaszolt Megöregedett Vésett Réz"
 
 msgid "Waxed Weathered Copper"
-msgstr ""
+msgstr "Viaszolt Megöregedett Réz"
 
 msgid "Waxed Weathered Copper Bulb"
-msgstr ""
+msgstr "Viaszolt Megöregedett Rézizzó"
 
 msgid "Waxed Weathered Copper Bulb On"
-msgstr ""
+msgstr "Bekapcsolt Viaszolt Megöregedett Rézizzó"
 
 msgid "Waxed Weathered Copper Bulb Powered Off"
-msgstr ""
+msgstr "Kikapcsolt Viaszolt Megöregedett Rézizzó"
 
 msgid "Waxed Weathered Copper Bulb Powered On"
-msgstr ""
+msgstr "Bekapcsolt Viaszolt Megöregedett Rézizzó"
 
 msgid "Waxed Weathered Copper Grate"
-msgstr ""
+msgstr "Viaszolt Megöregedett Rézrács"
 
 msgid "Waxed Weathered Copper Trapdoor"
-msgstr ""
+msgstr "Viaszolt Megöregedett Rézfedél"
 
 msgid "Waxed Weathered Cut Copper"
-msgstr ""
+msgstr "Viaszolt Megöregedett Csiszolt Réz"
 
 msgid "Waxed Weathered Cut Copper Slab"
-msgstr ""
+msgstr "Viaszolt Megöregedett Csiszolt Réz Lépőlap"
 
 msgid "Waxed Weathered Cut Copper Stairs"
-msgstr ""
+msgstr "Viaszolt Megöregedett Csiszolt Réz Lépcső"
 
 msgid "Weathered Chiseled Copper"
-msgstr ""
+msgstr "Megöregedett Vésett Réz"
 
 msgid "Weathered Chiseled Copper is mostly a decorative block."
-msgstr ""
+msgstr "A megöregedett vésett réz főként díszítőelem."
 
 msgid "Weathered Copper"
-msgstr ""
+msgstr "Megöregedett Réz"
 
 msgid "Weathered Copper Bulb"
-msgstr ""
+msgstr "Megöregedett Rézizzó"
 
 msgid "Weathered Copper Bulb On"
-msgstr ""
+msgstr "Bekapcsolt Megöregedett Rézizzó"
 
 msgid "Weathered Copper Bulb Powered Off"
-msgstr ""
+msgstr "Kikapcsolt Megöregedett Rézizzó"
 
 msgid "Weathered Copper Bulb Powered On"
-msgstr ""
+msgstr "Bekapcsolt Megöregedett Rézizzó"
 
 msgid "Weathered Copper Bulb is mostly a decorative block."
-msgstr ""
+msgstr "A megöregedett rézizzó főként díszítőelem."
 
 msgid "Weathered Copper Door"
-msgstr ""
+msgstr "Megöregedett Rézajtó"
 
 msgid "Weathered Copper Grate"
-msgstr ""
+msgstr "Megöregedett Rézrács"
 
 msgid "Weathered Copper Grate is mostly a decorative block."
-msgstr ""
+msgstr "A megöregedett rézrács főként díszítőelem."
 
 msgid "Weathered Copper Trapdoor"
-msgstr ""
+msgstr "Megöregedett Rézfedél"
 
 msgid "Weathered Copper is mostly a decorative block."
-msgstr ""
+msgstr "A megöregedett réz főként díszítőelem."
 
 msgid "Weathered Cut Copper"
-msgstr ""
+msgstr "Megöregedett Csiszolt Réz"
 
 msgid "Weathered Cut Copper Slab"
-msgstr ""
+msgstr "Megöregedett Csiszolt Réz Lépőlap"
 
 msgid "Weathered Cut Copper Stairs"
-msgstr ""
+msgstr "Megöregedett Csiszolt Réz Lépcső"
 
 msgid "Weathered Cut Copper is mostly a decorative block."
-msgstr ""
+msgstr "A megöregedett csiszolt réz főként díszítőelem."
 
 msgid "Copper Ore"
 msgstr "Rézérc"

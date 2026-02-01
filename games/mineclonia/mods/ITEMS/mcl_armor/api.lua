@@ -189,6 +189,11 @@ local function get_armor_texture(textures, name, modname, itemname, itemstring)
 		local color = meta:get_string("mcl_armor:color")
 		local overlay = meta:get_string("mcl_armor:trim_overlay")
 		local stack_name = mcl_grindstone.remove_enchant_name(itemstack) -- gets original itemstring if enchanted, no need to store (nearly) identical values
+
+		if core.registered_aliases[stack_name] then
+			stack_name = core.registered_aliases[stack_name]
+		end
+
 		local core_armor_texture = mcl_armor.trims.core_textures[stack_name]
 
 		if color ~= "" and color ~= nil then
@@ -371,6 +376,7 @@ function mcl_armor.update(obj)
 		view_range_factors = {},
 		elytra_present = false,
 		depth_strider_level = 0,
+		soul_speed_level = 0,
 	}
 	local resp_lv = 0
 
@@ -425,6 +431,8 @@ function mcl_armor.update(obj)
 				if i == 5 then
 					info.depth_strider_level
 						= mcl_enchanting.get_enchantment (itemstack, "depth_strider")
+					info.soul_speed_level
+						= mcl_enchanting.get_enchantment (itemstack, "soul_speed")
 				end
 			end
 		end

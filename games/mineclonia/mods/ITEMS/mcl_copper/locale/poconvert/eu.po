@@ -20,7 +20,7 @@ msgid "Molten Raw Copper. It is used to craft blocks."
 msgstr "Landu gabeko Kobre urtua. Blokeak fabrikatzeko erabiltzen da."
 
 msgid "Copper Material"
-msgstr ""
+msgstr "Kobre Materiala"
 
 msgid "Raw Copper"
 msgstr "Landu gabeko Kobre"

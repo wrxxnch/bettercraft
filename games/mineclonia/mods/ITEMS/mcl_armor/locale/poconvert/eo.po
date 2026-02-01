@@ -17,28 +17,28 @@ msgid "Upgrade:"
 msgstr "Plibonigo:"
 
 msgid "This is a piece of equippable armor which reduces the amount of damage you receive."
-msgstr "Ĉi tio estas ekipebla kiraso, kiu reduktas la damaĝon, kiun vi ricevas."
+msgstr "Ĉi tiu estas ekipebla armaĵo, kiu reduktas la vundiĝon, kiun vi ricevas."
 
 msgid "To equip it, put it on the corresponding armor slot in your inventory menu."
 msgstr ""
 
 msgid "Leather Cap"
-msgstr ""
+msgstr "Leda Ĉapo"
 
 msgid "Leather Tunic"
 msgstr ""
 
 msgid "Leather Pants"
-msgstr ""
+msgstr "Leda Pantalono"
 
 msgid "Leather Boots"
-msgstr ""
+msgstr "Leda Boto"
 
 msgid "Colorize a piece of leather armor, or wash it"
-msgstr ""
+msgstr "Colorigi pecon da leda armaĵo, aŭ lavi ĝin"
 
 msgid "Not leather armor."
-msgstr ""
+msgstr "Ĝi ne estas leda armaĵo."
 
 msgid "Washed."
 msgstr ""
@@ -95,64 +95,64 @@ msgid "Wild Armor Trim"
 msgstr ""
 
 msgid "Golden Helmet"
-msgstr ""
+msgstr "Ora Kasko"
 
 msgid "Golden Chestplate"
-msgstr ""
+msgstr "Ora Brustarmaĵo"
 
 msgid "Golden Leggings"
-msgstr ""
+msgstr "Ora Krurkiraso"
 
 msgid "Golden Boots"
-msgstr ""
+msgstr "Ora Boto"
 
 msgid "Chainmail Helmet"
-msgstr ""
+msgstr "Maŝkirasa Kasko"
 
 msgid "Chainmail Chestplate"
-msgstr ""
+msgstr "Maŝkirasa Brustarmaĵo"
 
 msgid "Chainmail Leggings"
-msgstr ""
+msgstr "Maŝkirasa Krurkiraso"
 
 msgid "Chainmail Boots"
-msgstr ""
+msgstr "Maŝkirasa Boto"
 
 msgid "Iron Helmet"
-msgstr ""
+msgstr "Fera Kasko"
 
 msgid "Iron Chestplate"
-msgstr ""
+msgstr "Fera Brustarmaĵo"
 
 msgid "Iron Leggings"
-msgstr ""
+msgstr "Fera Krurkiraso"
 
 msgid "Iron Boots"
-msgstr ""
+msgstr "Fera Boto"
 
 msgid "Diamond Helmet"
-msgstr ""
+msgstr "Diamanta Kasko"
 
 msgid "Diamond Chestplate"
-msgstr ""
+msgstr "Diamanta Brustarmaĵo"
 
 msgid "Diamond Leggings"
-msgstr ""
+msgstr "Diamanta Krurkiraso"
 
 msgid "Diamond Boots"
-msgstr ""
+msgstr "Diamanta Boto"
 
 msgid "Netherite Helmet"
-msgstr ""
+msgstr "Inferfera Kasko"
 
 msgid "Netherite Chestplate"
-msgstr ""
+msgstr "Inferfera Brustarmaĵo"
 
 msgid "Netherite Leggings"
-msgstr ""
+msgstr "Inferfera Krurkiraso"
 
 msgid "Netherite Boots"
-msgstr ""
+msgstr "Inferfera Boto"
 
 msgid "Projectile Protection"
 msgstr ""
@@ -212,7 +212,7 @@ msgid "Applies to:"
 msgstr ""
 
 msgid "Armor"
-msgstr "Kiraso"
+msgstr "Armaĵo"
 
 msgid "Ingredients:"
 msgstr ""

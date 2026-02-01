@@ -14,7 +14,7 @@ msgstr ""
 "X-Generator: mtt_convert 0.1.1\n"
 
 msgid "Upgrade:"
-msgstr ""
+msgstr "升级:"
 
 msgid "This is a piece of equippable armor which reduces the amount of damage you receive."
 msgstr "这是一件可装备的盔甲，它能减少你所受到的伤害量。"

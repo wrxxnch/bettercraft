@@ -5,27 +5,24 @@ local function get_fpos(placer, pointed_thing)
 	return finepos.y % 1 or 0
 end
 
-local on_rotate
-if core.get_modpath("screwdriver") then
-	on_rotate = function(pos, node, _, mode, _)
-		-- Flip trapdoor vertically
-		if mode == screwdriver.ROTATE_AXIS then
-			local minor = node.param2
-			if node.param2 >= 20 then
-				minor = node.param2 - 20
-				if minor == 3 then minor = 1 elseif minor == 1 then minor = 3 end
+local function	on_rotate(pos, node, _, mode, _)
+	-- Flip trapdoor vertically
+	if mode == screwdriver.ROTATE_AXIS then
+		local minor = node.param2
+		if node.param2 >= 20 then
+			minor = node.param2 - 20
+			if minor == 3 then minor = 1 elseif minor == 1 then minor = 3 end
 
-				node.param2 = minor
-			else
-				if minor == 3 then minor = 1 elseif minor == 1 then minor = 3 end
+			node.param2 = minor
+		else
+			if minor == 3 then minor = 1 elseif minor == 1 then minor = 3 end
 
-				node.param2 = minor
-				node.param2 = node.param2 + 20
-			end
-			core.set_node(pos, node)
-
-			return true
+			node.param2 = minor
+			node.param2 = node.param2 + 20
 		end
+		core.set_node(pos, node)
+
+		return true
 	end
 end
 
@@ -36,19 +33,53 @@ function mcl_doors:register_trapdoor(name, def)
 	if not def.sound_open then def.sound_open = "doors_door_open" end
 	if not def.sound_close then def.sound_close = "doors_door_close" end
 
+	local function close(pos)
+		local me = core.get_node(pos)
+		if core.get_item_group(me.name, "trapdoor") > 0 then
+			name = name:gsub("_open", "")
+			if me.name ~= name then
+				core.sound_play(def.sound_close, {pos = pos, gain = 0.3, max_hear_distance = 16}, true)
+			end
+			core.set_node(pos, {name=name, param1=me.param1, param2=me.param2})
+		end
+	end
+
+	local function open(pos)
+		local me = core.get_node(pos)
+		if core.get_item_group(me.name, "trapdoor") > 0 then
+			if not name:find("_open") then
+				name = name.."_open"
+			end
+			if me.name ~= name then
+				core.sound_play(def.sound_open, {pos = pos, gain = 0.3, max_hear_distance = 16}, true)
+			end
+			core.set_node(pos, {name=name, param1=me.param1, param2=me.param2})
+		end
+	end
+
 	local function punch(pos)
 		local me = core.get_node(pos)
-		local tmp_node
-		-- Close
 		if core.get_item_group(me.name, "trapdoor") == 2 then
-			core.sound_play(def.sound_close, {pos = pos, gain = 0.3, max_hear_distance = 16}, true)
-			tmp_node = {name=name, param1=me.param1, param2=me.param2}
-		-- Open
+			close(pos)
 		else
-			core.sound_play(def.sound_open, {pos = pos, gain = 0.3, max_hear_distance = 16}, true)
-			tmp_node = {name=name.."_open", param1=me.param1, param2=me.param2}
+			open(pos)
 		end
-		core.set_node(pos, tmp_node)
+	end
+
+	local function on_redstone_update(pos)
+		local meta = core.get_meta(pos)
+		local previous_power = meta:get_int("redstone_power")
+		local power = mcl_redstone.get_power(pos)
+
+		if power ~= previous_power then
+			if power ~= 0 then
+				open(pos)
+			else
+				close(pos)
+			end
+		end
+
+		meta:set_int("redstone_power", power)
 	end
 
 	local on_rightclick
@@ -120,9 +151,7 @@ function mcl_doors:register_trapdoor(name, def)
 		_mcl_burntime = def._mcl_burntime,
 		_mcl_redstone = {
 			init = function() end,
-			update = function(pos, _)
-				if mcl_redstone.get_power(pos) ~= 0 then punch(pos) end
-			end
+			update = on_redstone_update,
 		},
 		_tt_help = tt_help,
 		description = def.description,
@@ -177,9 +206,7 @@ function mcl_doors:register_trapdoor(name, def)
 		_mcl_baseitem = name,
 		_mcl_redstone = {
 			init = function() end,
-			update = function(pos, _)
-				if mcl_redstone.get_power(pos) == 0 then punch(pos) end
-			end
+			update = on_redstone_update
 		},
 		-- TODO: Implement Minecraft behaviour: Climbable if directly above
 		-- ladder w/ matching orientation.
@@ -194,7 +221,5 @@ function mcl_doors:register_trapdoor(name, def)
 		tiles = tiles_open
 	}))
 
-	if core.get_modpath("doc") then
-		doc.add_entry_alias("nodes", name, "nodes", name.."_open")
-	end
+	doc.add_entry_alias("nodes", name, "nodes", name.."_open")
 end

@@ -14,31 +14,31 @@ msgstr ""
 "X-Generator: mtt_convert 0.1.1\n"
 
 msgid "Copper Ingot"
-msgstr "Kupringoto"
+msgstr "Kupra fandaĵo"
 
 msgid "Molten Raw Copper. It is used to craft blocks."
-msgstr ""
+msgstr "Fandita kruda kupro. Ĝi estas uzata por fari blokojn."
 
 msgid "Copper Material"
-msgstr ""
+msgstr "Kupra Materialo"
 
 msgid "Raw Copper"
-msgstr ""
+msgstr "Kruda Kupro"
 
 msgid "Raw Copper. Mine a Copper Ore to get it."
-msgstr ""
+msgstr "Kruda Kupro. Minu Kupran Ercon por akiri ĝin."
 
 msgid "Block of Copper"
-msgstr ""
+msgstr "Bloko de Kupro"
 
 msgid "Block of Copper is mostly a decorative block."
-msgstr ""
+msgstr "Bloko de Kupro ĉefe estas ornama bloko."
 
 msgid "Chiseled Copper"
-msgstr ""
+msgstr "Ĉizita Kupro"
 
 msgid "Chiseled Copper is mostly a decorative block."
-msgstr ""
+msgstr "Ĉizita Kupro ĉefe estas ornama bloko."
 
 msgid "Copper Bulb"
 msgstr ""
@@ -56,7 +56,7 @@ msgid "Copper Bulb is mostly a decorative block."
 msgstr ""
 
 msgid "Copper Door"
-msgstr ""
+msgstr "Kupra Pordo"
 
 msgid "Copper Grate"
 msgstr ""
@@ -65,7 +65,7 @@ msgid "Copper Grate is mostly a decorative block."
 msgstr ""
 
 msgid "Copper Trapdoor"
-msgstr ""
+msgstr "Kupra Klappordo"
 
 msgid "Cut Copper"
 msgstr ""
@@ -371,13 +371,13 @@ msgid "Weathered Cut Copper is mostly a decorative block."
 msgstr ""
 
 msgid "Copper Ore"
-msgstr ""
+msgstr "Kupra Erco"
 
 msgid "Some copper contained in stone, it is pretty common and can be found below sea level."
 msgstr ""
 
 msgid "Block of Raw Copper"
-msgstr ""
+msgstr "Bloko de Kruda Kupro"
 
 msgid "A block used for compact raw copper storage."
 msgstr ""

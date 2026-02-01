@@ -1,15 +1,13 @@
-
 local C = core.colorize
 local S = core.get_translator(core.get_current_modname())
 
 local base_color = "#794100"
 
 local function color_string_to_table(colorstring)
-	if not colorstring or colorstring == "" then return {r=0, g=0, b=0} end
 	return {
-		r = tonumber(colorstring:sub(2,3), 16) or 0,
-		g = tonumber(colorstring:sub(4,5), 16) or 0,
-		b = tonumber(colorstring:sub(6,7), 16) or 0,
+		r = tonumber(colorstring:sub(2,3), 16), -- 16 as second parameter allows hexadecimal
+		g = tonumber(colorstring:sub(4,5), 16),
+		b = tonumber(colorstring:sub(6,7), 16),
 	}
 end
 
@@ -45,23 +43,19 @@ function mcl_armor.colorize_leather_armor(itemstack, colorstring)
 	meta:set_string("inventory_image",
 		itemstack:get_definition().inventory_image:gsub(".png$", "_desat.png") .. "^[multiply:" .. colorstring
 	)
-	if tt and tt.reload_itemstack_description then
-		tt.reload_itemstack_description(itemstack)
-	end
+	tt.reload_itemstack_description(itemstack)
 	return itemstack
 end
 
 
 function mcl_armor.wash_leather_armor(itemstack)
-	if not itemstack or core.get_item_group(itemstack:get_name(), "armor_leather") == 0 then
-		return itemstack
+	if not itemstack or itemstack:get_definition().groups.armor_leather ~= 1 then
+		return
 	end
 	local meta = itemstack:get_meta()
 	meta:set_string("mcl_armor:color", "")
 	meta:set_string("inventory_image", "")
-	if tt and tt.reload_itemstack_description then
-		tt.reload_itemstack_description(itemstack)
-	end
+	tt.reload_itemstack_description(itemstack)
 	return itemstack
 end
 
@@ -97,7 +91,7 @@ mcl_armor.register_set({
 })
 
 tt.register_priority_snippet(function(_, _, itemstack)
-	if not itemstack or core.get_item_group(itemstack:get_name(), "armor_leather") == 0 then
+	if not itemstack or itemstack:get_definition().groups.armor_leather ~= 1 then
 		return
 	end
 	local color = itemstack:get_meta():get_string("mcl_armor:color")
@@ -107,36 +101,74 @@ tt.register_priority_snippet(function(_, _, itemstack)
 	end
 end)
 
--- Lógica de Crafting Dinâmica
-local function colorizing_crafting(itemstack, player, old_craft_grid, craft_inv)
-	local found_la = nil
-	local dye_color = nil
-	local items_count = 0
+for _, element in pairs(mcl_armor.elements) do
+	local modname = core.get_current_modname()
+	local itemname = modname .. ":" .. element.name .. "_leather"
+	core.register_craft({
+		type = "shapeless",
+		output = itemname,
+		recipe = {
+			itemname,
+			"group:dye",
+		},
+	})
+	local ench_itemname = itemname .. "_enchanted"
+	core.register_craft({
+		type = "shapeless",
+		output = ench_itemname,
+		recipe = {
+			ench_itemname,
+			"group:dye",
+		},
+	})
+end
 
+local function colorizing_crafting(itemstack, _, old_craft_grid, _)
+	if core.get_item_group(itemstack:get_name(), "armor_leather") == 0 then
+		return
+	end
+
+	local found_la
+	local dye_color
 	for _, item in pairs(old_craft_grid) do
 		local name = item:get_name()
 		if name ~= "" then
-			items_count = items_count + 1
 			if core.get_item_group(name, "armor_leather") > 0 then
-				if found_la then return nil end
-				found_la = ItemStack(item)
+				if found_la then return end
+				found_la = item
 			elseif core.get_item_group(name, "dye") > 0 then
-				if dye_color then return nil end
-				local def = core.registered_items[name]
-				if def and def._color and mcl_dyes and mcl_dyes.colors[def._color] then
-					dye_color = mcl_dyes.colors[def._color].rgb
-				end
-			else
-				return nil
-			end
+				if dye_color then return end
+				dye_color = mcl_dyes.colors[core.registered_items[name]._color].rgb
+			else return end
 		end
 	end
-
-	if items_count == 2 and found_la and dye_color then
-		return mcl_armor.colorize_leather_armor(found_la, dye_color)
-	end
-	return nil
+	return mcl_armor.colorize_leather_armor(found_la, dye_color) or ItemStack()
 end
 
 core.register_craft_predict(colorizing_crafting)
 core.register_on_craft(colorizing_crafting)
+
+core.register_chatcommand("color_leather", {
+	params = "<color>",
+	description = S("Colorize a piece of leather armor, or wash it"),
+	privs = { debug = true, },
+	func = function(name, param)
+		local player = core.get_player_by_name(name)
+		if player then
+			local item = player:get_wielded_item()
+			if not item or  core.get_item_group(item:get_name(), "armor_leather") == 0 then
+				return false, S("Not leather armor.")
+			end
+			if param == "wash" then
+				player:set_wielded_item(mcl_armor.wash_leather_armor(item))
+				return true, S("Washed.")
+			end
+			local colorstring = core.colorspec_to_colorstring(param)
+			if not colorstring then return false, "Invalid color" end
+			player:set_wielded_item(mcl_armor.colorize_leather_armor(item, colorstring))
+			return true, S("Done: @1", colorstring)
+		else
+			return false, S("Player isn't online")
+		end
+	end,
+})

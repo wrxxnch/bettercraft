@@ -1,4 +1,3 @@
-local S = core.get_translator("mcl_lanterns")
 local modpath = core.get_modpath("mcl_lanterns")
 
 mcl_lanterns = {}
@@ -19,10 +18,9 @@ local allowed_non_solid_nodes_floor = {
 	"mcl_end:end_rod",
 	"mcl_end:dragon_egg",
 	"mcl_portals:end_portal_frame_eye",
-	"mcl_lanterns:chain"
 }
 
-local allowed_non_solid_groups_floor = {"anvil", "wall", "glass", "fence", "fence_gate", "pane", "slab_top"}
+local allowed_non_solid_groups_floor = {"anvil", "wall", "glass", "fence", "fence_gate", "pane", "slab_top", "chain"}
 
 local allowed_non_solid_nodes_ceiling = {
 	"mcl_core:ice",
@@ -33,10 +31,9 @@ local allowed_non_solid_nodes_ceiling = {
 	"mcl_end:chorus_flower_dead",
 	"mcl_end:end_rod",
 	"mcl_core:grass_path",
-	"mcl_lanterns:chain"
 }
 
-local allowed_non_solid_groups_ceiling = {"anvil", "wall", "glass", "fence", "fence_gate", "soil", "pane", "end_portal_frame"}
+local allowed_non_solid_groups_ceiling = {"anvil", "wall", "glass", "fence", "fence_gate", "soil", "pane", "end_portal_frame", "chain"}
 
 local function check_placement(node, wdir)
 	local nn = node.name
@@ -168,15 +165,28 @@ function mcl_lanterns.register_lantern(name, def)
 				return itemstack
 			end
 
+			local fakestack_name = fakestack:get_name ()
 			if wdir == 0 then
-				fakestack:set_name(itemstring_ceiling)
+				fakestack:set_name(
+					fakestack_name:find ("_preserved")
+					and itemstring_ceiling .. "_preserved"
+					or itemstring_ceiling
+				)
 			elseif wdir == 1 then
-				fakestack:set_name(itemstring_floor)
+				fakestack:set_name(
+					fakestack_name:find ("_preserved")
+					and itemstring_floor .. "_preserved"
+					or itemstring_floor
+				)
 			end
 
 			local success
 			itemstack, success = core.item_place_node(fakestack, placer, pointed_thing, wdir)
-			itemstack:set_name(itemstring_floor)
+			itemstack:set_name(
+				fakestack_name:find ("_preserved")
+				and itemstring_floor .. "_preserved"
+				or itemstring_floor
+			)
 
 			if success then
 				core.sound_play(sounds.place, {pos = under, gain = 1}, true)
@@ -230,23 +240,14 @@ function mcl_lanterns.register_lantern(name, def)
 	})
 end
 
-core.register_node("mcl_lanterns:chain", {
-	description = S("Chain"),
-	_doc_items_longdesc = S("Chains are metallic decoration blocks."),
-
-	inventory_image = "mcl_lanterns_chain_inv.png",
-	tiles = {"mcl_lanterns_chain.png"},
-
+local chain_tpl = {
 	drawtype = "mesh",
-	mesh = "mcl_lanterns_chain.obj",
-
 	paramtype = "light",
 	paramtype2 = "facedir",
 	use_texture_alpha = "clip",
-
+	mesh = "mcl_lanterns_chain.obj",
 	is_ground_content = false,
 	sunlight_propagates = true,
-
 	collision_box = {
 		type = "fixed",
 		fixed = {
@@ -259,34 +260,13 @@ core.register_node("mcl_lanterns:chain", {
 			{-0.0625, -0.5, -0.0625, 0.0625, 0.5, 0.0625},
 		}
 	},
-
-	groups = {pickaxey = 1, deco_block = 1},
+	groups = {chain=1, pickaxey=1, deco_block=1},
 	sounds = mcl_sounds.node_sound_metal_defaults(),
-
-	-- >>> LÓGICA DE ITEM FRAME (ADICIONADA) <<<
-	_mcl_item_frame_item = true,
-	_mcl_item_frame_entity_texture = "mcl_lanterns_chain.png",
-
 	on_place = function(itemstack, placer, pointed_thing)
-		-- Permite colocar no Item Frame (respeita on_rightclick)
-		if pointed_thing.type == "node" then
-			local node = core.get_node(pointed_thing.under)
-			local def = core.registered_nodes[node.name]
-			if def and def.on_rightclick
-			and not (placer and placer:get_player_control().sneak) then
-				return def.on_rightclick(
-					pointed_thing.under,
-					node,
-					placer,
-					itemstack,
-					pointed_thing
-				)
-			end
-		end
+		local rc = mcl_util.call_on_rightclick(itemstack, placer, pointed_thing)
+		if rc then return rc end
 
-		if pointed_thing.type ~= "node"
-		or not placer
-		or not placer:is_player() then
+		if pointed_thing.type ~= "node" or not placer or not placer:is_player() then
 			return itemstack
 		end
 
@@ -318,21 +298,16 @@ core.register_node("mcl_lanterns:chain", {
 
 		return core.item_place_node(itemstack, placer, pointed_thing, param2)
 	end,
-
 	_mcl_blast_resistance = 6,
 	_mcl_hardness = 5,
-})
+}
 
 
-core.register_craft({
-	output = "mcl_lanterns:chain",
-	recipe = {
-		{"mcl_core:iron_nugget"},
-		{"mcl_core:iron_ingot"},
-		{"mcl_core:iron_nugget"},
-	},
-})
+function mcl_lanterns.register_chain(name, def)
+	core.register_node(":mcl_lanterns:"..name, table.merge(chain_tpl, def))
+end
+
+
 
 dofile(modpath.."/register.lua")
 dofile(modpath.."/gold_chain.lua")
-

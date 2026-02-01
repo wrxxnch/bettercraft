@@ -14,209 +14,209 @@ msgstr ""
 "X-Generator: mtt_convert 0.1.1\n"
 
 msgid "Upgrade:"
-msgstr ""
+msgstr "Parannus:"
 
 msgid "This is a piece of equippable armor which reduces the amount of damage you receive."
-msgstr ""
+msgstr "Tämä on osa päällepuettavaa haarniskaa, joka vähentää vastaanottamasi vahingon määrää."
 
 msgid "To equip it, put it on the corresponding armor slot in your inventory menu."
-msgstr ""
+msgstr "Pukeaksesi sen yllesi aseta se vastaavaan haarniskaruutuun tavaraluettelossasi."
 
 msgid "Leather Cap"
-msgstr ""
+msgstr "Nahkapäähine"
 
 msgid "Leather Tunic"
-msgstr ""
+msgstr "Nahkatakki"
 
 msgid "Leather Pants"
-msgstr ""
+msgstr "Nahkahousut"
 
 msgid "Leather Boots"
-msgstr ""
+msgstr "Nahkasaappaat"
 
 msgid "Colorize a piece of leather armor, or wash it"
-msgstr ""
+msgstr "Värjää tai pese nahkavaate"
 
 msgid "Not leather armor."
-msgstr ""
+msgstr "Ei nahkavaruste."
 
 msgid "Washed."
-msgstr ""
+msgstr "Pesty."
 
 msgid "Done: @1"
-msgstr ""
+msgstr "Valmis: @1"
 
 msgid "Player isn't online"
-msgstr ""
+msgstr "Pelaaja ei ole paikalla"
 
 msgid "Bolt Armor Trim"
-msgstr ""
+msgstr "Salama-haarniskakoristus"
 
 msgid "Coast Armor Trim"
-msgstr ""
+msgstr "Rannikko-haarniskakoristus"
 
 msgid "Dune Armor Trim"
-msgstr ""
+msgstr "Dyyni-haarniskakoristus"
 
 msgid "Eye Armor Trim"
-msgstr ""
+msgstr "Silmä-haarniskakoristus"
 
 msgid "Flow Armor Trim"
-msgstr ""
+msgstr "Virta-haarniskakoristus"
 
 msgid "Rib Armor Trim"
-msgstr ""
+msgstr "Kylkiluu-haarniskakoristus"
 
 msgid "Sentry Armor Trim"
-msgstr ""
+msgstr "Vartiosotilas-haarniskakoristus"
 
 msgid "Silence Armor Trim"
-msgstr ""
+msgstr "Hiljaisuus-haarniskakoristus"
 
 msgid "Snout Armor Trim"
-msgstr ""
+msgstr "Kärsä-haarniskakoristus"
 
 msgid "Spire Armor Trim"
-msgstr ""
+msgstr "Tornin huippu -haarniskakoristus"
 
 msgid "Tide Armor Trim"
-msgstr ""
+msgstr "Vuorovesi-haarniskakoristus"
 
 msgid "Vex Armor Trim"
-msgstr ""
+msgstr "Kiusanhenki-haarniskakoristus"
 
 msgid "Ward Armor Trim"
-msgstr ""
+msgstr "Suojelija-haarniskakoristus"
 
 msgid "Wayfinder Armor Trim"
-msgstr ""
+msgstr "Suunnistaja-haarniskakoristus"
 
 msgid "Wild Armor Trim"
-msgstr ""
+msgstr "Kesyttämätön-haarniskakoristus"
 
 msgid "Golden Helmet"
-msgstr ""
+msgstr "Kultakypärä"
 
 msgid "Golden Chestplate"
-msgstr ""
+msgstr "Kultarintapanssari"
 
 msgid "Golden Leggings"
-msgstr ""
+msgstr "Kultajalkapanssari"
 
 msgid "Golden Boots"
-msgstr ""
+msgstr "Kultakengät"
 
 msgid "Chainmail Helmet"
-msgstr ""
+msgstr "Silmukkakypärä"
 
 msgid "Chainmail Chestplate"
-msgstr ""
+msgstr "Silmukkarintapanssari"
 
 msgid "Chainmail Leggings"
-msgstr ""
+msgstr "Silmukkajalkapanssari"
 
 msgid "Chainmail Boots"
-msgstr ""
+msgstr "Silmukkakengät"
 
 msgid "Iron Helmet"
-msgstr ""
+msgstr "Rautakypärä"
 
 msgid "Iron Chestplate"
-msgstr ""
+msgstr "Rautarintapanssari"
 
 msgid "Iron Leggings"
-msgstr ""
+msgstr "Rautajalkapanssari"
 
 msgid "Iron Boots"
-msgstr ""
+msgstr "Rautakengät"
 
 msgid "Diamond Helmet"
-msgstr ""
+msgstr "Timanttikypärä"
 
 msgid "Diamond Chestplate"
-msgstr ""
+msgstr "Timanttirintapanssari"
 
 msgid "Diamond Leggings"
-msgstr ""
+msgstr "Timanttijalkapanssari"
 
 msgid "Diamond Boots"
-msgstr ""
+msgstr "Timanttikengät"
 
 msgid "Netherite Helmet"
-msgstr ""
+msgstr "Horniittikypärä"
 
 msgid "Netherite Chestplate"
-msgstr ""
+msgstr "Horniittirintapanssari"
 
 msgid "Netherite Leggings"
-msgstr ""
+msgstr "Horniittijalkapanssari"
 
 msgid "Netherite Boots"
-msgstr ""
+msgstr "Horniittikengät"
 
 msgid "Projectile Protection"
-msgstr ""
+msgstr "Ammussuojaus"
 
 msgid "Reduces projectile damage."
-msgstr ""
+msgstr "Vähentää ammuksen aiheuttamaa vahinkoa."
 
 msgid "Blast Protection"
-msgstr ""
+msgstr "Räjähdyssuojaus"
 
 msgid "Reduces explosion damage and knockback."
-msgstr ""
+msgstr "Vähentää räjähdyksen aiheuttamaa vahinkoa ja tönäisyvoimaa."
 
 msgid "Fire Protection"
-msgstr ""
+msgstr "Tulisuojaus"
 
 msgid "Reduces fire damage."
-msgstr ""
+msgstr "Vähentää tulen aiheuttamaa vahinkoa."
 
 msgid "Protection"
-msgstr ""
+msgstr "Suojaus"
 
 msgid "Reduces most types of damage by 4% for each level."
-msgstr ""
+msgstr "Vähentää monenlaista vahinkoa neljän (4) prosentin verran kutakin tasoa kohden."
 
 msgid "Feather Falling"
-msgstr ""
+msgstr "Höyhenkeveys"
 
 msgid "Reduces fall damage."
-msgstr ""
+msgstr "Vähentää putoamisen aiheuttamaa vahinkoa."
 
 msgid "Aqua Affinity"
-msgstr ""
+msgstr "Vedenmieltymys"
 
 msgid "Increases underwater mining speed."
-msgstr ""
+msgstr "Parantaa kaivuunopeutta veden alla."
 
 msgid "Curse of Binding"
-msgstr ""
+msgstr "Sitoutumisen kirous"
 
 msgid "Item cannot be removed from armor slots except due to death, breaking or in Creative Mode."
-msgstr ""
+msgstr "Esinettä ei voi poistaa haarniskaruudusta muutoin kuin kuoleman tai rikkoutumisen kautta tai luovalla tilalla."
 
 msgid "Thorns"
-msgstr ""
+msgstr "Piikikkyys"
 
 msgid "Reflects some of the damage taken when hit, at the cost of reducing durability with each proc."
-msgstr ""
+msgstr "Palauttaa osan vahingosta lyöjään, mutta heikentää kestävyyttä."
 
 msgid "Elytra"
-msgstr ""
+msgstr "Siivet"
 
 msgid "Smithing Template"
-msgstr ""
+msgstr "Taontamuotti"
 
 msgid "Applies to:"
-msgstr ""
+msgstr "Käyttökohde:"
 
 msgid "Armor"
-msgstr ""
+msgstr "Haarniska"
 
 msgid "Ingredients:"
-msgstr ""
+msgstr "Raaka-aineet:"
 
 msgid "Ingot & Crystals"
-msgstr ""
+msgstr "Harkot ja kristallit"
 

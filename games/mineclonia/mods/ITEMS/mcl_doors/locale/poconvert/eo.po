@@ -17,7 +17,7 @@ msgid "This door is a 2-block high barrier which can be opened or closed by hand
 msgstr "Ĉi tiu pordo estas du-bloke alta barilo, kiun oni povas malfermi aŭ fermi mane aŭ per ruĝŝtona potenco."
 
 msgid "This door is a 2-block high barrier which can only be opened by redstone power, not by hand."
-msgstr ""
+msgstr "Ĉi tiu pordo estas du-bloke alta bariero, kiu povas esti malfermita nur per ruĝŝtona potenco, ne per mano."
 
 msgid "To open or close this door, send a redstone signal to its bottom half."
 msgstr ""
@@ -29,7 +29,7 @@ msgid "Openable by redstone power"
 msgstr ""
 
 msgid "Openable by players and redstone power"
-msgstr ""
+msgstr "Malfermebla per ludantoj aŭ ruĝŝtona potenco"
 
 msgid "Trapdoors are horizontal barriers which can be opened or closed and climbed like a ladder when open. They occupy the upper or lower part of a block, depending on how they have been placed. This trapdoor can only be opened or closed by redstone power."
 msgstr ""
@@ -50,7 +50,7 @@ msgid "To open or close an iron door, supply its lower half with a redstone sign
 msgstr ""
 
 msgid "Iron Trapdoor"
-msgstr ""
+msgstr "Fera Klappordo"
 
 msgid "Iron trapdoors are horizontal barriers which can only be opened and closed by redstone signals, but not by hand. They occupy the upper or lower part of a block, depending on how they have been placed. When open, they can be climbed like a ladder."
 msgstr ""
