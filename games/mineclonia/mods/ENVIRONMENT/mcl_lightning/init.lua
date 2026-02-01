@@ -12,9 +12,12 @@ of the license, or (at your option) any later version.
 
 local S = core.get_translator(core.get_current_modname())
 
+-- valor padrão do engine
+local DEFAULT_TIME_SPEED = 72
+
 core.register_chatcommand("dodaynightcycle", {
 	params = S("<true|false>"),
-	description = S("Enable or disable day/night cycle"),
+	description = S("Enable or disable day/night cycle (freeze time)"),
 	privs = { server = true },
 
 	func = function(name, param)
@@ -24,19 +27,20 @@ core.register_chatcommand("dodaynightcycle", {
 			return false, S("Invalid parameter. Use true or false.")
 		end
 
-		local enable = (param == "true")
-
-		core.settings:set_bool("enable_day_night_cycle", enable)
-
-		if enable then
-			core.chat_send_all(S("☀️ Day/Night cycle enabled"))
-		else
+		if param == "false" then
+			-- CONGELA O TEMPO
+			core.settings:set("time_speed", "0")
 			core.chat_send_all(S("🌙 Day/Night cycle disabled (time frozen)"))
+		else
+			-- VOLTA A RODAR
+			core.settings:set("time_speed", tostring(DEFAULT_TIME_SPEED))
+			core.chat_send_all(S("☀️ Day/Night cycle enabled"))
 		end
 
 		return true
 	end
 })
+
 
 mcl_lightning = {
 	interval_low = 17,
