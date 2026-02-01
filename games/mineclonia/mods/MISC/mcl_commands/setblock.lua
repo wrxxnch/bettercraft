@@ -1,38 +1,46 @@
 local S = core.get_translator(core.get_current_modname())
 
 -- =========================
--- helpers para coordenadas ~
+-- Utils
 -- =========================
-local function parse_coord(token, base)
-    if token == "~" then
-        return base
-    end
-
-    local offset = token:match("^~([%d.-]+)$")
-    if offset then
-        return base + tonumber(offset)
-    end
-
-    return tonumber(token)
+local function trim(s)
+	return s:match("^%s*(.-)%s*$")
 end
 
--- Resolve aliases e nomes curtos
 local function resolve_node_name(name)
-    while core.registered_aliases[name] do
-        name = core.registered_aliases[name]
-    end
+	while core.registered_aliases[name] do
+		name = core.registered_aliases[name]
+	end
 
-    if not name:find(":") then
-        for regname in pairs(core.registered_nodes) do
-            local short = regname:match(":(.+)$")
-            if short and short == name then
-                return regname
-            end
-        end
-    end
+	if not name:find(":") then
+		for regname in pairs(core.registered_nodes) do
+			local short = regname:match(":(.+)$")
+			if short == name then
+				return regname
+			end
+		end
+	end
 
-    return name
+	return name
 end
+
+local function parse_pos(player, x, y, z)
+	local p = vector.round(player:get_pos())
+
+	local function r(v, base)
+		if v:sub(1,1) == "~" then
+			return base + tonumber(v:sub(2) ~= "" and v:sub(2) or 0)
+		end
+		return tonumber(v)
+	end
+
+	return {
+		x = r(x, p.x),
+		y = r(y, p.y),
+		z = r(z, p.z)
+	}
+end
+
 
 -- =========================
 -- /setblock
@@ -176,162 +184,148 @@ core.register_chatcommand("setblock_pick", {
 })
 
 -- =========================
--- /fill com suporte a ~
+-- UNDO por jogador
 -- =========================
-core.register_chatcommand("fill", {
-    params = S("<x1> <y1> <z1> <x2> <y2> <z2> [block] [mode] [replace_block]"),
-    description = S("Fill area (normal, hollow, replace, destroy)"),
-    privs = {
-        give = true,
-        interact = true
-    },
+local fill_undo = {}
 
-    func = function(name, param)
-        -- quebra por espaços (permite ~)
-        local P = {}
-        for w in param:gmatch("%S+") do
-            P[#P + 1] = w
-        end
+local function save_undo(playername, pos, node)
+	fill_undo[playername] = fill_undo[playername] or {}
+	table.insert(fill_undo[playername], {
+		pos = vector.new(pos),
+		node = node.name
+	})
+end
 
-        if #P < 6 then
-            return false, S("Invalid parameters (need 6 coordinates)")
-        end
+core.register_chatcommand("undo_fill", {
+	description = "Undo last /fill",
+	privs = { give = true, interact = true },
 
-        local player = core.get_player_by_name(name)
-        if not player then
-            return false
-        end
+	func = function(name)
+		local data = fill_undo[name]
+		if not data or #data == 0 then
+			return false, "Nothing to undo."
+		end
 
-        local ppos = vector.round(player:get_pos())
+		for i = #data, 1, -1 do
+			local d = data[i]
+			core.set_node(d.pos, { name = d.node })
+		end
 
-        local x1 = parse_coord(P[1], ppos.x)
-        local y1 = parse_coord(P[2], ppos.y)
-        local z1 = parse_coord(P[3], ppos.z)
-        local x2 = parse_coord(P[4], ppos.x)
-        local y2 = parse_coord(P[5], ppos.y)
-        local z2 = parse_coord(P[6], ppos.z)
-
-        if not (x1 and y1 and z1 and x2 and y2 and z2) then
-            return false, S("Invalid coordinates")
-        end
-
-        -- argumentos opcionais
-        local block = P[7]
-        local mode = P[8] or "normal"
-        local replace_block = P[9]
-
-        -- determinar bloco principal
-        local nodename
-        if block and block ~= "" then
-            nodename = resolve_node_name(block)
-            if not core.registered_nodes[nodename] then
-                return false, S("Unknown block: @1", block)
-            end
-        else
-            -- usar cache do setblock_search
-            local meta = player:get_meta()
-            local results = core.deserialize(meta:get_string("setblock_search_results"))
-            if not results or not results[1] then
-                return false, S("No cached block found. Use /setblock_search.")
-            end
-            nodename = results[1]
-        end
-
-        local replace_name
-        if mode == "replace" then
-            if not replace_block then
-                return false, S("Replace mode requires a block to replace")
-            end
-            replace_name = resolve_node_name(replace_block)
-            if not core.registered_nodes[replace_name] then
-                return false, S("Unknown replace block: @1", replace_block)
-            end
-        end
-
-        local minp = {
-            x = math.min(x1, x2),
-            y = math.min(y1, y2),
-            z = math.min(z1, z2)
-        }
-        local maxp = {
-            x = math.max(x1, x2),
-            y = math.max(y1, y2),
-            z = math.max(z1, z2)
-        }
-
-        for x = minp.x, maxp.x do
-            for y = minp.y, maxp.y do
-                for z = minp.z, maxp.z do
-                    local is_edge = x == minp.x or x == maxp.x or y == minp.y or y == maxp.y or z == minp.z or z ==
-                                        maxp.z
-
-                    local pos = {
-                        x = x,
-                        y = y,
-                        z = z
-                    }
-                    local node = core.get_node(pos)
-
-                    if mode == "hollow" then
-                        if is_edge then
-                            core.set_node(pos, {
-                                name = nodename,
-                                param2 = 0
-                            })
-                        else
-                            core.set_node(pos, {
-                                name = "air",
-                                param2 = 0
-                            })
-                        end
-
-                        -- ======================
-                        -- KEEP (apenas ar)
-                        -- ======================
-                    elseif mode == "keep" and not replace_name then
-                        if node.name == "air" then
-                            core.set_node(pos, {
-                                name = nodename
-                            })
-                        end
-
-                        -- ======================
-                        -- KEEP específico
-                        -- ======================
-                    elseif mode == "keep" and replace_name then
-                        if node.name == replace_name then
-                            core.set_node(pos, {
-                                name = nodename
-                            })
-                        end
-
-                    elseif mode == "replace" then
-                        if node.name == replace_name then
-                            core.set_node(pos, {
-                                name = nodename,
-                                param2 = 0
-                            })
-                        end
-
-                    elseif mode == "destroy" then
-                        core.remove_node(pos)
-                        core.set_node(pos, {
-                            name = nodename,
-                            param2 = 0
-                        })
-
-                    else -- normal
-                        core.set_node(pos, {
-                            name = nodename,
-                            param2 = 0
-                        })
-                    end
-                end
-            end
-        end
-
-        return true, S("Filled area from (@1,@2,@3) to (@4,@5,@6) with @7.", minp.x, minp.y, minp.z, maxp.x, maxp.y,
-            maxp.z, nodename)
-    end
+		fill_undo[name] = {}
+		return true, "Fill undone."
+	end,
 })
 
+-- =========================
+-- /fill
+-- =========================
+core.register_chatcommand("fill", {
+	params = "<x1> <y1> <z1> <x2> <y2> <z2> <block> [destroy|hollow|keep|replace] [filter]",
+	description = "Fill an area",
+	privs = { give = true, interact = true },
+
+	func = function(name, param)
+		local P = {}
+		for w in param:gmatch("%S+") do
+			P[#P+1] = w
+		end
+
+		if #P < 7 then
+			return false, "Invalid parameters."
+		end
+
+		local player = core.get_player_by_name(name)
+		if not player then return false end
+
+		local p1 = parse_pos(player, P[1], P[2], P[3])
+		local p2 = parse_pos(player, P[4], P[5], P[6])
+
+		local nodename = resolve_node_name(P[7])
+		if not core.registered_nodes[nodename] then
+			return false, "Unknown block."
+		end
+
+		local mode = P[8] or "replace"
+		local filter = P[9]
+
+		-- KEEP PARSER
+		local keep_list, keep_negate
+		if mode == "keep" and filter then
+			keep_list = {}
+			keep_negate = {}
+
+			for part in filter:gmatch("[^,]+") do
+				part = trim(part)
+				if part:sub(1,1) == "!" then
+					keep_negate[resolve_node_name(part:sub(2))] = true
+				else
+					keep_list[resolve_node_name(part)] = true
+				end
+			end
+		end
+
+		local minp = vector.new(
+			math.min(p1.x, p2.x),
+			math.min(p1.y, p2.y),
+			math.min(p1.z, p2.z)
+		)
+
+		local maxp = vector.new(
+			math.max(p1.x, p2.x),
+			math.max(p1.y, p2.y),
+			math.max(p1.z, p2.z)
+		)
+
+		fill_undo[name] = {}
+
+		for x = minp.x, maxp.x do
+		for y = minp.y, maxp.y do
+		for z = minp.z, maxp.z do
+			local pos = {x=x,y=y,z=z}
+			local node = core.get_node(pos)
+
+			-- hollow
+			if mode == "hollow" then
+				if x ~= minp.x and x ~= maxp.x and
+				   y ~= minp.y and y ~= maxp.y and
+				   z ~= minp.z and z ~= maxp.z then
+					goto continue
+				end
+			end
+
+			-- destroy
+			if mode == "destroy" then
+				save_undo(name, pos, node)
+				core.remove_node(pos)
+				goto continue
+			end
+
+			-- replace
+			if mode == "replace" and filter then
+				if node.name ~= resolve_node_name(filter) then
+					goto continue
+				end
+			end
+
+			-- keep
+			if mode == "keep" then
+				if keep_negate and keep_negate[node.name] then
+					goto continue
+				end
+				if keep_list and not keep_list[node.name] then
+					goto continue
+				end
+				if not keep_list and node.name ~= "air" then
+					goto continue
+				end
+			end
+
+			save_undo(name, pos, node)
+			core.set_node(pos, { name = nodename })
+
+			::continue::
+		end end end
+
+		return true, "Filled."
+	end,
+})
