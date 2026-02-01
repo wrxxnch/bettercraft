@@ -13,6 +13,20 @@ core.register_craftitem("mcl_mobitems:rotten_flesh", {
 	_mcl_saturation = 0.8,
 })
 
+core.register_craftitem("mcl_mobitems:copper_horse_armor", {
+	description = S("Copper Horse Armor"),
+	_doc_items_longdesc = S("Copper horse armor can be worn by horses to increase their protection from harm a bit."),
+	_doc_items_usagehelp = horse_armor_use,
+	inventory_image = "mcl_mobitems_copper_horse_armor.png",
+	_horse_overlay_image = "mcl_mobitems_horse_armor_copper.png",
+	sounds = {
+		_mcl_armor_equip = "mcl_armor_equip_iron",
+	},
+	stack_max = 1,
+	groups = { horse_armor = 86 },
+	_mcl_cooking_output = "mcl_copper:copper_nugget"
+})
+
 core.register_craftitem("mcl_mobitems:mutton", {
 	description = S("Raw Mutton"),
 	_doc_items_longdesc = S("Raw mutton is the flesh from a sheep and can be eaten safely. Cooking it will greatly increase its nutritional value."),

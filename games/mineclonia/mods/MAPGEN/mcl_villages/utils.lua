@@ -118,6 +118,7 @@ function mcl_villages.fill_chest(pos, pr)
 				{ itemstring = "mcl_core:apple", weight = 15, amount_min = 1, amount_max = 3 },
 				{ itemstring = "mcl_tools:pick_iron", weight = 5 },
 				{ itemstring = "mcl_tools:sword_iron", weight = 5 },
+				{ itemstring = "mcl_mobitems:copper_horse_armor", weight = 1 },
 				{ itemstring = "mcl_armor:chestplate_iron", weight = 5 },
 				{ itemstring = "mcl_armor:helmet_iron", weight = 5 },
 				{ itemstring = "mcl_armor:leggings_iron", weight = 5 },

@@ -74,7 +74,8 @@ mcl_structures.register_structure("end_shrine",{
 				{ itemstring = "mcl_throwing:ender_pearl", weight = 10, amount_min = 1, amount_max = 1 },
 				{ itemstring = "mesecons:wire_00000000_off", weight = 5, amount_min = 4, amount_max = 9 },
 				{ itemstring = "mcl_core:gold_ingot", weight = 5, amount_min = 1, amount_max = 3 },
-
+                { itemstring = "mcl_mobitems:saddle", weight = 1, },
+				{ itemstring = "mcl_mobitems:copper_horse_armor", weight = 1, },
 				{ itemstring = "mcl_tools:pick_iron", weight = 5, amount_min = 1, amount_max=3 },
 				{ itemstring = "mcl_tools:sword_iron", weight = 5, amount_min = 1, amount_max=3 },
 

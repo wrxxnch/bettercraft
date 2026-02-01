@@ -36,6 +36,7 @@ mcl_structures.register_structure("jungle_temple",{
 				{ itemstring = "mcl_books:book", weight = 1, func = function(stack, pr)
 					mcl_enchanting.enchant_uniform_randomly(stack, {"soul_speed"}, pr)
 				end },
+				{ itemstring = "mcl_mobitems:copper_horse_armor", weight = 1, },
 				{ itemstring = "mcl_mobitems:iron_horse_armor", weight = 1, },
 				{ itemstring = "mcl_mobitems:gold_horse_armor", weight = 1, },
 				{ itemstring = "mcl_mobitems:diamond_horse_armor", weight = 1, },
