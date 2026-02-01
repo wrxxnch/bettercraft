@@ -329,3 +329,149 @@ core.register_chatcommand("fill", {
 		return true, "Filled."
 	end,
 })
+-- =========================
+-- UNDO CLONE
+-- =========================
+local clone_undo = {}
+
+core.register_chatcommand("undo_clone", {
+	description = "Undo last /clone",
+	privs = { give = true, interact = true },
+
+	func = function(name)
+		local data = clone_undo[name]
+		if not data or #data == 0 then
+			return false, "Nothing to undo."
+		end
+
+		for i = #data, 1, -1 do
+			local d = data[i]
+			core.set_node(d.pos, { name = d.node })
+		end
+
+		clone_undo[name] = {}
+		return true, "Clone undone."
+	end,
+})
+
+-- =========================
+-- /clone
+-- =========================
+core.register_chatcommand("clone", {
+	params = "<x1> <y1> <z1> <x2> <y2> <z2> <dx> <dy> <dz> [replace|masked|filtered|keep|move] [filter]",
+	description = "Clone a region to another location",
+	privs = { give = true, interact = true },
+
+	func = function(name, param)
+		local P = {}
+		for w in param:gmatch("%S+") do
+			P[#P+1] = w
+		end
+
+		if #P < 9 then
+			return false, "Invalid parameters."
+		end
+
+		local player = core.get_player_by_name(name)
+		if not player then return false end
+
+		local p1 = parse_pos(player, P[1], P[2], P[3])
+		local p2 = parse_pos(player, P[4], P[5], P[6])
+		local dest = parse_pos(player, P[7], P[8], P[9])
+
+		local mode = P[10] or "replace"
+		local filter = P[11]
+
+		-- keep parser
+		local keep_list, keep_negate
+		if mode == "keep" and filter then
+			keep_list = {}
+			keep_negate = {}
+			for part in filter:gmatch("[^,]+") do
+				part = trim(part)
+				if part:sub(1,1) == "!" then
+					keep_negate[resolve_node_name(part:sub(2))] = true
+				else
+					keep_list[resolve_node_name(part)] = true
+				end
+			end
+		end
+
+		local minp = vector.new(
+			math.min(p1.x, p2.x),
+			math.min(p1.y, p2.y),
+			math.min(p1.z, p2.z)
+		)
+
+		local maxp = vector.new(
+			math.max(p1.x, p2.x),
+			math.max(p1.y, p2.y),
+			math.max(p1.z, p2.z)
+		)
+
+		local size = vector.add(vector.subtract(maxp, minp), 1)
+		clone_undo[name] = {}
+
+		-- cache origem
+		local buffer = {}
+
+		for x = minp.x, maxp.x do
+		for y = minp.y, maxp.y do
+		for z = minp.z, maxp.z do
+			local pos = {x=x,y=y,z=z}
+			local node = core.get_node(pos)
+			buffer[#buffer+1] = {
+				rel = vector.subtract(pos, minp),
+				node = node.name
+			}
+		end end end
+
+		-- aplicar
+		for _, data in ipairs(buffer) do
+			local target = vector.add(dest, data.rel)
+			local old = core.get_node(target)
+
+			-- masked
+			if mode == "masked" and data.node == "air" then
+				goto continue
+			end
+
+			-- filtered
+			if mode == "filtered" and filter then
+				if data.node ~= resolve_node_name(filter) then
+					goto continue
+				end
+			end
+
+			-- keep
+			if mode == "keep" then
+				if keep_negate and keep_negate[old.name] then
+					goto continue
+				end
+				if keep_list and not keep_list[old.name] then
+					goto continue
+				end
+				if not keep_list and old.name ~= "air" then
+					goto continue
+				end
+			end
+
+			save_undo(name, target, old)
+			core.set_node(target, { name = data.node })
+
+			::continue::
+		end
+
+		-- move
+		if mode == "move" then
+			for _, data in ipairs(buffer) do
+				local src = vector.add(minp, data.rel)
+				save_undo(name, src, core.get_node(src))
+				core.remove_node(src)
+			end
+		end
+
+		return true, "Cloned."
+	end,
+})
+
