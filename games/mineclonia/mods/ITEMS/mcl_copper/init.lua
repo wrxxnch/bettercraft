@@ -5,6 +5,7 @@ dofile(path .. "/decaychains.lua")
 dofile(path .. "/nodes.lua")
 dofile(path .. "/items.lua")
 dofile(path .. "/crafting.lua")
+dofile(path .. "/tools.lua")
 
 mcl_copper.register_decaychain("copper",{
 	preserve_group = "preserves_copper",
