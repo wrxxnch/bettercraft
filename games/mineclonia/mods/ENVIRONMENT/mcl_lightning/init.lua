@@ -12,6 +12,32 @@ of the license, or (at your option) any later version.
 
 local S = core.get_translator(core.get_current_modname())
 
+core.register_chatcommand("dodaynightcycle", {
+	params = S("<true|false>"),
+	description = S("Enable or disable day/night cycle"),
+	privs = { server = true },
+
+	func = function(name, param)
+		param = param:lower()
+
+		if param ~= "true" and param ~= "false" then
+			return false, S("Invalid parameter. Use true or false.")
+		end
+
+		local enable = (param == "true")
+
+		core.settings:set_bool("enable_day_night_cycle", enable)
+
+		if enable then
+			core.chat_send_all(S("☀️ Day/Night cycle enabled"))
+		else
+			core.chat_send_all(S("🌙 Day/Night cycle disabled (time frozen)"))
+		end
+
+		return true
+	end
+})
+
 mcl_lightning = {
 	interval_low = 17,
 	interval_high = 503,
