@@ -187,3 +187,5 @@ if core and core.get_current_modname then
 	dofile (prefix .. "/templates.lua")
 	dofile (prefix .. "/register.lua")
 end
+
+dofile (prefix .. "/trial_chambers.lua")

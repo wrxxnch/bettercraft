@@ -1,4 +1,5 @@
 local S = core.get_translator("mcl_lightning_rods")
+local D = mcl_util.get_dynamic_translator()
 
 local cbox = {
 	type = "fixed",
@@ -53,34 +54,27 @@ local rod_def = {
 
 	_mcl_blast_resistance = 6,
 	_mcl_hardness = 3,
+
+	_mcl_rod_powered_variant = "mcl_lightning_rods:rod_powered"
 }
 
-core.register_node("mcl_lightning_rods:rod", rod_def)
-
-local rod_def_a = table.copy(rod_def)
-
-rod_def_a.tiles = { "mcl_lightning_rods_rod.png^[brighten" }
-
-rod_def_a.groups.not_in_creative_inventory = 1
-
-rod_def_a._mcl_redstone = {
-	get_power = function(node, dir)
-		return 15
-	end,
+local rod_powered_def = {
+	tiles = { "mcl_lightning_rods_rod.png^[brighten" },
+	groups = {pickaxey = 2, attracts_lightning = 1, not_in_creative_inventory = 1},
+	_mcl_redstone = {
+		init = function(pos, node)
+			local ndef = core.registered_nodes[node.name]
+			return {
+				delay = 4,
+				name = ndef._mcl_rod_unpowered_variant
+			}
+		end,
+		get_power = function(node, dir)
+			return 15, true
+		end
+	},
+	_mcl_rod_unpowered_variant = "mcl_lightning_rods:rod"
 }
-
-rod_def_a.on_timer = function(pos)
-	local node = core.get_node(pos)
-
-	if node.name == "mcl_lightning_rods:rod_powered" then --has not been dug
-		node.name = "mcl_lightning_rods:rod"
-		core.set_node(pos, node)
-	end
-
-	return false
-end
-
-core.register_node("mcl_lightning_rods:rod_powered", rod_def_a)
 
 mcl_lightning.register_on_strike(function(pos, pos2, objects, for_trap)
 	if for_trap then
@@ -90,13 +84,63 @@ mcl_lightning.register_on_strike(function(pos, pos2, objects, for_trap)
 	lr = (lr and #lr > 0 and lr[1]) or false
 	if lr then
 		local node = core.get_node(lr)
+		local ndef = core.registered_nodes[node.name]
 
-		if node.name == "mcl_lightning_rods:rod" then
-			node.name = "mcl_lightning_rods:rod_powered"
+		if ndef._mcl_rod_powered_variant then
+			node.name = ndef._mcl_rod_powered_variant
 			core.set_node(lr, node)
-			core.get_node_timer(lr):start(0.4)
 		end
 	end
 
 	return lr, nil
 end)
+
+core.register_node("mcl_lightning_rods:rod", rod_def)
+
+core.register_node("mcl_lightning_rods:rod_powered", table.merge(rod_def, rod_powered_def))
+
+core.register_node("mcl_lightning_rods:rod_exposed", table.merge(rod_def, {
+	description = D("Exposed Lightning Rod"),
+	tiles = { "mcl_lightning_rods_rod_exposed.png" },
+	_mcl_rod_powered_variant = "mcl_lightning_rods:rod_exposed_powered"
+}))
+
+core.register_node("mcl_lightning_rods:rod_exposed_powered", table.merge(rod_def, rod_powered_def, {
+	tiles = { "mcl_lightning_rods_rod_exposed.png^[brighten" },
+	_mcl_rod_unpowered_variant = "mcl_lightning_rods:rod_exposed"
+}))
+
+core.register_node("mcl_lightning_rods:rod_weathered", table.merge(rod_def, {
+	description = D("Weathered Lightning Rod"),
+	tiles = { "mcl_lightning_rods_rod_weathered.png" },
+	_mcl_rod_powered_variant = "mcl_lightning_rods:rod_weathered_powered"
+}))
+
+core.register_node("mcl_lightning_rods:rod_weathered_powered", table.merge(rod_def, rod_powered_def, {
+	tiles = { "mcl_lightning_rods_rod_weathered.png^[brighten" },
+	_mcl_rod_unpowered_variant = "mcl_lightning_rods:rod_weathered"
+}))
+
+-- Oxidized Lightning Rod
+core.register_node("mcl_lightning_rods:rod_oxidized", table.merge(rod_def, {
+	description = D("Oxidized Lightning Rod"),
+	tiles = { "mcl_lightning_rods_rod_oxidized.png" },
+	_mcl_rod_powered_variant = "mcl_lightning_rods:rod_oxidized_powered"
+}))
+
+core.register_node("mcl_lightning_rods:rod_oxidized_powered", table.merge(rod_def, rod_powered_def, {
+	tiles = { "mcl_lightning_rods_rod_oxidized.png^[brighten" },
+	_mcl_rod_unpowered_variant = "mcl_lightning_rods:rod_oxidized"
+}))
+
+mcl_copper.register_decaychain("lightning_rod",{
+	preserve_group = "preserves_copper",
+	unpreserve_callback = "_on_axe_place",
+	undecay_callback = "_on_axe_place",
+	nodes = {
+			"mcl_lightning_rods:rod",
+			"mcl_lightning_rods:rod_exposed",
+			"mcl_lightning_rods:rod_weathered",
+			"mcl_lightning_rods:rod_oxidized",
+	},
+})
