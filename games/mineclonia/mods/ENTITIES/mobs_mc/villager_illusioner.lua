@@ -167,51 +167,45 @@ end
 illusioner._arm_poses = illusioner_poses
 
 function illusioner:apply_arm_pose (pose)
-	local decoys = self._decoy_wielditems
-	evoker.apply_arm_pose (self, pose)
+    local decoys = self._decoy_wielditems
 
-	if pose ~= "default" then
-		if self._wielditem_object then
-			self._wielditem_object:set_properties ({
-				visual_size = {
-					x = 0.21,
-					y = 0.21,
-				},
-			})
-		end
+    if evoker.apply_arm_pose then
+        evoker.apply_arm_pose(self, pose)
+    elseif mob_class.apply_arm_pose then
+        mob_class.apply_arm_pose(self, pose)
+    end
 
-		for _, decoy in pairs (decoys) do
-			if is_valid (decoy) then
-				decoy:set_properties ({
-					visual_size = {
-						x = 0.21,
-						y = 0.21,
-					},
-				})
-			end
-		end
-	else
-		if self._wielditem_object then
-			self._wielditem_object:set_properties ({
-				visual_size = {
-					x = 0,
-					y = 0,
-				},
-			})
-		end
+    if pose ~= "default" then
+        if self._wielditem_object then
+            self._wielditem_object:set_properties({
+                visual_size = { x = 0.21, y = 0.21 }
+            })
+        end
 
-		for _, decoy in pairs (decoys) do
-			if is_valid (decoy) then
-				decoy:set_properties ({
-					visual_size = {
-						x = 0,
-						y = 0,
-					},
-				})
-			end
-		end
-	end
+        for _, decoy in pairs(decoys) do
+            if is_valid(decoy) then
+                decoy:set_properties({
+                    visual_size = { x = 0.21, y = 0.21 }
+                })
+            end
+        end
+    else
+        if self._wielditem_object then
+            self._wielditem_object:set_properties({
+                visual_size = { x = 0, y = 0 }
+            })
+        end
+
+        for _, decoy in pairs(decoys) do
+            if is_valid(decoy) then
+                decoy:set_properties({
+                    visual_size = { x = 0, y = 0 }
+                })
+            end
+        end
+    end
 end
+
 
 function illusioner:wielditem_transform (info, stack)
 	local rot, pos, size
