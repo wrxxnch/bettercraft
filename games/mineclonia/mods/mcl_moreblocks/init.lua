@@ -176,6 +176,27 @@ mcl_moreblocks.add_nodes = function()
 		"mcl_pale_oak:resin_block",
 		"mcl_pale_oak:pale_moss_block",
 
+		--copper
+		"mcl_copper:block",
+		"mcl_copper:block_raw",
+		"mcl_copper:block_weathered",
+		"mcl_copper:block_exposed",
+		"mcl_copper:block_oxidized",
+		"mcl_copper:block_preserved",
+		--copper chiseled
+		"mcl_copper:block_chiseled",
+		"mcl_copper:block_chiseled_weathered",
+		"mcl_copper:block_chiseled_exposed",
+		"mcl_copper:block_chiseled_oxidized",
+		"mcl_copper:block_chiseled_preserved",
+		--grate
+		"mcl_copper:block_exposed_grate",
+		"mcl_copper:block_oxidized_grate",
+		"mcl_copper:block_weathered_grate",
+		"mcl_copper:block_preserved_grate",
+		
+
+
 }
 
 -- in the MineClonia world (but not in MCL2 world), tree trunks cannot be cut; add them:
