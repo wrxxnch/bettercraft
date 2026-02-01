@@ -3,44 +3,122 @@ local S = core.get_translator(core.get_current_modname())
 -- =========================
 -- Utils
 -- =========================
+
+local function rotate_rel(pos, size, rot)
+    if rot == 90 then
+        return {
+            x = size.z - pos.z - 1,
+            y = pos.y,
+            z = pos.x
+        }
+    elseif rot == 180 then
+        return {
+            x = size.x - pos.x - 1,
+            y = pos.y,
+            z = size.z - pos.z - 1
+        }
+    elseif rot == 270 then
+        return {
+            x = pos.z,
+            y = pos.y,
+            z = size.x - pos.x - 1
+        }
+    end
+    return pos
+end
+
+local function mirror_rel(pos, size, axis)
+    if axis == "x" then
+        return {
+            x = size.x - pos.x - 1,
+            y = pos.y,
+            z = pos.z
+        }
+    elseif axis == "y" then
+        return {
+            x = pos.x,
+            y = size.y - pos.y - 1,
+            z = pos.z
+        }
+    elseif axis == "z" then
+        return {
+            x = pos.x,
+            y = pos.y,
+            z = size.z - pos.z - 1
+        }
+    end
+    return pos
+end
+
+local function rotate_facedir(fd, rot)
+    if rot == 90 then
+        return (fd + 1) % 4
+    end
+    if rot == 180 then
+        return (fd + 2) % 4
+    end
+    if rot == 270 then
+        return (fd + 3) % 4
+    end
+    return fd
+end
+
+local function mirror_facedir(fd, axis)
+    if axis == "x" then
+        return ({
+            [1] = 3,
+            [3] = 1,
+            [0] = 0,
+            [2] = 2
+        })[fd] or fd
+    elseif axis == "z" then
+        return ({
+            [0] = 2,
+            [2] = 0,
+            [1] = 1,
+            [3] = 3
+        })[fd] or fd
+    end
+    return fd
+end
+
 local function trim(s)
-	return s:match("^%s*(.-)%s*$")
+    return s:match("^%s*(.-)%s*$")
 end
 
 local function resolve_node_name(name)
-	while core.registered_aliases[name] do
-		name = core.registered_aliases[name]
-	end
+    while core.registered_aliases[name] do
+        name = core.registered_aliases[name]
+    end
 
-	if not name:find(":") then
-		for regname in pairs(core.registered_nodes) do
-			local short = regname:match(":(.+)$")
-			if short == name then
-				return regname
-			end
-		end
-	end
+    if not name:find(":") then
+        for regname in pairs(core.registered_nodes) do
+            local short = regname:match(":(.+)$")
+            if short == name then
+                return regname
+            end
+        end
+    end
 
-	return name
+    return name
 end
 
 local function parse_pos(player, x, y, z)
-	local p = vector.round(player:get_pos())
+    local p = vector.round(player:get_pos())
 
-	local function r(v, base)
-		if v:sub(1,1) == "~" then
-			return base + tonumber(v:sub(2) ~= "" and v:sub(2) or 0)
-		end
-		return tonumber(v)
-	end
+    local function r(v, base)
+        if v:sub(1, 1) == "~" then
+            return base + tonumber(v:sub(2) ~= "" and v:sub(2) or 0)
+        end
+        return tonumber(v)
+    end
 
-	return {
-		x = r(x, p.x),
-		y = r(y, p.y),
-		z = r(z, p.z)
-	}
+    return {
+        x = r(x, p.x),
+        y = r(y, p.y),
+        z = r(z, p.z)
+    }
 end
-
 
 -- =========================
 -- /setblock
@@ -189,145 +267,153 @@ core.register_chatcommand("setblock_pick", {
 local fill_undo = {}
 
 local function save_undo(playername, pos, node)
-	fill_undo[playername] = fill_undo[playername] or {}
-	table.insert(fill_undo[playername], {
-		pos = vector.new(pos),
-		node = node.name
-	})
+    fill_undo[playername] = fill_undo[playername] or {}
+    table.insert(fill_undo[playername], {
+        pos = vector.new(pos),
+        node = node.name
+    })
 end
 
 core.register_chatcommand("undo_fill", {
-	description = "Undo last /fill",
-	privs = { give = true, interact = true },
+    description = "Undo last /fill",
+    privs = {
+        give = true,
+        interact = true
+    },
 
-	func = function(name)
-		local data = fill_undo[name]
-		if not data or #data == 0 then
-			return false, "Nothing to undo."
-		end
+    func = function(name)
+        local data = fill_undo[name]
+        if not data or #data == 0 then
+            return false, "Nothing to undo."
+        end
 
-		for i = #data, 1, -1 do
-			local d = data[i]
-			core.set_node(d.pos, { name = d.node })
-		end
+        for i = #data, 1, -1 do
+            local d = data[i]
+            core.set_node(d.pos, {
+                name = d.node
+            })
+        end
 
-		fill_undo[name] = {}
-		return true, "Fill undone."
-	end,
+        fill_undo[name] = {}
+        return true, "Fill undone."
+    end
 })
 
 -- =========================
 -- /fill
 -- =========================
 core.register_chatcommand("fill", {
-	params = "<x1> <y1> <z1> <x2> <y2> <z2> <block> [destroy|hollow|keep|replace] [filter]",
-	description = "Fill an area",
-	privs = { give = true, interact = true },
+    params = "<x1> <y1> <z1> <x2> <y2> <z2> <block> [destroy|hollow|keep|replace] [filter]",
+    description = "Fill an area",
+    privs = {
+        give = true,
+        interact = true
+    },
 
-	func = function(name, param)
-		local P = {}
-		for w in param:gmatch("%S+") do
-			P[#P+1] = w
-		end
+    func = function(name, param)
+        local P = {}
+        for w in param:gmatch("%S+") do
+            P[#P + 1] = w
+        end
 
-		if #P < 7 then
-			return false, "Invalid parameters."
-		end
+        if #P < 7 then
+            return false, "Invalid parameters."
+        end
 
-		local player = core.get_player_by_name(name)
-		if not player then return false end
+        local player = core.get_player_by_name(name)
+        if not player then
+            return false
+        end
 
-		local p1 = parse_pos(player, P[1], P[2], P[3])
-		local p2 = parse_pos(player, P[4], P[5], P[6])
+        local p1 = parse_pos(player, P[1], P[2], P[3])
+        local p2 = parse_pos(player, P[4], P[5], P[6])
 
-		local nodename = resolve_node_name(P[7])
-		if not core.registered_nodes[nodename] then
-			return false, "Unknown block."
-		end
+        local nodename = resolve_node_name(P[7])
+        if not core.registered_nodes[nodename] then
+            return false, "Unknown block."
+        end
 
-		local mode = P[8] or "replace"
-		local filter = P[9]
+        local mode = P[8] or "replace"
+        local filter = P[9]
 
-		-- KEEP PARSER
-		local keep_list, keep_negate
-		if mode == "keep" and filter then
-			keep_list = {}
-			keep_negate = {}
+        -- KEEP PARSER
+        local keep_list, keep_negate
+        if mode == "keep" and filter then
+            keep_list = {}
+            keep_negate = {}
 
-			for part in filter:gmatch("[^,]+") do
-				part = trim(part)
-				if part:sub(1,1) == "!" then
-					keep_negate[resolve_node_name(part:sub(2))] = true
-				else
-					keep_list[resolve_node_name(part)] = true
-				end
-			end
-		end
+            for part in filter:gmatch("[^,]+") do
+                part = trim(part)
+                if part:sub(1, 1) == "!" then
+                    keep_negate[resolve_node_name(part:sub(2))] = true
+                else
+                    keep_list[resolve_node_name(part)] = true
+                end
+            end
+        end
 
-		local minp = vector.new(
-			math.min(p1.x, p2.x),
-			math.min(p1.y, p2.y),
-			math.min(p1.z, p2.z)
-		)
+        local minp = vector.new(math.min(p1.x, p2.x), math.min(p1.y, p2.y), math.min(p1.z, p2.z))
 
-		local maxp = vector.new(
-			math.max(p1.x, p2.x),
-			math.max(p1.y, p2.y),
-			math.max(p1.z, p2.z)
-		)
+        local maxp = vector.new(math.max(p1.x, p2.x), math.max(p1.y, p2.y), math.max(p1.z, p2.z))
 
-		fill_undo[name] = {}
+        fill_undo[name] = {}
 
-		for x = minp.x, maxp.x do
-		for y = minp.y, maxp.y do
-		for z = minp.z, maxp.z do
-			local pos = {x=x,y=y,z=z}
-			local node = core.get_node(pos)
+        for x = minp.x, maxp.x do
+            for y = minp.y, maxp.y do
+                for z = minp.z, maxp.z do
+                    local pos = {
+                        x = x,
+                        y = y,
+                        z = z
+                    }
+                    local node = core.get_node(pos)
 
-			-- hollow
-			if mode == "hollow" then
-				if x ~= minp.x and x ~= maxp.x and
-				   y ~= minp.y and y ~= maxp.y and
-				   z ~= minp.z and z ~= maxp.z then
-					goto continue
-				end
-			end
+                    -- hollow
+                    if mode == "hollow" then
+                        if x ~= minp.x and x ~= maxp.x and y ~= minp.y and y ~= maxp.y and z ~= minp.z and z ~= maxp.z then
+                            goto continue
+                        end
+                    end
 
-			-- destroy
-			if mode == "destroy" then
-				save_undo(name, pos, node)
-				core.remove_node(pos)
-				goto continue
-			end
+                    -- destroy
+                    if mode == "destroy" then
+                        save_undo(name, pos, node)
+                        core.remove_node(pos)
+                        goto continue
+                    end
 
-			-- replace
-			if mode == "replace" and filter then
-				if node.name ~= resolve_node_name(filter) then
-					goto continue
-				end
-			end
+                    -- replace
+                    if mode == "replace" and filter then
+                        if node.name ~= resolve_node_name(filter) then
+                            goto continue
+                        end
+                    end
 
-			-- keep
-			if mode == "keep" then
-				if keep_negate and keep_negate[node.name] then
-					goto continue
-				end
-				if keep_list and not keep_list[node.name] then
-					goto continue
-				end
-				if not keep_list and node.name ~= "air" then
-					goto continue
-				end
-			end
+                    -- keep
+                    if mode == "keep" then
+                        if keep_negate and keep_negate[node.name] then
+                            goto continue
+                        end
+                        if keep_list and not keep_list[node.name] then
+                            goto continue
+                        end
+                        if not keep_list and node.name ~= "air" then
+                            goto continue
+                        end
+                    end
 
-			save_undo(name, pos, node)
-			core.set_node(pos, { name = nodename })
+                    save_undo(name, pos, node)
+                    core.set_node(pos, {
+                        name = nodename
+                    })
 
-			::continue::
-		end end end
+                    ::continue::
+                end
+            end
+        end
 
-		return true, "Filled."
-	end,
+        return true, "Filled."
+    end
 })
 -- =========================
 -- UNDO CLONE
@@ -335,143 +421,175 @@ core.register_chatcommand("fill", {
 local clone_undo = {}
 
 core.register_chatcommand("undo_clone", {
-	description = "Undo last /clone",
-	privs = { give = true, interact = true },
+    description = "Undo last /clone",
+    privs = {
+        give = true,
+        interact = true
+    },
 
-	func = function(name)
-		local data = clone_undo[name]
-		if not data or #data == 0 then
-			return false, "Nothing to undo."
-		end
+    func = function(name)
+        local data = clone_undo[name]
+        if not data or #data == 0 then
+            return false, "Nothing to undo."
+        end
 
-		for i = #data, 1, -1 do
-			local d = data[i]
-			core.set_node(d.pos, { name = d.node })
-		end
+        for i = #data, 1, -1 do
+            local d = data[i]
+            core.set_node(d.pos, {
+                name = d.node
+            })
+        end
 
-		clone_undo[name] = {}
-		return true, "Clone undone."
-	end,
+        clone_undo[name] = {}
+        return true, "Clone undone."
+    end
 })
 
 -- =========================
 -- /clone
 -- =========================
 core.register_chatcommand("clone", {
-	params = "<x1> <y1> <z1> <x2> <y2> <z2> <dx> <dy> <dz> [replace|masked|filtered|keep|move] [filter]",
-	description = "Clone a region to another location",
-	privs = { give = true, interact = true },
+    params = "<x1> <y1> <z1> <x2> <y2> <z2> <dx> <dy> <dz> [replace|masked|filtered|keep|move] [filter]",
+    description = "Clone a region to another location",
+    privs = {
+        give = true,
+        interact = true
+    },
 
-	func = function(name, param)
-		local P = {}
-		for w in param:gmatch("%S+") do
-			P[#P+1] = w
-		end
+    func = function(name, param)
+        local P = {}
+        for w in param:gmatch("%S+") do
+            P[#P + 1] = w
+        end
 
-		if #P < 9 then
-			return false, "Invalid parameters."
-		end
+        if #P < 9 then
+            return false, "Invalid parameters."
+        end
 
-		local player = core.get_player_by_name(name)
-		if not player then return false end
+        local player = core.get_player_by_name(name)
+        if not player then
+            return false
+        end
 
-		local p1 = parse_pos(player, P[1], P[2], P[3])
-		local p2 = parse_pos(player, P[4], P[5], P[6])
-		local dest = parse_pos(player, P[7], P[8], P[9])
+        local p1 = parse_pos(player, P[1], P[2], P[3])
+        local p2 = parse_pos(player, P[4], P[5], P[6])
+        local dest = parse_pos(player, P[7], P[8], P[9])
 
-		local mode = P[10] or "replace"
-		local filter = P[11]
+        local mode = P[10] or "replace"
+        local filter = P[11]
 
-		-- keep parser
-		local keep_list, keep_negate
-		if mode == "keep" and filter then
-			keep_list = {}
-			keep_negate = {}
-			for part in filter:gmatch("[^,]+") do
-				part = trim(part)
-				if part:sub(1,1) == "!" then
-					keep_negate[resolve_node_name(part:sub(2))] = true
-				else
-					keep_list[resolve_node_name(part)] = true
-				end
-			end
-		end
+        -- keep parser
+        local keep_list, keep_negate
+        if mode == "keep" and filter then
+            keep_list = {}
+            keep_negate = {}
+            for part in filter:gmatch("[^,]+") do
+                part = trim(part)
+                if part:sub(1, 1) == "!" then
+                    keep_negate[resolve_node_name(part:sub(2))] = true
+                else
+                    keep_list[resolve_node_name(part)] = true
+                end
+            end
+        end
 
-		local minp = vector.new(
-			math.min(p1.x, p2.x),
-			math.min(p1.y, p2.y),
-			math.min(p1.z, p2.z)
-		)
+        local minp = vector.new(math.min(p1.x, p2.x), math.min(p1.y, p2.y), math.min(p1.z, p2.z))
 
-		local maxp = vector.new(
-			math.max(p1.x, p2.x),
-			math.max(p1.y, p2.y),
-			math.max(p1.z, p2.z)
-		)
+        local maxp = vector.new(math.max(p1.x, p2.x), math.max(p1.y, p2.y), math.max(p1.z, p2.z))
 
-		local size = vector.add(vector.subtract(maxp, minp), 1)
-		clone_undo[name] = {}
+        local size = vector.add(vector.subtract(maxp, minp), 1)
+        clone_undo[name] = {}
 
-		-- cache origem
-		local buffer = {}
+        -- cache origem
+        local buffer = {}
 
-		for x = minp.x, maxp.x do
-		for y = minp.y, maxp.y do
-		for z = minp.z, maxp.z do
-			local pos = {x=x,y=y,z=z}
-			local node = core.get_node(pos)
-			buffer[#buffer+1] = {
-				rel = vector.subtract(pos, minp),
-				node = node.name
-			}
-		end end end
+        for x = minp.x, maxp.x do
+            for y = minp.y, maxp.y do
+                for z = minp.z, maxp.z do
+                    local pos = {
+                        x = x,
+                        y = y,
+                        z = z
+                    }
+                    local node = core.get_node(pos)
+                    buffer[#buffer + 1] = {
+                        rel = vector.subtract(pos, minp),
+                        node = node.name,
+                        param2 = node.param2
+                    }
 
-		-- aplicar
-		for _, data in ipairs(buffer) do
-			local target = vector.add(dest, data.rel)
-			local old = core.get_node(target)
+                end
+            end
+        end
 
-			-- masked
-			if mode == "masked" and data.node == "air" then
-				goto continue
-			end
+        -- aplicar
+        for _, data in ipairs(buffer) do
+            local target = vector.add(dest, data.rel)
+            local old = core.get_node(target)
 
-			-- filtered
-			if mode == "filtered" and filter then
-				if data.node ~= resolve_node_name(filter) then
-					goto continue
-				end
-			end
+            -- masked
+            if mode == "masked" and data.node == "air" then
+                goto continue
+            end
 
-			-- keep
-			if mode == "keep" then
-				if keep_negate and keep_negate[old.name] then
-					goto continue
-				end
-				if keep_list and not keep_list[old.name] then
-					goto continue
-				end
-				if not keep_list and old.name ~= "air" then
-					goto continue
-				end
-			end
+            -- filtered
+            if mode == "filtered" and filter then
+                if data.node ~= resolve_node_name(filter) then
+                    goto continue
+                end
+            end
 
-			save_undo(name, target, old)
-			core.set_node(target, { name = data.node })
+            -- keep
+            if mode == "keep" then
+                if keep_negate and keep_negate[old.name] then
+                    goto continue
+                end
+                if keep_list and not keep_list[old.name] then
+                    goto continue
+                end
+                if not keep_list and old.name ~= "air" then
+                    goto continue
+                end
+            end
 
-			::continue::
-		end
+            local rotate, mirror
 
-		-- move
-		if mode == "move" then
-			for _, data in ipairs(buffer) do
-				local src = vector.add(minp, data.rel)
-				save_undo(name, src, core.get_node(src))
-				core.remove_node(src)
-			end
-		end
+            if mode == "rotate" then
+                rotate = tonumber(filter)
+                if rotate ~= 90 and rotate ~= 180 and rotate ~= 270 then
+                    return false, "Rotation must be 90, 180 or 270"
+                end
+                mode = "replace"
+                filter = nil
+            end
 
-		return true, "Cloned."
-	end,
+            if mode == "mirror" then
+                mirror = filter
+                if mirror ~= "x" and mirror ~= "y" and mirror ~= "z" then
+                    return false, "Mirror axis must be x, y or z"
+                end
+                mode = "replace"
+                filter = nil
+            end
+
+            save_undo(name, target, old)
+            core.set_node(target, {
+                name = data.node
+            })
+
+            ::continue::
+        end
+
+        -- move
+        if mode == "move" then
+            for _, data in ipairs(buffer) do
+                local src = vector.add(minp, data.rel)
+                save_undo(name, src, core.get_node(src))
+                core.remove_node(src)
+            end
+        end
+
+        return true, "Cloned."
+    end
 })
 
