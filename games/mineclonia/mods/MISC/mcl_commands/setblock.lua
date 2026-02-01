@@ -3,6 +3,27 @@ local S = core.get_translator(core.get_current_modname())
 -- =========================
 -- UTILS
 -- =========================
+local function resolve_node_name_safe(name)
+	while core.registered_aliases[name] do
+		name = core.registered_aliases[name]
+	end
+
+	if not name:find(":") then
+		for regname in pairs(core.registered_nodes) do
+			local short = regname:match(":(.+)$")
+			if short == name then
+				return regname
+			end
+		end
+	end
+
+	if core.registered_nodes[name] then
+		return name
+	end
+
+	return nil
+end
+
 local function trim(s)
     return s:match("^%s*(.-)%s*$")
 end
@@ -268,70 +289,110 @@ core.register_chatcommand("undo_clone",{
 -- =========================
 -- /FILL
 -- =========================
-core.register_chatcommand("fill",{
-    func=function(name,param)
-        local P={}
-        for w in param:gmatch("%S+") do P[#P+1]=w end
-        if #P < 3 then return false,"Invalid parameters." end
+core.register_chatcommand("fill", {
+	params = S("<pos1> <pos2> <block> [replace|destroy|hollow|keep [list]]"),
+	description = S("Fill area safely"),
+	privs = { server = true },
 
-        local player = core.get_player_by_name(name)
+	func = function(name, param)
+		local player = core.get_player_by_name(name)
+		if not player then return false end
 
-        local p1, p2, block_i
+		local args = {}
+		for s in param:gmatch("%S+") do
+			args[#args+1] = s
+		end
 
-        if P[1]=="pos1" and P[2]=="pos2" then
-            p1 = postick_get_pos(name,"pos1")
-            p2 = postick_get_pos(name,"pos2")
-            block_i = 3
-        else
-            if #P < 7 then return false,"Invalid parameters." end
-            p1 = parse_any_pos(player,P[1],P[2],P[3])
-            p2 = parse_any_pos(player,P[4],P[5],P[6])
-            block_i = 7
-        end
+		if #args < 7 then
+			return false, S("Invalid parameters")
+		end
 
-        if not (p1 and p2) then
-            return false,"pos1/pos2 not defined."
-        end
+		local function parse(v, base)
+			return v == "~" and base or tonumber(v)
+		end
 
-        local block = resolve_node_name(P[block_i])
-        local mode  = P[block_i+1] or "replace"
-        local filter= P[block_i+2]
+		local ppos = vector.round(player:get_pos())
 
-        fill_undo[name]={}
+		local p1 = {
+			x = parse(args[1], ppos.x),
+			y = parse(args[2], ppos.y),
+			z = parse(args[3], ppos.z),
+		}
+		local p2 = {
+			x = parse(args[4], ppos.x),
+			y = parse(args[5], ppos.y),
+			z = parse(args[6], ppos.z),
+		}
 
-        local minp=vector.new(math.min(p1.x,p2.x),math.min(p1.y,p2.y),math.min(p1.z,p2.z))
-        local maxp=vector.new(math.max(p1.x,p2.x),math.max(p1.y,p2.y),math.max(p1.z,p2.z))
+		if not (p1.x and p1.y and p1.z and p2.x and p2.y and p2.z) then
+			return false, S("Invalid position")
+		end
 
-        local keep,neg={},{}
-        if mode=="keep" and filter then
-            for p in filter:gmatch("[^,]+") do
-                p=trim(p)
-                if p:sub(1,1)=="!" then neg[resolve_node_name(p:sub(2))]=true
-                else keep[resolve_node_name(p)]=true end
-            end
-        end
+		-- 🔒 RESOLUÇÃO SEGURA DO NODE
+		local nodename = resolve_node_name_safe(args[7])
+		if not nodename then
+			return false, S("Block not found: @1"):gsub("@1", args[7])
+		end
 
-        for x=minp.x,maxp.x do for y=minp.y,maxp.y do for z=minp.z,maxp.z do
-            local pos={x=x,y=y,z=z}
-            local node=core.get_node(pos)
+		local mode = args[8] or "replace"
+		local list = args[9]
 
-            if mode=="hollow" and x~=minp.x and x~=maxp.x and y~=minp.y and y~=maxp.y and z~=minp.z and z~=maxp.z then goto skip end
-            if mode=="destroy" then save_undo(fill_undo,name,pos,node); core.remove_node(pos); goto skip end
-            if mode=="replace" and filter and node.name~=resolve_node_name(filter) then goto skip end
-            if mode=="keep" then
-                if neg[node.name] then goto skip end
-                if next(keep) and not keep[node.name] then goto skip end
-                if not next(keep) and node.name~="air" then goto skip end
-            end
+		local minp = vector.new(
+			math.min(p1.x, p2.x),
+			math.min(p1.y, p2.y),
+			math.min(p1.z, p2.z)
+		)
+		local maxp = vector.new(
+			math.max(p1.x, p2.x),
+			math.max(p1.y, p2.y),
+			math.max(p1.z, p2.z)
+		)
 
-            save_undo(fill_undo,name,pos,node)
-            core.set_node(pos,{name=block})
-            ::skip::
-        end end end
+		local keep, negate = {}, false
+		if mode == "keep" and list then
+			if list:sub(1,1) == "!" then
+				negate = true
+				list = list:sub(2)
+			end
+			for n in list:gmatch("[^,]+") do
+				local rn = resolve_node_name_safe(n)
+				if rn then keep[rn] = true end
+			end
+		end
 
-        return true,"Filled."
-    end
+		for x = minp.x, maxp.x do
+		for y = minp.y, maxp.y do
+		for z = minp.z, maxp.z do
+			local pos = {x=x,y=y,z=z}
+			local cur = core.get_node(pos).name
+
+			if mode == "hollow" then
+				if x~=minp.x and x~=maxp.x and
+				   y~=minp.y and y~=maxp.y and
+				   z~=minp.z and z~=maxp.z then
+					goto skip
+				end
+			end
+
+			if mode == "keep" and list then
+				local has = keep[cur]
+				if (has and not negate) or (negate and not has) then
+					goto skip
+				end
+			end
+
+			if mode == "destroy" then
+				core.remove_node(pos)
+			end
+
+			core.set_node(pos, {name = nodename})
+			::skip::
+		end end end
+
+		return true, S("Fill completed with @1"):gsub("@1", nodename)
+	end,
 })
+
 
 -- =========================
 -- /CLONE
