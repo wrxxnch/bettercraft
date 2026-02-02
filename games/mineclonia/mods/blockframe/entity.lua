@@ -21,17 +21,22 @@ local function snap(v, step)
 end
 
 --------------------------------------------------
--- PREVIEW
+-- PREVIEW ENTITY
 --------------------------------------------------
 minetest.register_entity("blockframe:preview", {
-	visual = "wielditem",
-	physical = false,
-	pointable = false,
-	glow = 5,
+	initial_properties = {
+		visual = "wielditem",
+		physical = false,
+		pointable = false,
+		glow = 5,
+		visual_size = {x=0.5,y=0.5},
+		collisionbox = {0,0,0,0,0,0},
+		static_save = false,
+	},
 
 	on_activate = function(self, staticdata)
 		local data = minetest.deserialize(staticdata) or {}
-		self.node = data.node
+		self.node = data.node or "default:stone"
 		self.args = {}
 		self.offset = {x=0,y=0,z=0}
 		self.step = 0
@@ -50,35 +55,29 @@ minetest.register_entity("blockframe:preview", {
 	end,
 
 	apply_args = function(self, args)
-		-- SIZE
 		if args.size then
 			self.args.size = parse_vec(args.size, {x=0.5,y=0.5,z=0.5})
 		end
 
-		-- ROTATE
 		if args.rotate then
 			local r = tonumber(args.rotate)
 			if r then self.args.rotate = r end
 		end
 
-		-- MIRROR
 		if args.mirror == "x" or args.mirror == "y" or args.mirror == "z" then
 			self.args.mirror = args.mirror
 		end
 
-		-- STEP (SNAP)
 		if args.step then
 			local s = tonumber(args.step)
-			if s and s > 0 then self.step = s end
+			if s then self.step = s end
 		end
 
-		-- POS OFFSET  ⭐ NOVO ⭐
 		if args.pos then
-			self.args.pos = parse_vec(args.pos, {x=0,y=0,z=0})
-			self.offset = self.args.pos
+			self.offset = parse_vec(args.pos, {x=0,y=0,z=0})
+			self.args.pos = self.offset
 		end
 
-		-- aplica visual
 		local base = self.args.size or {x=0.5,y=0.5,z=0.5}
 		local v = table.copy(base)
 
@@ -88,65 +87,70 @@ minetest.register_entity("blockframe:preview", {
 
 		self.object:set_properties({ visual_size = v })
 
-		if type(self.args.rotate) == "number" then
-			self.object:set_rotation({
-				x = 0,
-				y = math.rad(self.args.rotate),
-				z = 0
-			})
+		if self.args.rotate then
+			self.object:set_rotation({x=0,y=math.rad(self.args.rotate),z=0})
 		end
 	end,
 
 	on_step = function(self)
-		if not self.player then return end
+	if not self.player or not self.player:is_player() then return end
 
-		local eye = vector.add(self.player:get_pos(), {x=0,y=1.6,z=0})
-		local dir = self.player:get_look_dir()
+	-- 📷 posição REAL da câmera
+	local eye = vector.add(
+		self.player:get_pos(),
+		self.player:get_properties().eye_height and
+		{x=0, y=self.player:get_properties().eye_height, z=0}
+		or {x=0,y=1.6,z=0}
+	)
 
-		local ray = minetest.raycast(
-			eye,
-			vector.add(eye, vector.multiply(dir, 6)),
-			false,
-			true
-		)
+	local dir = self.player:get_look_dir()
 
-		for hit in ray do
-			if hit.intersection_point then
-				-- posição livre
-				local p = hit.intersection_point
+	-- começa o raio um pouco à frente da câmera (evita bater no player)
+	local start = vector.add(eye, vector.multiply(dir, 0.2))
+	local finish = vector.add(start, vector.multiply(dir, 6))
 
-				-- snap
-				p = snap(p, self.step)
+	local ray = minetest.raycast(start, finish, true, true)
 
-				-- offset manual (args.pos)
-				p = vector.add(p, self.offset)
-
-				self.object:set_pos(p)
-				self.last_pos = p
-				return
-			end
+	for hit in ray do
+		-- ignora o próprio player
+		if hit.type == "object" and hit.ref == self.player then
+			goto continue
 		end
+
+		local p = hit.intersection_point or hit.above
+		if p then
+			p = snap(p, self.step)
+			p = vector.add(p, self.offset)
+
+			self.object:set_pos(p)
+			self.last_pos = p
+			return
+		end
+
+		::continue::
 	end
+end
+
 })
 
 --------------------------------------------------
 -- ENTIDADE FINAL
 --------------------------------------------------
 minetest.register_entity("blockframe:placed", {
-	visual = "wielditem",
-	physical = false,
-	pointable = true,
+	initial_properties = {
+		visual = "wielditem",
+		physical = false,
+		pointable = true,
+		static_save = true,
+	},
 
 	on_activate = function(self, staticdata)
 		local data = minetest.deserialize(staticdata) or {}
-		self.node = data.node
+		self.node = data.node or "default:stone"
 		self.args = data.args or {}
 
-		self.object:set_properties({
-			wield_item = self.node
-		})
+		self.object:set_properties({ wield_item = self.node })
 
-		-- SIZE + MIRROR
 		local base = self.args.size or {x=0.5,y=0.5,z=0.5}
 		local v = table.copy(base)
 
@@ -156,20 +160,12 @@ minetest.register_entity("blockframe:placed", {
 
 		self.object:set_properties({ visual_size = v })
 
-		-- ROTATE
-		if type(self.args.rotate) == "number" then
-			self.object:set_rotation({
-				x = 0,
-				y = math.rad(self.args.rotate),
-				z = 0
-			})
+		if self.args.rotate then
+			self.object:set_rotation({x=0,y=math.rad(self.args.rotate),z=0})
 		end
 
-		-- POS OFFSET (aplicado no spawn)
 		if self.args.pos then
-			local off = self.args.pos
-			local p = vector.add(self.object:get_pos(), off)
-			self.object:set_pos(p)
+			self.object:set_pos(vector.add(self.object:get_pos(), self.args.pos))
 		end
 	end
 })
