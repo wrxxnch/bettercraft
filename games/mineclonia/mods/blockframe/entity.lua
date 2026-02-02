@@ -3,8 +3,12 @@
 --------------------------------------------------
 local function parse_vec(str, def)
 	if not str then return def end
-	local x,y,z = str:match("([^,]+),([^,]+),([^,]+)")
-	return {x=tonumber(x),y=tonumber(y),z=tonumber(z)}
+	local x, y, z = str:match("([^,]+),([^,]+),([^,]+)")
+	return {
+		x = tonumber(x) or def.x,
+		y = tonumber(y) or def.y,
+		z = tonumber(z) or def.z
+	}
 end
 
 --------------------------------------------------
@@ -12,7 +16,7 @@ end
 --------------------------------------------------
 minetest.register_entity("blockframe:preview", {
 	visual = "wielditem",
-	visual_size = {x=0.5,y=0.5},
+	visual_size = {x=0.5, y=0.5},
 	collisionbox = {0,0,0,0,0,0},
 	physical = false,
 	pointable = false,
@@ -36,30 +40,60 @@ minetest.register_entity("blockframe:preview", {
 		})
 	end,
 
+	set_node = function(self, node)
+		if self.node ~= node then
+			self.node = node
+			self.object:set_properties({ wield_item = node })
+		end
+	end,
+
 	apply_args = function(self, args)
 		self.args = self.args or {}
 
 		if args.size then
 			self.args.size = parse_vec(args.size, {x=0.5,y=0.5,z=0.5})
-			self.object:set_properties({visual_size = self.args.size})
 		end
 
 		if args.rotate then
-			self.args.rotate = tonumber(args.rotate)
-			self.object:set_rotation({x=0,y=math.rad(self.args.rotate),z=0})
+			local r = tonumber(args.rotate)
+			if r then self.args.rotate = r end
 		end
 
 		if args.mirror then
-			local v = self.object:get_properties().visual_size
-			if args.mirror == "x" then v.x = -v.x end
-			if args.mirror == "y" then v.y = -v.y end
-			if args.mirror == "z" then v.z = -v.z end
-			self.object:set_properties({visual_size = v})
+			if args.mirror == "x" or args.mirror == "y" or args.mirror == "z" then
+				self.args.mirror = args.mirror
+			end
+		end
+
+		local base = self.args.size or {x=0.5,y=0.5,z=0.5}
+		local v = table.copy(base)
+
+		if self.args.mirror == "x" then v.x = -v.x end
+		if self.args.mirror == "y" then v.y = -v.y end
+		if self.args.mirror == "z" then v.z = -v.z end
+
+		self.object:set_properties({ visual_size = v })
+
+		if type(self.args.rotate) == "number" then
+			self.object:set_rotation({
+				x = 0,
+				y = math.rad(self.args.rotate),
+				z = 0
+			})
 		end
 	end,
 
 	on_step = function(self)
 		if not self.player then return end
+
+		-- atualiza bloco da mão
+		local wield = self.player:get_wielded_item()
+		if not wield:is_empty() then
+			local node = wield:get_name()
+			if minetest.registered_nodes[node] then
+				self:set_node(node)
+			end
+		end
 
 		local eye = vector.add(self.player:get_pos(), {x=0,y=1.6,z=0})
 		local dir = self.player:get_look_dir()
@@ -95,14 +129,27 @@ minetest.register_entity("blockframe:placed", {
 			if ok and type(res) == "table" then data = res end
 		end
 
+		self.node = data.node
 		self.args = data.args or {}
+
+		local base = self.args.size or {x=0.5,y=0.5,z=0.5}
+		local v = table.copy(base)
+
+		if self.args.mirror == "x" then v.x = -v.x end
+		if self.args.mirror == "y" then v.y = -v.y end
+		if self.args.mirror == "z" then v.z = -v.z end
+
 		self.object:set_properties({
-			wield_item = data.node,
-			visual_size = self.args.size or {x=0.5,y=0.5,z=0.5}
+			wield_item = self.node,
+			visual_size = v
 		})
 
-		if self.args.rotate then
-			self.object:set_rotation({x=0,y=math.rad(self.args.rotate),z=0})
+		if type(self.args.rotate) == "number" then
+			self.object:set_rotation({
+				x = 0,
+				y = math.rad(self.args.rotate),
+				z = 0
+			})
 		end
 	end
 })
