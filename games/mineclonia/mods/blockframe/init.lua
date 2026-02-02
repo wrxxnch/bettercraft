@@ -1,5 +1,217 @@
 --------------------------------------------------
--- TABELA PRINCIPAL
+-- BLOCKFRAME MOD COMPLETO
+--------------------------------------------------
+
+--------------------------------------------------
+-- UTIL
+--------------------------------------------------
+local function parse_vec(str, def)
+	if not str then return def end
+	local x,y,z = str:match("([^,]+),([^,]+),([^,]+)")
+	return {
+		x = tonumber(x) or def.x,
+		y = tonumber(y) or def.y,
+		z = tonumber(z) or def.z
+	}
+end
+
+local function snap(v, step)
+	if not step or step <= 0 then return v end
+	return {
+		x = math.floor(v.x / step + 0.5) * step,
+		y = math.floor(v.y / step + 0.5) * step,
+		z = math.floor(v.z / step + 0.5) * step
+	}
+end
+
+--------------------------------------------------
+-- PREVIEW ENTITY
+--------------------------------------------------
+minetest.register_entity("blockframe:preview", {
+	initial_properties = {
+		visual = "wielditem",
+		physical = false,
+		pointable = false,
+		glow = 5,
+		visual_size = {x=0.5,y=0.5},
+		collisionbox = {0,0,0,0,0,0},
+		static_save = true,
+	},
+
+	on_activate = function(self, staticdata)
+		local data = minetest.deserialize(staticdata) or {}
+		self.node = data.node or "default:stone"
+		self.args = {}
+		self.offset = {x=0,y=0,z=0}
+		self.step = 0
+		self.player = nil
+		self.last_pos = nil
+
+		self.object:set_properties({
+			wield_item = self.node,
+			opacity = 120
+		})
+	end,
+
+	set_node = function(self, node)
+		self.node = node
+		self.object:set_properties({ wield_item = node })
+	end,
+
+	apply_args = function(self, args)
+		-- SIZE
+		if args.size then
+			self.args.size = parse_vec(args.size, {x=0.5,y=0.5,z=0.5})
+		end
+
+		-- MIRROR
+		if args.mirror == "x" or args.mirror == "y" or args.mirror == "z" then
+			self.args.mirror = args.mirror
+		end
+
+		-- STEP
+		if args.step then
+			local s = tonumber(args.step)
+			if s then self.step = s end
+		end
+
+		-- POS (OFFSET)
+		if args.pos then
+			self.offset = parse_vec(args.pos, {x=0,y=0,z=0})
+			self.args.pos = self.offset
+		end
+
+		-- ROTATE x,y,z (trata valores inválidos)
+		if args.rotate then
+			local rx, ry, rz = args.rotate:match("([^,]+),([^,]+),([^,]+)")
+			if rx and ry and rz then
+				self.args.rotate = {
+					x = tonumber(rx) or 0,
+					y = tonumber(ry) or 0,
+					z = tonumber(rz) or 0
+				}
+			else
+				local r = tonumber(args.rotate)
+				if r then
+					self.args.rotate = {x=0, y=r, z=0}
+				else
+					self.args.rotate = {x=0, y=0, z=0}
+				end
+			end
+		end
+
+		-- Aplica tamanho e mirror
+		local base = self.args.size or {x=0.5,y=0.5,z=0.5}
+		local v = table.copy(base)
+		if self.args.mirror == "x" then v.x = -v.x end
+		if self.args.mirror == "y" then v.y = -v.y end
+		if self.args.mirror == "z" then v.z = -v.z end
+		self.object:set_properties({ visual_size = v })
+
+		-- Aplica rotação
+		if self.args.rotate then
+			self.object:set_rotation({
+				x = math.rad(self.args.rotate.x or 0),
+				y = math.rad(self.args.rotate.y or 0),
+				z = math.rad(self.args.rotate.z or 0)
+			})
+		end
+	end,
+
+	on_step = function(self)
+		if not self.player or not self.player:is_player() then return end
+
+		-- posição real da câmera
+		local eye = vector.add(
+			self.player:get_pos(),
+			self.player:get_properties().eye_height and
+			{x=0, y=self.player:get_properties().eye_height, z=0}
+			or {x=0,y=1.6,z=0}
+		)
+
+		local dir = self.player:get_look_dir()
+		local start = vector.add(eye, vector.multiply(dir, 0.2))
+		local finish = vector.add(start, vector.multiply(dir, 6))
+
+		local ray = minetest.raycast(start, finish, true, true)
+
+		for hit in ray do
+			if hit.type == "object" and hit.ref == self.player then
+				goto continue
+			end
+
+			local p = hit.intersection_point or hit.above
+			if p then
+				p = snap(p, self.step)
+				p = vector.add(p, self.offset)
+
+				self.object:set_pos(p)
+				self.last_pos = p
+				return
+			end
+
+			::continue::
+		end
+	end,
+})
+
+--------------------------------------------------
+-- ENTIDADE FINAL
+--------------------------------------------------
+minetest.register_entity("blockframe:placed", {
+	initial_properties = {
+		visual = "wielditem",
+		physical = false,
+		pointable = true,
+		static_save = true,
+		visual_size = {x=0.5,y=0.5},
+		collisionbox = {0,0,0,0,0,0},
+	},
+
+	on_activate = function(self, staticdata)
+		local data = minetest.deserialize(staticdata) or {}
+
+		self.node = data.node or "default:stone"
+		self.args = data.args or {}
+
+		self.object:set_properties({
+			wield_item = self.node
+		})
+
+		-- SIZE + MIRROR
+		local base = self.args.size or {x=0.5,y=0.5,z=0.5}
+		local v = table.copy(base)
+		if self.args.mirror == "x" then v.x = -v.x end
+		if self.args.mirror == "y" then v.y = -v.y end
+		if self.args.mirror == "z" then v.z = -v.z end
+		self.object:set_properties({ visual_size = v })
+
+		-- ROTATE
+		if type(self.args.rotate) == "table" then
+			self.object:set_rotation({
+				x = math.rad(self.args.rotate.x or 0),
+				y = math.rad(self.args.rotate.y or 0),
+				z = math.rad(self.args.rotate.z or 0)
+			})
+		end
+
+		-- OFFSET POS
+		if self.args.pos then
+			local p = vector.add(self.object:get_pos(), self.args.pos)
+			self.object:set_pos(p)
+		end
+	end,
+
+	get_staticdata = function(self)
+		return minetest.serialize({
+			node = self.node,
+			args = self.args
+		})
+	end
+})
+
+--------------------------------------------------
+-- INIT
 --------------------------------------------------
 blockframe = {}
 blockframe.active = {}
@@ -16,20 +228,20 @@ Uso:
 /blockframe <args>
 /blockframe_set
 
-O bloco usado é SEMPRE o que está na sua mão.
+O item usado é SEMPRE o que está na sua mão.
 
 ARGS:
  size=x,y,z        tamanho
- rotate=graus      rotação Y
+ rotate=x,y,z      rotação XYZ
  mirror=x|y|z      espelho
  pos=x,y,z         offset livre
  step=valor        snap da mira
 
 Exemplos:
-/blockframe size=1,1,1 rotate=90
+/blockframe size=1,1,1 rotate=0,90,0
 /blockframe pos=0,1,0 step=0.1
 /blockframe size=0.5,0.5,0.5 mirror=x
-/blockframe rotate=45 pos=0,-0.1,0 step=0.05
+/blockframe rotate=45,0,90 pos=0,-0.1,0 step=0.05
 
 Confirmar:
 /blockframe_set
@@ -48,16 +260,14 @@ function blockframe.parse_args(param)
 	return args
 end
 
-
 --------------------------------------------------
--- ITEM NA MÃO (aceita qualquer item)
+-- ITEM NA MÃO (qualquer item)
 --------------------------------------------------
 function blockframe.get_wielded_item(player)
 	local stack = player:get_wielded_item()
 	if stack:is_empty() then return end
-	return stack:get_name()  -- retorna o nome de qualquer item
+	return stack:get_name()
 end
-
 
 --------------------------------------------------
 -- SPAWN / UPDATE PREVIEW
@@ -87,10 +297,7 @@ function blockframe.spawn_preview(player, args)
 	)
 	if not obj then return end
 
-	blockframe.active[name] = {
-		object = obj,
-		entity = nil
-	}
+	blockframe.active[name] = { object = obj, entity = nil }
 
 	minetest.after(0, function()
 		if not blockframe.active[name] then return end
@@ -190,8 +397,3 @@ minetest.register_on_leaveplayer(function(player)
 	ent.object:remove()
 	blockframe.active[name] = nil
 end)
-
---------------------------------------------------
--- LOAD ENTITIES
---------------------------------------------------
-dofile(minetest.get_modpath("blockframe") .. "/entity.lua")
