@@ -48,24 +48,23 @@ function blockframe.parse_args(param)
 	return args
 end
 
+
 --------------------------------------------------
--- BLOCO NA MÃO
+-- ITEM NA MÃO (aceita qualquer item)
 --------------------------------------------------
-function blockframe.get_wielded_node(player)
+function blockframe.get_wielded_item(player)
 	local stack = player:get_wielded_item()
 	if stack:is_empty() then return end
-	local name = stack:get_name()
-	if minetest.registered_nodes[name] then
-		return name
-	end
+	return stack:get_name()  -- retorna o nome de qualquer item
 end
+
 
 --------------------------------------------------
 -- SPAWN / UPDATE PREVIEW
 --------------------------------------------------
 function blockframe.spawn_preview(player, args)
 	local name = player:get_player_name()
-	local node = blockframe.get_wielded_node(player)
+	local node = blockframe.get_wielded_item(player)
 
 	-- fallback memória
 	if not node and blockframe.memory[name] then

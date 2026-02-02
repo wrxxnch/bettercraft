@@ -190,4 +190,3 @@ minetest.register_entity("blockframe:placed", {
 		})
 	end
 })
-
