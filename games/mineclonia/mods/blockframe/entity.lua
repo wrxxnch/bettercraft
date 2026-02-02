@@ -31,7 +31,7 @@ minetest.register_entity("blockframe:preview", {
 		glow = 5,
 		visual_size = {x=0.5,y=0.5},
 		collisionbox = {0,0,0,0,0,0},
-		static_save = false,
+		static_save = true,
 	},
 
 	on_activate = function(self, staticdata)
@@ -142,15 +142,22 @@ minetest.register_entity("blockframe:placed", {
 		physical = false,
 		pointable = true,
 		static_save = true,
+		visual_size = {x=0.5,y=0.5},
+		collisionbox = {0,0,0,0,0,0},
 	},
 
 	on_activate = function(self, staticdata)
 		local data = minetest.deserialize(staticdata) or {}
+
 		self.node = data.node or "default:stone"
 		self.args = data.args or {}
 
-		self.object:set_properties({ wield_item = self.node })
+		-- 🔑 DEFINE ANTES DE QUALQUER COISA
+		self.object:set_properties({
+			wield_item = self.node
+		})
 
+		-- SIZE + MIRROR
 		local base = self.args.size or {x=0.5,y=0.5,z=0.5}
 		local v = table.copy(base)
 
@@ -160,12 +167,27 @@ minetest.register_entity("blockframe:placed", {
 
 		self.object:set_properties({ visual_size = v })
 
-		if self.args.rotate then
-			self.object:set_rotation({x=0,y=math.rad(self.args.rotate),z=0})
+		-- ROTATE
+		if type(self.args.rotate) == "number" then
+			self.object:set_rotation({
+				x = 0,
+				y = math.rad(self.args.rotate),
+				z = 0
+			})
 		end
 
+		-- OFFSET POS
 		if self.args.pos then
-			self.object:set_pos(vector.add(self.object:get_pos(), self.args.pos))
+			local p = vector.add(self.object:get_pos(), self.args.pos)
+			self.object:set_pos(p)
 		end
+	end,
+
+	get_staticdata = function(self)
+		return minetest.serialize({
+			node = self.node,
+			args = self.args
+		})
 	end
 })
+
