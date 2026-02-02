@@ -403,6 +403,51 @@ minetest.register_chatcommand("blockframe_help", {
 })
 
 --------------------------------------------------
+-- /blockframe_undo
+--------------------------------------------------
+minetest.register_chatcommand("blockframe_undo", {
+	func = function(name)
+		local mem = blockframe.memory[name]
+		if not mem then
+			return false, "Nenhum bloco para desfazer."
+		end
+
+		-- remove o último bloco colocado
+		local pos = mem.pos
+		if pos then
+			local objs = minetest.get_objects_inside_radius(pos, 0.5)
+			for _, obj in ipairs(objs) do
+				local luaent = obj:get_luaentity()
+				if luaent and luaent.name == "blockframe:placed" then
+					obj:remove()
+					break
+				end
+			end
+		end
+
+		-- devolve o item para a mão
+		local player = minetest.get_player_by_name(name)
+		if player and mem.node then
+			local stack = ItemStack(mem.node)
+			local inv  = player:get_inventory()
+			if inv:room_for_item("main", stack) then
+				inv:add_item("main", stack)
+			else
+				-- se não cabe no inventário, solta no chão
+				minetest.add_item(player:get_pos(), stack)
+			end
+		end
+
+		-- remove da memória
+		blockframe.memory[name] = nil
+
+		return true, "Último BlockFrame removido e item devolvido."
+	end
+})
+
+
+
+--------------------------------------------------
 -- SALVA AO SAIR
 --------------------------------------------------
 minetest.register_on_leaveplayer(function(player)
