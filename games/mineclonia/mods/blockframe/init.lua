@@ -3,6 +3,70 @@
 --------------------------------------------------
 blockframe = {}
 blockframe.active = {}
+blockframe.memory = {} -- memoria por player
+
+blockframe = blockframe or {}
+
+function blockframe.help_text()
+	return [[
+📦 BlockFrame — Ajuda
+
+Uso básico:
+  /blockframe <args>
+  /blockframe_set
+
+O bloco usado é SEMPRE o que está na sua mão.
+
+━━━━━━━━━━━━━━━━━━━━
+ARGS DISPONÍVEIS
+━━━━━━━━━━━━━━━━━━━━
+
+size=x,y,z
+  Define o tamanho do bloco
+  Ex: size=1,1,1
+      size=0.5,2,0.5
+
+rotate=graus
+  Rotação em Y (horizontal)
+  Ex: rotate=45
+      rotate=90
+
+mirror=x|y|z
+  Espelha o bloco em um eixo
+  Ex: mirror=x
+      mirror=y
+
+pos=x,y,z
+  Offset manual da posição
+  Ex: pos=0,1,0
+      pos=0,-0.1,0
+
+step=valor
+  Precisão da mira (snap)
+  Ex: step=0.1
+      step=0.25
+      step=0 (livre)
+
+━━━━━━━━━━━━━━━━━━━━
+EXEMPLOS COMPLETOS
+━━━━━━━━━━━━━━━━━━━━
+
+/blockframe size=1,1,1 rotate=90
+/blockframe pos=0,1,0 step=0.1
+/blockframe size=0.5,0.5,0.5 mirror=x
+/blockframe rotate=45 pos=0,-0.1,0 step=0.05
+
+Confirmar colocação:
+  /blockframe_set
+
+Colocar novamente o último:
+  /blockframe_set
+
+Cancelar preview:
+  /blockframe_cancel
+]]
+end
+
 
 --------------------------------------------------
 -- PARSER DE ARGS
@@ -10,7 +74,7 @@ blockframe.active = {}
 function blockframe.parse_args(param)
 	local args = {}
 	for word in param:gmatch("%S+") do
-		local k,v = word:match("([^=]+)=([^=]+)")
+		local k, v = word:match("([^=]+)=([^=]+)")
 		if k then args[k] = v end
 	end
 	return args
@@ -22,11 +86,8 @@ end
 function blockframe.get_wielded_node(player)
 	local stack = player:get_wielded_item()
 	if stack:is_empty() then return end
-
-	local name = stack:get_name()
-	if minetest.registered_nodes[name] then
-		return name
-	end
+	local n = stack:get_name()
+	if minetest.registered_nodes[n] then return n end
 end
 
 --------------------------------------------------
@@ -36,16 +97,17 @@ function blockframe.spawn_preview(player, args)
 	local name = player:get_player_name()
 	local node = blockframe.get_wielded_node(player)
 
-	if not node then
-		return false, "Segure um bloco válido"
+	-- fallback para memória
+	if not node and blockframe.memory[name] then
+		node = blockframe.memory[name].node
 	end
+	if not node then return end
 
 	if blockframe.active[name] then
 		local ent = blockframe.active[name].entity
-		ent.node = node
-		ent.object:set_properties({ wield_item = node })
+		ent:set_node(node)
 		ent:apply_args(args)
-		return true
+		return
 	end
 
 	local obj = minetest.add_entity(
@@ -55,29 +117,24 @@ function blockframe.spawn_preview(player, args)
 	)
 
 	if not obj then return end
-
 	local ent = obj:get_luaentity()
 	ent.player = player
+	ent:set_node(node)
 	ent:apply_args(args)
 
-	blockframe.active[name] = {
-		entity = ent
-	}
-
-	return true
+	blockframe.active[name] = { entity = ent }
 end
 
 --------------------------------------------------
 -- /blockframe
 --------------------------------------------------
 minetest.register_chatcommand("blockframe", {
-	description = "Cria preview do bloco na mão",
 	func = function(name, param)
 		local player = minetest.get_player_by_name(name)
 		if not player then return end
-
 		local args = blockframe.parse_args(param)
-		return blockframe.spawn_preview(player, args)
+		blockframe.spawn_preview(player, args)
+		return true
 	end
 })
 
@@ -85,44 +142,56 @@ minetest.register_chatcommand("blockframe", {
 -- /blockframe_set
 --------------------------------------------------
 minetest.register_chatcommand("blockframe_set", {
-	description = "Confirma BlockFrame",
 	func = function(name)
+		local mem = blockframe.memory[name]
 		local data = blockframe.active[name]
-		if not data then return false, "Nenhum preview ativo" end
 
-		local ent = data.entity
-		if not ent.last_pos then return false, "Sem posição válida" end
+		if not data and not mem then
+			return false, "Nenhum BlockFrame anterior"
+		end
+
+		local node, args, pos
+
+		if data then
+			local ent = data.entity
+			if not ent.last_pos then return false, "Sem posição válida" end
+			node = ent.node
+			args = ent.args
+			pos = ent.last_pos
+			ent.object:remove()
+			blockframe.active[name] = nil
+		else
+			node = mem.node
+			args = mem.args
+			pos = mem.pos
+		end
 
 		minetest.add_entity(
-			ent.last_pos,
+			pos,
 			"blockframe:placed",
-			minetest.serialize({
-				node = ent.node,
-				args = ent.args
-			})
+			minetest.serialize({ node = node, args = args })
 		)
 
-		ent.object:remove()
-		blockframe.active[name] = nil
+		blockframe.memory[name] = {
+			node = node,
+			args = table.copy(args),
+			pos = pos
+		}
 
-		return true, "BlockFrame criado"
+		return true, "BlockFrame colocado"
 	end
 })
 
---------------------------------------------------
--- /blockframe_cancel
---------------------------------------------------
-minetest.register_chatcommand("blockframe_cancel", {
+minetest.register_chatcommand("blockframe_help", {
+	description = "Mostra a ajuda do BlockFrame",
 	func = function(name)
-		if blockframe.active[name] then
-			blockframe.active[name].entity.object:remove()
-			blockframe.active[name] = nil
-		end
+		return true, blockframe.help_text()
 	end
 })
 
+
 --------------------------------------------------
--- REMOVE AO SAIR
+-- LIMPA AO SAIR
 --------------------------------------------------
 minetest.register_on_leaveplayer(function(player)
 	local name = player:get_player_name()
@@ -133,23 +202,6 @@ minetest.register_on_leaveplayer(function(player)
 end)
 
 --------------------------------------------------
--- TOOL REMOVE
---------------------------------------------------
-minetest.register_tool("blockframe:removeblockframe", {
-	description = "Remove BlockFrame",
-	inventory_image = "default_stick.png^[colorize:#ff0000:180",
-
-	on_use = function(_, user, pointed)
-		if pointed.type ~= "object" then return end
-		local obj = pointed.ref
-		if obj and obj:get_luaentity()
-		and obj:get_luaentity().name == "blockframe:placed" then
-			obj:remove()
-		end
-	end
-})
-
---------------------------------------------------
--- ENTIDADES
+-- CARREGA ENTIDADES
 --------------------------------------------------
 dofile(minetest.get_modpath("blockframe") .. "/entity.lua")
