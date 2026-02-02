@@ -370,6 +370,30 @@ minetest.register_chatcommand("blockframe_set", {
 })
 
 --------------------------------------------------
+-- /blockframe_cancel
+--------------------------------------------------
+minetest.register_chatcommand("blockframe_cancel", {
+	func = function(name)
+		local data = blockframe.active[name]
+		if not data or not data.entity then
+			return false, "Nenhum BlockFrame ativo para cancelar."
+		end
+
+		-- remove a entidade preview
+		local ent = data.entity
+		if ent.object then
+			ent.object:remove()
+		end
+
+		-- limpa o active
+		blockframe.active[name] = nil
+
+		return true, "BlockFrame preview cancelado."
+	end
+})
+
+
+--------------------------------------------------
 -- /blockframe_help
 --------------------------------------------------
 minetest.register_chatcommand("blockframe_help", {
