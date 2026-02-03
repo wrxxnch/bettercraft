@@ -300,6 +300,11 @@ mcl_levelgen.register_template_pool ("mcl_levelgen:trial_chambers_entrances", {
 })
 
 local leaf_p = mcl_levelgen.leaf_p
+	or function (cid)
+		local name = core.get_name_from_content_id(cid)
+		return name and core.get_item_group(name, "leaves") > 0
+	end
+
 local index_biome = mcl_levelgen.index_biome
 local registered_biomes = mcl_levelgen.registered_biomes
 
