@@ -1,68 +1,160 @@
 local S = core.get_translator(core.get_current_modname())
 
 -- =========================
--- UTILS
+-- Resolve aliases e nomes curtos
 -- =========================
 local function resolve_node_name_safe(name)
-    if type(name) ~= "string" or name == "" then
-        return nil
-    end
+	if not name or name == "" then
+		return nil
+	end
 
-    while core.registered_aliases[name] do
-        name = core.registered_aliases[name]
-    end
+	while core.registered_aliases[name] do
+		name = core.registered_aliases[name]
+	end
 
-    if not name:find(":") then
-        for regname in pairs(core.registered_nodes) do
-            if regname:match(":(.+)$") == name then
-                return regname
-            end
-        end
-    end
+	if not name:find(":") then
+		for regname in pairs(core.registered_nodes) do
+			local short = regname:match(":(.+)$")
+			if short == name then
+				return regname
+			end
+		end
+	end
 
-    if core.registered_nodes[name] then
-        return name
-    end
+	if core.registered_nodes[name] then
+		return name
+	end
 
-    return nil
+	return nil
 end
 
--- aceita: números | ~ | ~1 | pos1 | pos2
-local function parse_any_pos(player, a, b, c)
-    local pname = player:get_player_name()
+-- =========================
+-- /setblock
+-- =========================
+core.register_chatcommand("setblock", {
+	params = S("<X> <Y> <Z> <block>"),
+	description = S("Set node at given position"),
+	privs = { give = true, interact = true },
 
-    if a == "pos1" then
-        return postick_get_pos(pname, "pos1")
-    end
-    if a == "pos2" then
-        return postick_get_pos(pname, "pos2")
-    end
+	func = function(_, param)
+		local x, y, z, nodestring =
+			param:match("^([%d.-]+)[, ]*([%d.-]+)[, ]*([%d.-]+)%s+(.+)$")
 
-    local base = vector.round(player:get_pos())
+		x, y, z = tonumber(x), tonumber(y), tonumber(z)
 
-    local function r(v, b)
-        if not v then
-            return nil
-        end
-        if v:sub(1, 1) == "~" then
-            return b + tonumber(v:sub(2) ~= "" and v:sub(2) or 0)
-        end
-        return tonumber(v)
-    end
+		if not (x and y and z and nodestring) then
+			return false, S("Invalid parameters (see /help setblock)")
+		end
 
-    local x = r(a, base.x)
-    local y = r(b, base.y)
-    local z = r(c, base.z)
+		local nodename = resolve_node_name_safe(nodestring)
+		if not nodename then
+			return false, S("Unknown block: @1", nodestring)
+		end
 
-    if not (x and y and z) then
-        return nil
-    end
-    return {
-        x = x,
-        y = y,
-        z = z
-    }
-end
+		core.set_node(
+			{ x = x, y = y, z = z },
+			{ name = nodename, param2 = 0 }
+		)
+
+		return true, S("@1 placed.", nodename)
+	end,
+})
+
+-- =========================
+-- /setblock_search
+-- =========================
+core.register_chatcommand("setblock_search", {
+	params = S("<search>"),
+	description = S("Search blocks by name and cache results"),
+	privs = { give = true, interact = true },
+
+	func = function(name, param)
+		if param == "" then
+			return false, S("You must provide a search term")
+		end
+
+		local player = core.get_player_by_name(name)
+		if not player then
+			return false
+		end
+
+		local search = param:lower()
+		local results = {}
+
+		for nodename in pairs(core.registered_nodes) do
+			if nodename:lower():find(search, 1, true) then
+				results[#results + 1] = nodename
+				if #results >= 10 then
+					break
+				end
+			end
+		end
+
+		if #results == 0 then
+			return false, S("No blocks found for: @1", search)
+		end
+
+		-- cache por jogador
+		local meta = player:get_meta()
+		meta:set_string("setblock_search_results", core.serialize(results))
+
+		-- resultado único → coloca direto
+		if #results == 1 then
+			local pos = vector.round(player:get_pos())
+			core.set_node(pos, { name = results[1], param2 = 0 })
+			return true, S("@1 placed and cached.", results[1])
+		end
+
+		-- múltiplos resultados → listar
+		local msg = S("Cached blocks:\n")
+		for i, nodename in ipairs(results) do
+			msg = msg .. i .. ": " .. nodename .. "\n"
+		end
+		msg = msg .. S("Use: /setblock_pick <number>")
+
+		core.chat_send_player(name, msg)
+		return true, S("Search cached.")
+	end,
+})
+
+-- =========================
+-- /setblock_pick
+-- =========================
+core.register_chatcommand("setblock_pick", {
+	params = S("<number>"),
+	description = S("Pick cached block and place it at your position"),
+	privs = { give = true, interact = true },
+
+	func = function(name, param)
+		local idx = tonumber(param)
+		if not idx then
+			return false, S("Invalid number")
+		end
+
+		local player = core.get_player_by_name(name)
+		if not player then
+			return false
+		end
+
+		local meta = player:get_meta()
+		local data = meta:get_string("setblock_search_results")
+		if data == "" then
+			return false, S("No cached search results")
+		end
+
+		local results = core.deserialize(data)
+		if not (results and results[idx]) then
+			return false, S("Invalid cached index")
+		end
+
+		local pos = vector.round(player:get_pos())
+		core.set_node(pos, { name = results[idx], param2 = 0 })
+
+		return true, S("@1 placed.", results[idx])
+	end,
+})
+
+
 
 -- =========================
 -- UNDO
@@ -239,3 +331,4 @@ core.register_chatcommand("fill", {
         return true, S("Fill completed with @1", nodename)
     end
 })
+
