@@ -316,33 +316,57 @@ minetest.register_chatcommand("blockframe_undo",{
 	end
 })
 
-minetest.register_chatcommand("blockframe_del",{
-	func=function(name)
+minetest.register_chatcommand("blockframe_del", {
+	description = "Delete BlockFrames around you and return the items. Optional: radius=<number>",
+	func = function(name, param)
 		local player = minetest.get_player_by_name(name)
-		if not player then return false,"Player não encontrado." end
-		local eye = vector.add(player:get_pos(),
-			player:get_properties().eye_height and {x=0,y=player:get_properties().eye_height,z=0} or {x=0,y=1.6,z=0})
-		local dir = player:get_look_dir()
-		local start = vector.add(eye,vector.multiply(dir,0.2))
-		local finish = vector.add(start,vector.multiply(dir,6))
-		local ray = minetest.raycast(start,finish,true,true)
-		for hit in ray do
-			if hit.type=="object" then
-				local obj = hit.ref
-				local luaent = obj:get_luaentity()
-				if luaent and luaent.name=="blockframe:placed" then
-					if luaent.node then
-						local stack = ItemStack(luaent.node)
-						local inv = player:get_inventory()
-						if inv:room_for_item("main",stack) then inv:add_item("main",stack)
-						else minetest.add_item(player:get_pos(),stack) end
+		if not player then
+			return false, "Player not found."
+		end
+
+		-- parse args
+		local args = {}
+		for key, value in string.gmatch(param or "", "(%w+)%s*=%s*([^%s]+)") do
+			args[key] = value
+		end
+
+		-- radius handling
+		local radius = tonumber(args.radius)
+		if not radius or radius <= 0 then
+			radius = 2
+		end
+
+		local pos = player:get_pos()
+		local objs = minetest.get_objects_inside_radius(pos, radius)
+
+		local removed = 0
+		local inv = player:get_inventory()
+
+		for _, obj in ipairs(objs) do
+			if obj ~= player then
+				local ent = obj:get_luaentity()
+				if ent and ent.name == "blockframe:placed" then
+					-- return item
+					if ent.node then
+						local stack = ItemStack(ent.node)
+						if inv and inv:room_for_item("main", stack) then
+							inv:add_item("main", stack)
+						else
+							minetest.add_item(pos, stack)
+						end
 					end
+
 					obj:remove()
-					return true,"BlockFrame removido e item devolvido."
+					removed = removed + 1
 				end
 			end
 		end
-		return false,"Nenhum BlockFrame encontrado para deletar."
+
+		if removed == 0 then
+			return false, "No BlockFrames found within radius " .. radius .. "."
+		end
+
+		return true, "Removed " .. removed .. " BlockFrame(s) within radius " .. radius .. "."
 	end
 })
 
