@@ -134,150 +134,175 @@ minetest.register_chatcommand("execute", {
     end,
 })
 
--- Função para limpar nomes de textura (v2+)
-local function clean_texture_name(str)
-    if not str or type(str) ~= "string" then return nil end
-    local base = str:split("^")[1]:split("[")[1]
-    base = base:gsub("^%(", ""):gsub("%)$", ""):gsub("[%(%)]", "")
-    base = base:trim()
-    return base ~= "" and base or nil
+
+local function normalize_texture(name)
+    if not name or name == "" then return nil end
+    if not name:find("%.png$") then
+        name = name .. ".png"
+    end
+    return name
 end
 
--- Busca refinada STRICT (v4)
-local function find_textures_refined(search)
-    local exact_png = {}
-    local exact_name = {}
-    search = search:lower()
+local function parse_pos(args, player)
+    local base = vector.round(player:get_pos())
+    base.y = base.y + 1.5
 
-    for _, def in pairs(minetest.registered_items) do
-        local candidates = {}
-
-        if def.tiles then
-            for _, t in ipairs(def.tiles) do
-                local n = type(t) == "table" and t.name or t
-                if type(n) == "string" then
-                    table.insert(candidates, n)
-                end
-            end
+    local function parse_axis(v, axis)
+        if v == "~" then return base[axis] end
+        if v:sub(1,1) == "~" then
+            return base[axis] + (tonumber(v:sub(2)) or 0)
         end
-
-        if def.inventory_image and def.inventory_image ~= "" then
-            table.insert(candidates, def.inventory_image)
+        if v == "^" then return base[axis] end
+        if v:sub(1,1) == "^" then
+            return base[axis] + (tonumber(v:sub(2)) or 0)
         end
-
-        for _, tex in ipairs(candidates) do
-            local clean = clean_texture_name(tex)
-            if clean then
-                local cl = clean:lower()
-
-                -- prioridade ABSOLUTA
-                if cl == search .. ".png" then
-                    exact_png[clean] = true
-                elseif cl == search then
-                    exact_name[clean] = true
-                end
-            end
-        end
+        return tonumber(v)
     end
 
-    -- converte sets para lista
-    local function to_list(t)
-        local r = {}
-        for k in pairs(t) do table.insert(r, k) end
-        table.sort(r)
-        return r
+    if args[1] and (tonumber(args[1]) or args[1]:match("^[~^]")) then
+        return {
+            x = parse_axis(table.remove(args,1), "x"),
+            y = parse_axis(table.remove(args,1), "y"),
+            z = parse_axis(table.remove(args,1), "z"),
+        }
     end
 
-    if next(exact_png) then
-        return to_list(exact_png)
-    end
-
-    if next(exact_name) then
-        return to_list(exact_name)
-    end
-
-    -- NADA de fallback parcial
-    return {}
+    return base
 end
 
 minetest.register_chatcommand("particle", {
-    params = "<texture> <falling|floating|static> [count] [size] [speed]",
-    description = "summon particles,particles inside textures are not listed by particle_search but you can use on particle command,example:/particle heart.png floating",
-    privs = {server = true},
+    params = "<textura> [args...] ",
+    description = "Particle (coords, sphere, hollow, distance, static/falling/floating) summon particles,particles inside textures are not listed by particle_search but you can use on particle command,example:/particle heart.png floating",
+     privs = {server = true},
     func = function(name, param)
         local args = param:split(" ")
-        if #args < 2 then
-            return false,
-                "Uso: /particle <texture.png> <falling|floating|static> [quantidade] [tamanho] [velocidade]"
-        end
-
-        -- textura EXATA
-        local texture = args[1]
-        local mode = args[2]:lower()
-        local count = tonumber(args[3]) or 30
-        local base_size = tonumber(args[4]) or 1
-        local base_speed = tonumber(args[5]) or 2
-
-        if mode ~= "falling" and mode ~= "floating" and mode ~= "static" then
-            return false, "Modo inválido: use falling, floating ou static"
+        if #args == 0 then
+            return false, "Uso: /particle <textura> [args]"
         end
 
         local player = minetest.get_player_by_name(name)
-        if not player then return false, "Jogador não encontrado" end
+        if not player then return false end
 
-        local pos = player:get_pos()
-        pos.y = pos.y + 1.5
-
-        -- Lógica de Movimento
-        local minvel, maxvel, minacc, maxacc
-        local collision = true
-
-        if mode == "falling" then
-            minvel = {x = -0.5, y = 0, z = -0.5}
-            maxvel = {x = 0.5, y = 1, z = 0.5}
-            minacc = {x = 0, y = -9.8, z = 0}
-            maxacc = {x = 0, y = -9.8, z = 0}
-
-        elseif mode == "floating" then
-            minvel = {x = -base_speed, y = base_speed / 2, z = -base_speed}
-            maxvel = {x = base_speed, y = base_speed, z = base_speed}
-            minacc = {x = -0.1, y = 0.1, z = -0.1}
-            maxacc = {x = 0.1, y = 0.5, z = 0.1}
-
-        else -- static
-            minvel = {x = 0, y = 0, z = 0}
-            maxvel = {x = 0, y = 0, z = 0}
-            minacc = {x = 0, y = 0, z = 0}
-            maxacc = {x = 0, y = 0, z = 0}
-            collision = false
+        -- TEXTURA
+        local texture = normalize_texture(table.remove(args,1))
+        if not texture then
+            return false, "Textura inválida"
         end
 
-        minetest.add_particlespawner({
-            amount = count,
-            time = 2,
-            minpos = {x = pos.x - 0.3, y = pos.y, z = pos.z - 0.3},
-            maxpos = {x = pos.x + 0.3, y = pos.y + 0.6, z = pos.z + 0.3},
-            minvel = minvel,
-            maxvel = maxvel,
-            minacc = minacc,
-            maxacc = maxacc,
-            minexptime = (mode == "static" and 5 or 1),
-            maxexptime = (mode == "static" and 10 or 3),
-            minsize = base_size,
-            maxsize = base_size * 1.5,
-            collisiondetection = collision,
-            collision_removal = (mode == "falling"),
-            texture = texture, 
-            glow = 12,
-        })
+        -- DEFAULTS
+        local cfg = {
+            mode = "static",
+            shape = "point",
+            hollow = false,
+            radius = 3,
+            size = 4,
+            count = 30,
+            spread = 0.3,
+            seed = os.time(),
+        }
 
-        return true,
-            count .. " partículas de '" .. texture ..
-            "' geradas! (Modo: " .. mode .. ")"
+        -- PARSE KEY=VALUE + FLAGS
+        local i = 1
+        while i <= #args do
+            local a = args[i]:lower()
+
+            if a == "floating" or a == "falling" or a == "static" then
+                cfg.mode = a
+                table.remove(args,i)
+
+            elseif a == "hollow" then
+                cfg.hollow = true
+                table.remove(args,i)
+
+            elseif a:match("^sphere=") then
+                cfg.shape = "sphere"
+                cfg.radius = tonumber(a:match("sphere=(.+)")) or cfg.radius
+                table.remove(args,i)
+
+            elseif a == "sphere" then
+                cfg.shape = "sphere"
+                table.remove(args,i)
+
+            elseif a:match("^size=") then
+                cfg.size = tonumber(a:match("size=(.+)")) or cfg.size
+                table.remove(args,i)
+
+            elseif a:match("^count=") then
+                cfg.count = tonumber(a:match("count=(.+)")) or cfg.count
+                table.remove(args,i)
+
+            elseif a:match("^spread=") then
+                cfg.spread = tonumber(a:match("spread=(.+)")) or cfg.spread
+                table.remove(args,i)
+
+            elseif a:match("^seed=") then
+                cfg.seed = tonumber(a:match("seed=(.+)")) or cfg.seed
+                table.remove(args,i)
+
+            else
+                i = i + 1
+            end
+        end
+
+        -- POSIÇÃO
+        local pos = parse_pos(args, player)
+
+        math.randomseed(cfg.seed)
+
+        -- MOVIMENTO
+        local vel, acc, collision = vector.zero(), vector.zero(), false
+
+        if cfg.mode == "falling" then
+            vel = {x=0,y=1,z=0}
+            acc = {x=0,y=-9.8,z=0}
+            collision = true
+        elseif cfg.mode == "floating" then
+            vel = {x=0,y=1,z=0}
+            acc = {x=0,y=0.3,z=0}
+        end
+
+        -- SPAWN
+        if cfg.shape == "sphere" then
+            for x=-cfg.radius,cfg.radius do
+                for y=-cfg.radius,cfg.radius do
+                    for z=-cfg.radius,cfg.radius do
+                        local d = math.sqrt(x*x+y*y+z*z)
+                        if d <= cfg.radius and (not cfg.hollow or d >= cfg.radius-1) then
+                            minetest.add_particle({
+                                pos = vector.add(pos,{x=x,y=y,z=z}),
+                                velocity = vel,
+                                acceleration = acc,
+                                expirationtime = 4,
+                                size = cfg.size,
+                                texture = texture,
+                                collisiondetection = collision,
+                                glow = 10,
+                            })
+                        end
+                    end
+                end
+            end
+        else
+            minetest.add_particlespawner({
+                amount = cfg.count,
+                time = 0.1,
+                minpos = vector.subtract(pos, cfg.spread),
+                maxpos = vector.add(pos, cfg.spread),
+                minvel = vel,
+                maxvel = vel,
+                minacc = acc,
+                maxacc = acc,
+                minsize = cfg.size,
+                maxsize = cfg.size,
+                texture = texture,
+                collisiondetection = collision,
+                glow = 10,
+            })
+        end
+
+        return true, "✨ Particle "..texture.." criado!"
     end,
 })
-
-
 
 -- Função auxiliar para coletar todas as texturas registradas no jogo
 local function get_all_textures()
