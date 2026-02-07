@@ -202,7 +202,7 @@ end
 
 minetest.register_chatcommand("particle", {
     params = "<texture> <falling|floating|static> [count] [size] [speed]",
-    description = "Partículas v4 (nome exato da textura, sem busca)",
+    description = "summon particles,particles inside textures are not listed by particle_search but you can use on particle command,example:/particle heart.png floating",
     privs = {server = true},
     func = function(name, param)
         local args = param:split(" ")
