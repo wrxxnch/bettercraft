@@ -143,71 +143,88 @@ local function clean_texture_name(str)
     return base ~= "" and base or nil
 end
 
--- Busca refinada (v3+)
+-- Busca refinada STRICT (v4)
 local function find_textures_refined(search)
-    local exact_matches = {}
-    local partial_matches = {}
+    local exact_png = {}
+    local exact_name = {}
     search = search:lower()
-    local blacklist = {}
-    
-    for name, def in pairs(minetest.registered_items) do
-        local skip = false
-        for _, word in ipairs(blacklist) do
-            if name:find(word) then skip = true break end
-        end
-        
-        if not skip then
-            local candidates = {}
-            if def.tiles then
-                for _, t in ipairs(def.tiles) do
-                    local n = type(t) == "table" and t.name or t
-                    if type(n) == "string" then table.insert(candidates, {name = n, type = "tile"}) end
+
+    for _, def in pairs(minetest.registered_items) do
+        local candidates = {}
+
+        if def.tiles then
+            for _, t in ipairs(def.tiles) do
+                local n = type(t) == "table" and t.name or t
+                if type(n) == "string" then
+                    table.insert(candidates, n)
                 end
             end
-            if def.inventory_image and def.inventory_image ~= "" then 
-                table.insert(candidates, {name = def.inventory_image, type = "inv"}) 
-            end
-            
-            for _, item in ipairs(candidates) do
-                local clean = clean_texture_name(item.name)
-                if clean then
-                    local clean_lower = clean:lower()
-                    if clean_lower == search or clean_lower == search .. ".png" then
-                        table.insert(exact_matches, clean)
-                    elseif clean_lower:find(search, 1, true) then
-                        if item.type == "tile" then table.insert(partial_matches, 1, clean)
-                        else table.insert(partial_matches, clean) end
-                    end
+        end
+
+        if def.inventory_image and def.inventory_image ~= "" then
+            table.insert(candidates, def.inventory_image)
+        end
+
+        for _, tex in ipairs(candidates) do
+            local clean = clean_texture_name(tex)
+            if clean then
+                local cl = clean:lower()
+
+                -- prioridade ABSOLUTA
+                if cl == search .. ".png" then
+                    exact_png[clean] = true
+                elseif cl == search then
+                    exact_name[clean] = true
                 end
             end
         end
     end
-    if #exact_matches > 0 then return exact_matches end
-    return partial_matches
+
+    -- converte sets para lista
+    local function to_list(t)
+        local r = {}
+        for k in pairs(t) do table.insert(r, k) end
+        table.sort(r)
+        return r
+    end
+
+    if next(exact_png) then
+        return to_list(exact_png)
+    end
+
+    if next(exact_name) then
+        return to_list(exact_name)
+    end
+
+    -- NADA de fallback parcial
+    return {}
 end
 
 minetest.register_chatcommand("particle", {
-    params = "<termo> <falling|floating|static> [count] [size] [speed]",
-    description = "Partículas v4: suporte a 'count' e modo estático (parado)",
+    params = "<texture> <falling|floating|static> [count] [size] [speed]",
+    description = "Partículas v4 (nome exato da textura, sem busca)",
     privs = {server = true},
     func = function(name, param)
         local args = param:split(" ")
         if #args < 2 then
-            return false, "Uso: /particle <termo> <falling|floating|static> [quantidade] [tamanho] [velocidade]"
+            return false,
+                "Uso: /particle <texture.png> <falling|floating|static> [quantidade] [tamanho] [velocidade]"
         end
 
-        local search = args[1]
+        -- textura EXATA
+        local texture = args[1]
         local mode = args[2]:lower()
         local count = tonumber(args[3]) or 30
         local base_size = tonumber(args[4]) or 1
         local base_speed = tonumber(args[5]) or 2
 
-        local textures = find_textures_refined(search)
-        if #textures == 0 then return false, "Nenhuma textura encontrada para: " .. search end
-        local tex = textures[1]
+        if mode ~= "falling" and mode ~= "floating" and mode ~= "static" then
+            return false, "Modo inválido: use falling, floating ou static"
+        end
 
         local player = minetest.get_player_by_name(name)
-        if not player then return false end
+        if not player then return false, "Jogador não encontrado" end
+
         local pos = player:get_pos()
         pos.y = pos.y + 1.5
 
@@ -220,17 +237,19 @@ minetest.register_chatcommand("particle", {
             maxvel = {x = 0.5, y = 1, z = 0.5}
             minacc = {x = 0, y = -9.8, z = 0}
             maxacc = {x = 0, y = -9.8, z = 0}
+
         elseif mode == "floating" then
-            minvel = {x = -base_speed, y = base_speed/2, z = -base_speed}
+            minvel = {x = -base_speed, y = base_speed / 2, z = -base_speed}
             maxvel = {x = base_speed, y = base_speed, z = base_speed}
             minacc = {x = -0.1, y = 0.1, z = -0.1}
             maxacc = {x = 0.1, y = 0.5, z = 0.1}
-        else -- MODO STATIC (PARADO)
+
+        else -- static
             minvel = {x = 0, y = 0, z = 0}
             maxvel = {x = 0, y = 0, z = 0}
             minacc = {x = 0, y = 0, z = 0}
             maxacc = {x = 0, y = 0, z = 0}
-            collision = false -- Se está parado, geralmente não precisa de colisão
+            collision = false
         end
 
         minetest.add_particlespawner({
@@ -242,19 +261,22 @@ minetest.register_chatcommand("particle", {
             maxvel = maxvel,
             minacc = minacc,
             maxacc = maxacc,
-            minexptime = (mode == "static" and 5 or 1), -- Dura mais se estiver parado
+            minexptime = (mode == "static" and 5 or 1),
             maxexptime = (mode == "static" and 10 or 3),
             minsize = base_size,
             maxsize = base_size * 1.5,
             collisiondetection = collision,
             collision_removal = (mode == "falling"),
-            texture = tex,
+            texture = texture, 
             glow = 12,
         })
 
-        return true, "" .. count .. " partículas de '" .. tex .. "' geradas! (Modo: " .. mode .. ")"
+        return true,
+            count .. " partículas de '" .. texture ..
+            "' geradas! (Modo: " .. mode .. ")"
     end,
 })
+
 
 
 -- Função auxiliar para coletar todas as texturas registradas no jogo
