@@ -130,13 +130,23 @@ local function update_entity_properties(self)
 	self.object:set_properties(props)
 	
 	if self.args.rotate then
-		local rot = self.args.rotate
-		self.object:set_rotation({
-			x = math.rad(rot.x or 0),
-			y = math.rad(rot.y or 0),
-			z = math.rad(rot.z or 0)
-		})
+	local rot = self.args.rotate
+
+	if type(rot) == "number" then
+		rot = {x = 0, y = rot, z = 0}
+	elseif type(rot) == "string" then
+		rot = parse_vec(rot, {x=0,y=0,z=0})
+	elseif type(rot) ~= "table" then
+		rot = {x=0,y=0,z=0}
 	end
+
+	self.object:set_rotation({
+		x = math.rad(rot.x or 0),
+		y = math.rad(rot.y or 0),
+		z = math.rad(rot.z or 0)
+	})
+end
+
 end
 
 --------------------------------------------------
