@@ -299,6 +299,8 @@ end
 
 function mcl_furnaces.get_timer_function(node_normal, node_active, factor, group)
 	return function(pos, elapsed)
+		-- Usamos 'elapsed' (tempo real do servidor) para a regressão, para que seja consistente.
+		-- Usamos 'elapsed_game_time' para o progresso, para que ele acompanhe o tempo do jogo (time_speed).
 		local meta, elapsed_game_time = mcl_furnaces.furnace_get_delta_time(pos, elapsed)
 
 		local fuel_time = meta:get_float("fuel_time") or 0
@@ -307,173 +309,143 @@ function mcl_furnaces.get_timer_function(node_normal, node_active, factor, group
 		local fuel_totaltime = meta:get_float("fuel_totaltime") or 0
 
 		local inv = meta:get_inventory()
-		local srclist, fuellist
+		local srclist = inv:get_list("src")
+		local fuellist = inv:get_list("fuel")
+		local inv_changed = false
 
-		local cookable, cooked
-		local active = true
-		local fuel
-
-		srclist = inv:get_list("src")
-		fuellist = inv:get_list("fuel")
-
-		-- Check if src item has been changed
+		-- 1. Verifica se o item na fonte mudou. Se sim, reseta o progresso.
 		if srclist[1]:get_name() ~= src_item then
-			-- Reset cooking progress in this case
 			src_time = 0
 			src_item = srclist[1]:get_name()
 		end
 
-		local update = true
-		local inv_changed = false
-		while elapsed_game_time > 0.00001 and update do
-			--
-			-- Cooking
-			--
-
-			local el = elapsed_game_time * factor
-
-			-- Check if we have cookable content: cookable
-			local aftercooked
-			cooked, aftercooked = core.get_craft_result({ method = "cooking", width = 1, items = srclist })
-			cookable = cooked.time ~= 0
-			if group then
-				cookable = cookable and core.get_item_group(inv:get_stack("src", 1):get_name(), group) > 0
+		-- 2. Verifica se a fornalha está queimando combustível
+		local is_burning = fuel_time > 0
+		if is_burning then
+			fuel_time = fuel_time - elapsed_game_time
+			if fuel_time <= 0 then
+				fuel_time = 0
+				fuel_totaltime = 0
+				is_burning = false
+				inv_changed = true -- O fogo apagou, precisa atualizar o nó
 			end
-			if cookable then
-				-- Successful cooking requires space in dst slot and time
-				if not inv:room_for_item("dst", cooked.item) then
-					cookable = false
-				end
-			end
+		end
 
-			if cookable then -- fuel lasts long enough, adjust el to cooking duration
-				el = math.min(el, cooked.time - src_time)
-			end
+		-- 3. Verifica se pode cozinhar o item
+		local cooked, aftercooked = core.get_craft_result({ method = "cooking", width = 1, items = srclist })
+		local can_cook = cooked.time ~= 0 and inv:room_for_item("dst", cooked.item)
+		if group and can_cook then
+			can_cook = core.get_item_group(srclist[1]:get_name(), group) > 0
+		end
 
-			-- Check if we have enough fuel to burn
-			active = fuel_time < fuel_totaltime
-			if cookable and not active then
-				-- We need to get new fuel
-				local afterfuel
-				fuel, afterfuel = core.get_craft_result({ method = "fuel", width = 1, items = fuellist })
-
-				if fuel.time == 0 then
-					-- No valid fuel in fuel list -- stop
-					fuel_totaltime = 0
-					src_time = 0
-					update = false
-				else
-					-- Take fuel from fuel list
+		-- 4. Lógica principal: cozinhar, pegar novo combustível ou regredir
+		if can_cook then
+			if not is_burning then
+				-- Tenta pegar um novo combustível
+				local fuel, afterfuel = core.get_craft_result({ method = "fuel", width = 1, items = fuellist })
+				if fuel.time > 0 then
+					-- Encontrou combustível, consome e começa a queimar
 					inv:set_stack("fuel", 1, afterfuel.items[1])
-					fuel_time = 0
-					fuel_totaltime = fuel.time
-					el = math.min(el, fuel_totaltime)
-					active = true
 					fuellist = inv:get_list("fuel")
+					fuel_totaltime = fuel.time
+					fuel_time = fuel_totaltime
+					is_burning = true
 					inv_changed = true
-				end
-			elseif active then
-				el = math.min(el, fuel_totaltime - fuel_time)
-				-- The furnace is currently active and has enough fuel
-				fuel_time = fuel_time + el
-			end
-
-			-- If there is a cookable item then check if it is ready yet
-			if cookable and active then
-				src_time = src_time + el
-				-- Place result in dst list if done
-				if src_time >= cooked.time then
-					inv:add_item("dst", cooked.item)
-					inv:set_stack("src", 1, aftercooked.items[1])
-
-					-- Unique recipe: Pour water into empty bucket after cooking wet sponge successfully
-					if inv:get_stack("fuel", 1):get_name() == "mcl_buckets:bucket_empty" then
-						if srclist[1]:get_name() == "mcl_sponges:sponge_wet" then
-							inv:set_stack("fuel", 1, "mcl_buckets:bucket_water")
-							fuellist = inv:get_list("fuel")
-							-- Also for river water
-						elseif srclist[1]:get_name() == "mcl_sponges:sponge_wet_river_water" then
-							inv:set_stack("fuel", 1, "mcl_buckets:bucket_river_water")
-							fuellist = inv:get_list("fuel")
-						end
+				else
+					-- Não há combustível e pode cozinhar, então o progresso deve regredir
+					if src_time > 0 then
+						-- Regride 2x mais devagar que o cozimento
+						src_time = src_time - (elapsed * factor * 2)
+						if src_time < 0 then src_time = 0 end
 					end
-
-					srclist = inv:get_list("src")
-					src_time = 0
-
-					meta:set_int("xp", meta:get_int("xp") + 1) -- ToDo give each recipe an idividial XP count
-					inv_changed = true
 				end
 			end
 
-			elapsed_game_time = elapsed_game_time - el
+			if is_burning then
+				-- Está queimando, então o progresso avança
+				src_time = src_time + elapsed_game_time
+			end
+
+			-- 5. Verifica se o cozimento terminou
+			if src_time >= cooked.time then
+				inv:add_item("dst", cooked.item)
+				inv:set_stack("src", 1, aftercooked.items[1])
+				srclist = inv:get_list("src")
+				src_time = 0
+				meta:set_int("xp", meta:get_int("xp") + 1)
+				inv_changed = true
+
+				-- Caso especial da esponja
+				if fuellist[1]:get_name() == "mcl_buckets:bucket_empty" then
+					if aftercooked.items[1]:get_name() == "mcl_sponges:sponge_wet" then
+						inv:set_stack("fuel", 1, "mcl_buckets:bucket_water")
+					elseif aftercooked.items[1]:get_name() == "mcl_sponges:sponge_wet_river_water" then
+						inv:set_stack("fuel", 1, "mcl_buckets:bucket_river_water")
+					end
+					fuellist = inv:get_list("fuel")
+				end
+			end
+		elseif src_time > 0 then
+			-- Não pode mais cozinhar (ex: slot de saída cheio), reseta o progresso
+			src_time = 0
 		end
 
 		if inv_changed then
 			mcl_redstone.update_comparators(pos)
 		end
 
-		if fuel and fuel_totaltime > fuel.time then
-			fuel_totaltime = fuel.time
-		end
-		if srclist and srclist[1]:is_empty() then
-			src_time = 0
-		end
-
+		-- 6. Atualiza o estado do nó e o formspec
 		local def = core.registered_nodes[node_normal]
-		local name = S("Furnace")
-		if def and def.description then
-			name = def._tt_original_description or def.description
-		end
+		local name = (def and (def._tt_original_description or def.description)) or S("Furnace")
 
-		local formspec
-		if def._mcl_furnaces_get_inactive_formspec then
-			formspec = def._mcl_furnaces_get_inactive_formspec(name)
-		else
-			formspec = get_inactive_formspec(name)
-		end
 		local item_percent = 0
-		if cookable then
+		if can_cook and cooked.time > 0 then
 			item_percent = math.floor(src_time / cooked.time * 100)
 		end
 
+		local formspec
 		local result = false
 
-		if active then
+		if is_burning then
 			local fuel_percent = 0
 			if fuel_totaltime > 0 then
-				fuel_percent = math.floor(fuel_time / fuel_totaltime * 100)
+				fuel_percent = math.floor((fuel_totaltime - fuel_time) / fuel_totaltime * 100)
+
 			end
-			if def._mcl_furnaces_get_active_formspec then
-				formspec = def._mcl_furnaces_get_active_formspec(fuel_percent, item_percent, name)
-			else
-				formspec = get_active_formspec(fuel_percent, item_percent, name)
-			end
+			local get_fs = def._mcl_furnaces_get_active_formspec or get_active_formspec
+			formspec = get_fs(fuel_percent, item_percent, name)
 			mcl_furnaces.swap_node(pos, node_active)
-			-- make sure timer restarts automatically
-			result = true
+			result = true -- Manter timer ativo
 		else
+			local get_fs = def._mcl_furnaces_get_inactive_formspec or get_inactive_formspec
+			-- No formspec inativo, a seta de progresso ainda precisa ser mostrada
+			local inactive_fs_str = get_fs(name)
+			-- Substitui a imagem da seta estática pela versão com progresso
+			formspec = inactive_fs_str:gsub(
+				"image%[5.25,2;1.5,1;gui_furnace_arrow_bg.png%^%[transformR270]",
+				"image[5.25,2;1.5,1;gui_furnace_arrow_bg.png^[lowpart:" .. item_percent .. ":gui_furnace_arrow_fg.png^[transformR270]"
+			)
+
 			mcl_furnaces.swap_node(pos, node_normal)
-			-- stop timer on the inactive furnace
-			core.get_node_timer(pos):stop()
+			-- Mantém o timer ativo se houver algo para cozinhar ou regredir
+			if can_cook and src_time > 0 then
+				result = true
+			else
+				core.get_node_timer(pos):stop()
+			end
 		end
 
-		--
-		-- Set meta values
-		--
+		-- 7. Salva todos os metadados
 		meta:set_float("fuel_totaltime", fuel_totaltime)
 		meta:set_float("fuel_time", fuel_time)
 		meta:set_float("src_time", src_time)
-		if srclist then
-			meta:set_string("src_item", src_item)
-		else
-			meta:set_string("src_item", "")
-		end
+		meta:set_string("src_item", src_item)
 		meta:set_string("formspec", formspec)
 
 		return result
 	end
 end
+
 
 mcl_furnaces.furnace_node_timer = mcl_furnaces.get_timer_function()
 
