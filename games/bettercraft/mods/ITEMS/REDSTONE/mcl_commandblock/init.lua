@@ -137,39 +137,44 @@ local function execute_commandblock(pos)
 	local dir = core.facedir_to_dir(node.param2)
 	local front_pos = vector_add(pos, dir)
 	local front_node = core.get_node(front_pos)
-	if front_node and front_node.name:find("chain") then
-		local front_meta = core.get_meta(front_pos)
-		local front_auto = front_meta:get_int("auto") == 1
-		local front_powered = safe_get_power(front_pos)
-		if front_auto or front_powered then
-			execute_commandblock(front_pos)
-		end
-	end
+if front_node and front_node.name:find("chain") then
+    local front_meta = core.get_meta(front_pos)
+    local front_auto = front_meta:get_int("auto") == 1
+    local front_powered = safe_get_power(front_pos)
+    if front_auto or front_powered then
+        execute_commandblock(front_pos)
+    end
+end
+
 end
 
 local function update_commandblock(pos)
-	local meta = core.get_meta(pos)
-	local auto = meta:get_int("auto") == 1
-	local powered = safe_get_power(pos)
-	local node = core.get_node(pos)
-	
-	if node.name:find("repeating") then
-		if auto or powered then
-			if not core.get_node_timer(pos):is_started() then
-				core.get_node_timer(pos):start(0.1)
-			end
-		else
-			core.get_node_timer(pos):stop()
-		end
-	elseif node.name:find("chain") then
-		-- Handled by the block behind
-	else -- Impulse
-		if (auto or powered) and meta:get_int("was_powered") == 0 then
-			execute_commandblock(pos)
-		end
-		meta:set_int("was_powered", (auto or powered) and 1 or 0)
-	end
+    local meta = core.get_meta(pos)
+    local auto = meta:get_int("auto") == 1
+    local powered = safe_get_power(pos)
+    local node = core.get_node(pos)
+
+    if node.name:find("repeating") then
+        if auto or powered then
+            if not core.get_node_timer(pos):is_started() then
+                core.get_node_timer(pos):start(0.1)
+            end
+        else
+            core.get_node_timer(pos):stop()
+        end
+    elseif node.name:find("chain") then
+        -- Agora Chain blocks também são disparados por si próprios se auto=1
+        if auto or powered then
+            execute_commandblock(pos)
+        end
+    else -- Impulse
+        if (auto or powered) and meta:get_int("was_powered") == 0 then
+            execute_commandblock(pos)
+        end
+        meta:set_int("was_powered", (auto or powered) and 1 or 0)
+    end
 end
+
 
 local function get_formspec(pos, player)
 	local meta = core.get_meta(pos)
