@@ -3,6 +3,9 @@
 
 local modname = minetest.get_current_modname()
 
+--load particle.lua
+dofile(minetest.get_modpath(modname) .. "/particle.lua")
+
 -- Função para atualizar o sinal de Redstone do Command Block e ativar comparadores
 local function set_commandblock_result(success)
     local pos = core.commandblock_pos or (minetest.get_commandblock_pos and minetest.get_commandblock_pos())
