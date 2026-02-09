@@ -3,158 +3,217 @@ local S = core.get_translator(core.get_current_modname())
 -- =========================
 -- Resolve aliases e nomes curtos
 -- =========================
-local function resolve_node_name_safe(name)
-	if not name or name == "" then
+
+-- =========================
+-- parse_any_pos
+-- aceita:
+--  x y z
+--  ~ ~1 ~-2
+--  pos1 / pos2
+-- =========================
+local function parse_any_pos(player, a, b, c)
+	if not player then return nil end
+
+	local pname = player:get_player_name()
+
+	if a == "pos1" then
+		return postick_get_pos(pname, "pos1")
+	end
+	if a == "pos2" then
+		return postick_get_pos(pname, "pos2")
+	end
+
+	local base = vector.round(player:get_pos())
+
+	local function resolve(v, basev)
+		if not v then return nil end
+		if v:sub(1, 1) == "~" then
+			local n = tonumber(v:sub(2))
+			return basev + (n or 0)
+		end
+		return tonumber(v)
+	end
+
+	local x = resolve(a, base.x)
+	local y = resolve(b, base.y)
+	local z = resolve(c, base.z)
+
+	if not (x and y and z) then
 		return nil
 	end
 
-	while core.registered_aliases[name] do
-		name = core.registered_aliases[name]
-	end
+	return { x = x, y = y, z = z }
+end
 
-	if not name:find(":") then
-		for regname in pairs(core.registered_nodes) do
-			local short = regname:match(":(.+)$")
-			if short == name then
-				return regname
-			end
-		end
-	end
 
-	if core.registered_nodes[name] then
-		return name
-	end
+local function resolve_node_name_safe(name)
+    if not name or name == "" then
+        return nil
+    end
 
-	return nil
+    while core.registered_aliases[name] do
+        name = core.registered_aliases[name]
+    end
+
+    if not name:find(":") then
+        for regname in pairs(core.registered_nodes) do
+            local short = regname:match(":(.+)$")
+            if short == name then
+                return regname
+            end
+        end
+    end
+
+    if core.registered_nodes[name] then
+        return name
+    end
+
+    return nil
 end
 
 -- =========================
 -- /setblock
 -- =========================
 core.register_chatcommand("setblock", {
-	params = S("<X> <Y> <Z> <block>"),
-	description = S("Set node at given position"),
-	privs = { give = true, interact = true },
+    params = S("<X> <Y> <Z> <block>"),
+    description = S("Set node at given position"),
+    privs = {
+        give = true,
+        interact = true
+    },
 
-	func = function(_, param)
-		local x, y, z, nodestring =
-			param:match("^([%d.-]+)[, ]*([%d.-]+)[, ]*([%d.-]+)%s+(.+)$")
+    func = function(_, param)
+        local x, y, z, nodestring = param:match("^([%d.-]+)[, ]*([%d.-]+)[, ]*([%d.-]+)%s+(.+)$")
 
-		x, y, z = tonumber(x), tonumber(y), tonumber(z)
+        x, y, z = tonumber(x), tonumber(y), tonumber(z)
 
-		if not (x and y and z and nodestring) then
-			return false, S("Invalid parameters (see /help setblock)")
-		end
+        if not (x and y and z and nodestring) then
+            return false, S("Invalid parameters (see /help setblock)")
+        end
 
-		local nodename = resolve_node_name_safe(nodestring)
-		if not nodename then
-			return false, S("Unknown block: @1", nodestring)
-		end
+        local nodename = resolve_node_name_safe(nodestring)
+        if not nodename then
+            return false, S("Unknown block: @1", nodestring)
+        end
 
-		core.set_node(
-			{ x = x, y = y, z = z },
-			{ name = nodename, param2 = 0 }
-		)
+        core.set_node({
+            x = x,
+            y = y,
+            z = z
+        }, {
+            name = nodename,
+            param2 = 0
+        })
 
-		return true, S("@1 placed.", nodename)
-	end,
+        return true, S("@1 placed.", nodename)
+    end
 })
 
 -- =========================
 -- /setblock_search
 -- =========================
 core.register_chatcommand("setblock_search", {
-	params = S("<search>"),
-	description = S("Search blocks by name and cache results"),
-	privs = { give = true, interact = true },
+    params = S("<search>"),
+    description = S("Search blocks by name and cache results"),
+    privs = {
+        give = true,
+        interact = true
+    },
 
-	func = function(name, param)
-		if param == "" then
-			return false, S("You must provide a search term")
-		end
+    func = function(name, param)
+        if param == "" then
+            return false, S("You must provide a search term")
+        end
 
-		local player = core.get_player_by_name(name)
-		if not player then
-			return false
-		end
+        local player = core.get_player_by_name(name)
+        if not player then
+            return false
+        end
 
-		local search = param:lower()
-		local results = {}
+        local search = param:lower()
+        local results = {}
 
-		for nodename in pairs(core.registered_nodes) do
-			if nodename:lower():find(search, 1, true) then
-				results[#results + 1] = nodename
-				if #results >= 10 then
-					break
-				end
-			end
-		end
+        for nodename in pairs(core.registered_nodes) do
+            if nodename:lower():find(search, 1, true) then
+                results[#results + 1] = nodename
+                if #results >= 10 then
+                    break
+                end
+            end
+        end
 
-		if #results == 0 then
-			return false, S("No blocks found for: @1", search)
-		end
+        if #results == 0 then
+            return false, S("No blocks found for: @1", search)
+        end
 
-		-- cache por jogador
-		local meta = player:get_meta()
-		meta:set_string("setblock_search_results", core.serialize(results))
+        -- cache por jogador
+        local meta = player:get_meta()
+        meta:set_string("setblock_search_results", core.serialize(results))
 
-		-- resultado único → coloca direto
-		if #results == 1 then
-			local pos = vector.round(player:get_pos())
-			core.set_node(pos, { name = results[1], param2 = 0 })
-			return true, S("@1 placed and cached.", results[1])
-		end
+        -- resultado único → coloca direto
+        if #results == 1 then
+            local pos = vector.round(player:get_pos())
+            core.set_node(pos, {
+                name = results[1],
+                param2 = 0
+            })
+            return true, S("@1 placed and cached.", results[1])
+        end
 
-		-- múltiplos resultados → listar
-		local msg = S("Cached blocks:\n")
-		for i, nodename in ipairs(results) do
-			msg = msg .. i .. ": " .. nodename .. "\n"
-		end
-		msg = msg .. S("Use: /setblock_pick <number>")
+        -- múltiplos resultados → listar
+        local msg = S("Cached blocks:\n")
+        for i, nodename in ipairs(results) do
+            msg = msg .. i .. ": " .. nodename .. "\n"
+        end
+        msg = msg .. S("Use: /setblock_pick <number>")
 
-		core.chat_send_player(name, msg)
-		return true, S("Search cached.")
-	end,
+        core.chat_send_player(name, msg)
+        return true, S("Search cached.")
+    end
 })
 
 -- =========================
 -- /setblock_pick
 -- =========================
 core.register_chatcommand("setblock_pick", {
-	params = S("<number>"),
-	description = S("Pick cached block and place it at your position"),
-	privs = { give = true, interact = true },
+    params = S("<number>"),
+    description = S("Pick cached block and place it at your position"),
+    privs = {
+        give = true,
+        interact = true
+    },
 
-	func = function(name, param)
-		local idx = tonumber(param)
-		if not idx then
-			return false, S("Invalid number")
-		end
+    func = function(name, param)
+        local idx = tonumber(param)
+        if not idx then
+            return false, S("Invalid number")
+        end
 
-		local player = core.get_player_by_name(name)
-		if not player then
-			return false
-		end
+        local player = core.get_player_by_name(name)
+        if not player then
+            return false
+        end
 
-		local meta = player:get_meta()
-		local data = meta:get_string("setblock_search_results")
-		if data == "" then
-			return false, S("No cached search results")
-		end
+        local meta = player:get_meta()
+        local data = meta:get_string("setblock_search_results")
+        if data == "" then
+            return false, S("No cached search results")
+        end
 
-		local results = core.deserialize(data)
-		if not (results and results[idx]) then
-			return false, S("Invalid cached index")
-		end
+        local results = core.deserialize(data)
+        if not (results and results[idx]) then
+            return false, S("Invalid cached index")
+        end
 
-		local pos = vector.round(player:get_pos())
-		core.set_node(pos, { name = results[idx], param2 = 0 })
+        local pos = vector.round(player:get_pos())
+        core.set_node(pos, {
+            name = results[idx],
+            param2 = 0
+        })
 
-		return true, S("@1 placed.", results[idx])
-	end,
+        return true, S("@1 placed.", results[idx])
+    end
 })
-
-
 
 -- =========================
 -- UNDO
@@ -187,7 +246,104 @@ core.register_chatcommand("undo_fill", {
         return true, S("Fill undone.")
     end
 })
-
+core.register_chatcommand("clone", {
+    func = function(name, param)
+        local P = {}
+        for w in param:gmatch("%S+") do
+            P[#P + 1] = w
+        end
+        if #P < 3 then
+            return false, "Invalid parameters."
+        end
+        local player = core.get_player_by_name(name)
+        local p1, p2, dest, i
+        if P[1] == "pos1" and P[2] == "pos2" then
+            p1 = postick_get_pos(name, "pos1")
+            p2 = postick_get_pos(name, "pos2")
+            dest = parse_any_pos(player, P[3], P[4], P[5])
+            i = 6
+        else
+            p1 = parse_any_pos(player, P[1], P[2], P[3])
+            p2 = parse_any_pos(player, P[4], P[5], P[6])
+            dest = parse_any_pos(player, P[7], P[8], P[9])
+            i = 10
+        end
+        if not (p1 and p2 and dest) then
+            return false, "Invalid positions."
+        end
+        local mode = P[i] or "replace"
+        local filter = P[i + 1]
+        local rotate, mirror
+        if mode == "rotate" then
+            rotate = tonumber(filter);
+            mode = "replace"
+        end
+        if mode == "mirror" then
+            mirror = filter;
+            mode = "replace"
+        end
+        local minp = vector.new(math.min(p1.x, p2.x), math.min(p1.y, p2.y), math.min(p1.z, p2.z))
+        local maxp = vector.new(math.max(p1.x, p2.x), math.max(p1.y, p2.y), math.max(p1.z, p2.z))
+        local size = vector.add(vector.subtract(maxp, minp), 1)
+        clone_undo[name] = {}
+        local buf = {}
+        for x = minp.x, maxp.x do
+            for y = minp.y, maxp.y do
+                for z = minp.z, maxp.z do
+                    local pos = {
+                        x = x,
+                        y = y,
+                        z = z
+                    }
+                    local n = core.get_node(pos)
+                    buf[#buf + 1] = {
+                        rel = vector.subtract(pos, minp),
+                        node = n.name,
+                        param2 = n.param2
+                    }
+                end
+            end
+        end
+        for _, d in ipairs(buf) do
+            local rel = d.rel
+            if rotate then
+                rel = rotate_rel(rel, size, rotate)
+            end
+            if mirror then
+                rel = mirror_rel(rel, size, mirror)
+            end
+            local tgt = vector.add(dest, rel)
+            local old = core.get_node(tgt)
+            if mode == "masked" and d.node == "air" then
+                goto c
+            end
+            if mode == "filtered" and d.node ~= resolve_node_name(filter) then
+                goto c
+            end
+            local p2 = d.param2
+            if rotate then
+                p2 = rotate_facedir(p2, rotate)
+            end
+            if mirror then
+                p2 = mirror_facedir(p2, mirror)
+            end
+            save_undo(clone_undo, name, tgt, old)
+            core.set_node(tgt, {
+                name = d.node,
+                param2 = p2
+            })
+            ::c::
+        end
+        if mode == "move" then
+            for _, d in ipairs(buf) do
+                local src = vector.add(minp, d.rel)
+                save_undo(clone_undo, name, src, core.get_node(src))
+                core.remove_node(src)
+            end
+        end
+        return true, "Cloned."
+    end
+})
 core.register_chatcommand("undo_clone", {
     func = function(name)
         local d = clone_undo[name]
