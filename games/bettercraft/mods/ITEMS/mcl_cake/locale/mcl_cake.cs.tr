@@ -1,0 +1,12 @@
+# textdomain: mcl_cake
+Cake=Dort
+With 7 tasty slices!=Se sedmi chutnými plátky!
+Hunger points: +@1 per slice=Body hladovění: +@1 za každý plátek
+Cakes can be placed and eaten to restore hunger points. A cake has 7 slices. Each slice restores 2 hunger points and 0.4 saturation points. Cakes will be destroyed when dug or when the block below them is broken.=Dorty lze umístit a sníst, aby se obnovily body hladu. Dort má 7 kousků. Každý kousek obnoví 2 body hladu a 0,4 bodu sytosti. Dorty se zničí, když se vykopou nebo když se rozbije blok pod nimi.
+Place the cake anywhere, then rightclick it to eat a single slice. You can't eat from the cake when your hunger bar is full.=Umístěte dort kamkoli a poté na něj klikněte pravým tlačítkem myši, pro snězení jednoho kousku. Dort nelze jíst, pokud nejste hladoví.
+Cake (6 Slices Left)=Dort (6 plátků zbývá)
+Cake (5 Slices Left)=Dort (5 plátků zbývá)
+Cake (4 Slices Left)=Dort (4 plátky zbývají)
+Cake (3 Slices Left)=Dort (3 plátky zbývají)
+Cake (2 Slices Left)=Dort (2 plátky zbývají)
+Cake (1 Slice Left)=Dort (1 plátek zbývá)

@@ -1,0 +1,12 @@
+# textdomain: mcl_cake
+Cake=Tarta
+With 7 tasty slices!=7 xerra zoragarrirekin!
+Hunger points: +@1 per slice=Gose-puntuak: + @1 xerra bakoitzeko
+Cakes can be placed and eaten to restore hunger points. A cake has 7 slices. Each slice restores 2 hunger points and 0.4 saturation points. Cakes will be destroyed when dug or when the block below them is broken.=Pastelak gose-puntuak berrezartzeko jarri eta jan daitezke. Pastel batek 7 zati ditu. Zati bakoitzak 2 gose-puntu eta 0.4 asetasun-puntu berrezartzen ditu. Pastelak suntsitu egingo dira zulatzen direnean edo haien azpiko blokea hausten denean.
+Place the cake anywhere, then rightclick it to eat a single slice. You can't eat from the cake when your hunger bar is full.=Jarri pastela edonon, gero egin eskuin-klik zati bakar bat jateko. Ezin duzu pasteletik jan zure gose-barra beteta dagoenean.
+Cake (6 Slices Left)=Tarta (6 zati geratzen dira)
+Cake (5 Slices Left)=Tarta (5 zati geratzen dira)
+Cake (4 Slices Left)=Tarta (4 zati geratzen dira)
+Cake (3 Slices Left)=Tarta (3 zati geratzen dira)
+Cake (2 Slices Left)=Tarta (2 zati geratzen dira)
+Cake (1 Slice Left)=Tarta (zati 1 geratzen da)
