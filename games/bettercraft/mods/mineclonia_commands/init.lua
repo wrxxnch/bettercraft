@@ -21,8 +21,6 @@ end
 local function run_conditional_command(name, cmd_str)
     if not cmd_str or cmd_str == "" then return end
     
-    -- Suporte a múltiplos comandos separados por vírgula (que não estejam dentro de @e[])
-    -- Nota: Simplificado para executar um por um
     for single_cmd in cmd_str:gmatch("([^,]+)") do
         local trimmed = single_cmd:gsub("^%s*(.-)%s*$", "%1")
         if trimmed:sub(1,1) == "/" then trimmed = trimmed:sub(2) end
@@ -82,24 +80,19 @@ local function get_pos_from_args(args, player)
     return {x = x, y = y, z = z}, args
 end
 
--- Função central de parsing para extrair execute= e execute!= de forma segura
+-- Função central de parsing para extrair execute= e execute!=
 local function extract_conditional_commands(param)
     local exec_if, exec_unless
-    
-    -- Busca por execute= e execute!= que podem conter espaços e vírgulas
-    -- O padrão procura por execute= até o fim da string ou até o próximo marcador de comando
     
     local function find_and_remove(p, key)
         local start_idx, end_idx = p:find(key .. "=")
         if not start_idx then return nil, p end
         
-        -- O comando vai do "=" até o próximo " execute" ou fim da linha
         local cmd_start = end_idx + 1
         local next_marker = p:find(" execute", cmd_start)
         local cmd_end = next_marker and (next_marker - 1) or #p
         
         local cmd = p:sub(cmd_start, cmd_end)
-        -- Remove o comando da string original
         local new_p = p:sub(1, start_idx - 1) .. p:sub(cmd_end + 1)
         return cmd, new_p
     end
@@ -107,64 +100,17 @@ local function extract_conditional_commands(param)
     exec_unless, param = find_and_remove(param, "execute!")
     exec_if, param = find_and_remove(param, "execute")
     
-    -- Limpa espaços extras
     param = param:gsub("%s+", " "):gsub("^%s*(.-)%s*$", "%1")
     return exec_if, exec_unless, param
 end
-
--- Comando: /setblock <x> <y> <z> <block>
-minetest.register_chatcommand("setblock", {
-    params = "<x> <y> <z> <block>",
-    description = "Coloca um bloco em uma posição específica",
-    privs = {server = true},
-    func = function(name, param)
-        local player = minetest.get_player_by_name(name)
-        if not player then return false, "Jogador não encontrado" end
-        local args = param:split(" ")
-        local pos, remaining_args = get_pos_from_args(args, player)
-        if not pos then return false, "Posição inválida" end
-        local block_name = remaining_args[1]
-        if not block_name then return false, "Uso: /setblock <x> <y> <z> <block>" end
-        if not block_name:find(":") then
-            local full_name = "mcl_core:" .. block_name
-            if minetest.registered_nodes[full_name] then block_name = full_name end
-        end
-        if not minetest.registered_nodes[block_name] then
-            return false, "Bloco inexistente: " .. block_name
-        end
-        local ok, err = pcall(function() minetest.set_node(pos, { name = block_name }) end)
-        if not ok then return false, "Erro ao colocar bloco: " .. tostring(err) end
-        return true, "Bloco " .. block_name .. " colocado em " .. minetest.pos_to_string(pos)
-    end,
-})
-
--- Comando: /execute <pos> <cmd> ...
-minetest.register_chatcommand("execute", {
-    params = "<x> <y> <z> <command> [args...]",
-    description = "Executa um comando em uma posição específica",
-    privs = {server = true},
-    func = function(name, param)
-        local player = minetest.get_player_by_name(name)
-        if not player then return false, "Jogador não encontrado" end
-        local args = param:split(" ")
-        local pos, remaining_args = get_pos_from_args(args, player)
-        local cmd = remaining_args[1]
-        if not cmd then return false, "Uso: /execute <x> <y> <z> <command> [args...]" end
-        table.remove(remaining_args, 1)
-        local cmd_args = table.concat(remaining_args, " ")
-        local cmd_def = minetest.registered_chatcommands[cmd]
-        if cmd_def then
-            return cmd_def.func(name, cmd_args)
-        else
-            return false, "Comando não encontrado: " .. cmd
-        end
-    end,
-})
 
 local function entity_matches(obj, filters)
     local is_player = obj:is_player()
     local lua = obj:get_luaentity()
     if not is_player and not lua then return false end
+    
+    if filters.only_players and not is_player then return false end
+
     if filters.type then
         local ent_type = is_player and "player" or lua.name
         if ent_type ~= filters.type then return false end
@@ -181,10 +127,10 @@ local function entity_matches(obj, filters)
     return true
 end
 
--- Comando: /testfor <filtros> execute=... execute!=...
+-- Comando: /testfor <seletor> [x y z] [,radius=n] execute=...
 minetest.register_chatcommand("testfor", {
-    params = "@e[...] execute=... execute!=...",
-    description = "Testa entidades e executa comandos",
+    params = "<@a|@e> [x y z] [,radius=n] execute=...",
+    description = "Testa entidades/jogadores com precisão",
     privs = { server = true },
     func = function(name, param)
         local player = minetest.get_player_by_name(name)
@@ -195,15 +141,30 @@ minetest.register_chatcommand("testfor", {
             return false, "Filtros não especificados"
         end
 
-        -- Parsing dos filtros restantes
+        -- Extrair radius fora do seletor se houver (ex: ,radius=5)
+        local extra_radius = clean_param:match(",%s*radius=(%d+)") or clean_param:match(",%s*r=(%d+)")
+        if extra_radius then
+            clean_param = clean_param:gsub(",%s*radius=%d+", ""):gsub(",%s*r=%d+", "")
+        end
+
+        local args = clean_param:split(" ")
+        local selector = args[1]
+        table.remove(args, 1)
+
         local filters = {}
         local ppos = player and player:get_pos() or {x=0, y=0, z=0}
         filters.center = {x=ppos.x, y=ppos.y, z=ppos.z}
-        
-        local inside = clean_param:match("^@[eap]%[(.+)%]$") or clean_param:match("^@[eap]$")
-        local raw_data = inside or clean_param
-        if type(raw_data) == "string" then
-            for pair in raw_data:gmatch("[^,%s%[%]]+") do
+        filters.radius = 32768 -- Padrão: mundo todo
+
+        -- Tratar seletores
+        if selector:sub(1,2) == "@a" then
+            filters.only_players = true
+        end
+
+        -- Extrair filtros de colchetes: @a[r=10]
+        local inside = selector:match("%[(.+)%]")
+        if inside then
+            for pair in inside:gmatch("[^,]+") do
                 local k,v = pair:match("([^=]+)=([^=]+)")
                 if k and v then
                     if k == "x" then filters.center.x = tonumber(v) or filters.center.x
@@ -215,7 +176,19 @@ minetest.register_chatcommand("testfor", {
             end
         end
 
-        local objects = minetest.get_objects_inside_radius(filters.center, filters.radius or 32768)
+        -- Se houver coordenadas X Y Z diretas
+        if #args >= 3 then
+            local pos, _ = get_pos_from_args(args, player)
+            if pos then 
+                filters.center = pos 
+                -- Se forneceu coordenadas diretas mas não o raio, o padrão é 1 (precisão exata)
+                filters.radius = tonumber(extra_radius) or 1
+            end
+        elseif extra_radius then
+            filters.radius = tonumber(extra_radius)
+        end
+
+        local objects = minetest.get_objects_inside_radius(filters.center, filters.radius)
         local count = 0
         for _, obj in ipairs(objects) do
             if entity_matches(obj, filters) then count = count + 1 end
@@ -227,64 +200,60 @@ minetest.register_chatcommand("testfor", {
         if success and exec_if then run_conditional_command(name, exec_if) end
         if not success and exec_unless then run_conditional_command(name, exec_unless) end
 
-        return success, (success and "Encontrado(s) " .. count or "Nenhuma entidade encontrada")
+        return success, (success and "Encontrado(s) " .. count .. " alvo(s)" or "Nenhum alvo encontrado")
     end,
 })
 
--- Comando: /testforblock <pos> <node> execute=... execute!=...
+-- Comando: /testforblock
 minetest.register_chatcommand("testforblock", {
-    params = "<x> <y> <z> <node> execute=... execute!=...",
+    params = "<x> <y> <z> <node> execute=...",
     description = "Testa bloco e executa comandos",
     privs = { server = true },
     func = function(name, param)
         local player = minetest.get_player_by_name(name)
         if not player then return false, "Jogador inválido" end
-
         local exec_if, exec_unless, clean_param = extract_conditional_commands(param)
         local args = clean_param:split(" ")
-        -- Limpa entradas vazias
         for i = #args, 1, -1 do if args[i] == "" then table.remove(args, i) end end
-        
         local pos, rest = get_pos_from_args(args, player)
         local nodename = rest and rest[1]
-
         if not pos or not nodename then return false, "Uso: /testforblock <x> <y> <z> <node> [execute=...]" end
-
         if not nodename:find(":") then
             local full_name = "mcl_core:" .. nodename
             if minetest.registered_nodes[full_name] then nodename = full_name end
         end
-
         local node = minetest.get_node(pos)
         local success = (node.name == nodename)
         set_commandblock_result(success)
-
         if success and exec_if then run_conditional_command(name, exec_if) end
         if not success and exec_unless then run_conditional_command(name, exec_unless) end
-
         return success, (success and "Bloco " .. nodename .. " encontrado" or "Encontrado " .. node.name)
     end,
 })
 
--- Particle e Autocomplete mantidos
-minetest.register_chatcommand("particle", {
-    params = "<textura> [args...] ",
-    description = "Summon particles",
+-- Comando: /setblock
+minetest.register_chatcommand("setblock", {
+    params = "<x> <y> <z> <block>",
+    description = "Coloca um bloco",
     privs = {server = true},
     func = function(name, param)
-        local args = param:split(" ")
-        if #args == 0 then return false, "Uso: /particle <textura> [args]" end
         local player = minetest.get_player_by_name(name)
         if not player then return false end
-        local texture = args[1]
-        if not texture:find("%.png$") then texture = texture .. ".png" end
-        table.remove(args, 1)
-        local pos = get_pos_from_args(args, player) or player:get_pos()
-        minetest.add_particlespawner({ amount = 30, time = 0.1, minpos = vector.subtract(pos, 0.3), maxpos = vector.add(pos, 0.3), minvel = {x=0,y=0,z=0}, maxvel = {x=0,y=0,z=0}, minacc = {x=0,y=0,z=0}, maxacc = {x=0,y=0,z=0}, minsize = 4, maxsize = 4, texture = texture, glow = 10 })
-        return true, "Particle "..texture.." criado!"
+        local args = param:split(" ")
+        local pos, remaining_args = get_pos_from_args(args, player)
+        if not pos then return false end
+        local block_name = remaining_args[1]
+        if not block_name then return false end
+        if not block_name:find(":") then
+            local full_name = "mcl_core:" .. block_name
+            if minetest.registered_nodes[full_name] then block_name = full_name end
+        end
+        minetest.set_node(pos, { name = block_name })
+        return true
     end,
 })
 
+-- Autocomplete
 local custom_commands = {"execute", "particle", "testfor", "testforblock", "setblock"}
 minetest.register_on_chat_message(function(name, message)
     if message:sub(1, 1) == "/" then
