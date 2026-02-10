@@ -4,6 +4,8 @@ local F = core.formspec_escape
 local command_blocks_activated = core.settings:get_bool("mcl_enable_commandblocks", true)
 local msg_not_activated = S("Command blocks are not enabled on this server")
 
+local axis_counter = 1
+
 -- Use core.vector if available, otherwise fallback to table
 local vector_sub = vector.subtract or function(p1, p2)
     return {
@@ -113,27 +115,32 @@ end
 -- =========================================================
 -- Resolve coordenadas relativas (~ ~ ~)
 -- =========================================================
+
+
 local function resolve_relative_coords(param, pos)
-	local coords = {pos.x, pos.y, pos.z}
-	local index = 1
 
-	param = param:gsub("~([%-]?[%d%.]*)", function(offset)
-		local base = coords[index]
-		index = index + 1
+    local axis_cycle = {"x", "y", "z"}
+    local axis_index = 1  -- reinicia para cada comando
 
-		if not base then
-			return offset
-		end
+    return param:gsub("~([%-]?[%d%.]*)", function(offset)
 
-		if offset == "" then
-			return tostring(base)
-		end
+        local axis = axis_cycle[axis_index]
+        axis_index = axis_index + 1
+        if axis_index > 3 then
+            axis_index = 1
+        end
 
-		return tostring(base + tonumber(offset))
-	end)
+        local base = pos[axis]
 
-	return param
+        if offset == "" then
+            return tostring(base)
+        end
+
+        return tostring(base + tonumber(offset))
+    end)
 end
+
+
 
 
 local function execute_commandblock(pos)

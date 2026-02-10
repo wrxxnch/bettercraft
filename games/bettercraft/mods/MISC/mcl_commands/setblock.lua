@@ -12,39 +12,46 @@ local S = core.get_translator(core.get_current_modname())
 --  pos1 / pos2
 -- =========================
 local function parse_any_pos(player, a, b, c)
-	if not player then return nil end
+    if not player then
+        return nil
+    end
 
-	local pname = player:get_player_name()
+    local pname = player:get_player_name()
 
-	if a == "pos1" then
-		return postick_get_pos(pname, "pos1")
-	end
-	if a == "pos2" then
-		return postick_get_pos(pname, "pos2")
-	end
+    if a == "pos1" then
+        return postick_get_pos(pname, "pos1")
+    end
+    if a == "pos2" then
+        return postick_get_pos(pname, "pos2")
+    end
 
-	local base = vector.round(player:get_pos())
+    local base = vector.round(player:get_pos())
 
-	local function resolve(v, basev)
-		if not v then return nil end
-		if v:sub(1, 1) == "~" then
-			local n = tonumber(v:sub(2))
-			return basev + (n or 0)
-		end
-		return tonumber(v)
-	end
+    local function resolve(v, basev)
+        if not v then
+            return nil
+        end
+        if v:sub(1, 1) == "~" then
+            local n = tonumber(v:sub(2))
+            return basev + (n or 0)
+        end
+        return tonumber(v)
+    end
 
-	local x = resolve(a, base.x)
-	local y = resolve(b, base.y)
-	local z = resolve(c, base.z)
+    local x = resolve(a, base.x)
+    local y = resolve(b, base.y)
+    local z = resolve(c, base.z)
 
-	if not (x and y and z) then
-		return nil
-	end
+    if not (x and y and z) then
+        return nil
+    end
 
-	return { x = x, y = y, z = z }
+    return {
+        x = x,
+        y = y,
+        z = z
+    }
 end
-
 
 local function resolve_node_name_safe(name)
     if not name or name == "" then
@@ -296,11 +303,15 @@ core.register_chatcommand("clone", {
                         z = z
                     }
                     local n = core.get_node(pos)
+                    local meta_table = core.get_meta(pos):to_table()
+
                     buf[#buf + 1] = {
                         rel = vector.subtract(pos, minp),
                         node = n.name,
-                        param2 = n.param2
+                        param2 = n.param2,
+                        meta = meta_table
                     }
+
                 end
             end
         end
@@ -332,6 +343,12 @@ core.register_chatcommand("clone", {
                 name = d.node,
                 param2 = p2
             })
+
+            -- Restaurar META completo
+            if d.meta then
+                core.get_meta(tgt):from_table(d.meta)
+            end
+
             ::c::
         end
         if mode == "move" then
@@ -344,6 +361,7 @@ core.register_chatcommand("clone", {
         return true, "Cloned."
     end
 })
+
 core.register_chatcommand("undo_clone", {
     func = function(name)
         local d = clone_undo[name]

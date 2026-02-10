@@ -1,10 +1,16 @@
 -- Mineclonia Commands Mod
 -- Implementa autocomplete, coordenadas relativas (~, ^) e comandos execute, particle, testfor, testforblock, setblock
 
+
+-- tabela principal do mod
+mineclonia_commands = {}
+-- mineclonia_commands.execute = {}
+
 local modname = minetest.get_current_modname()
 
---load particle.lua
+
 dofile(minetest.get_modpath(modname) .. "/particle.lua")
+
 
 -- Função para atualizar o sinal de Redstone do Command Block e ativar comparadores
 local function set_commandblock_result(success)
