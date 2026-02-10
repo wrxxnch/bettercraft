@@ -55,6 +55,23 @@ mcl_flowerpots.register_potted_cube("mcl_core:cactus", {
 	image = "mcl_flowerpots_cactus.png",
 })
 
+core.register_node("mcl_core:cactus_flower",
+{
+	description = S("Cactus flowe"),
+	_tt_help = S("Grows on cacti"),
+	paramtype = "light",
+	drawtype = "plantlike",
+	tiles = {"cactus_flower.png"},
+	inventory_image = "cactus_flower.png",
+	groups = {
+		dig_immediate = 3, deco_block = 1, dig_by_piston = 1, plant = 1,
+		non_mycelium_plant = 1, compostability = 30, unsticky = 1, attached_node = 1
+	},
+	_mcl_hardness = 0,
+	_mcl_blast_resistance = 0,
+	_mcl_crafting_output = {single = {output = "mcl_dyes:pink"}}
+})
+
 mcl_player.register_globalstep_slow(function(player)
 	-- Am I near a cactus?
 	local pos = player:get_pos()
