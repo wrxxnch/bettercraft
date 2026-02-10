@@ -3743,15 +3743,19 @@ end
 
 -- Template to register a grass or fern decoration
 function mcl_biomes.register_grass_decoration(grasstype, offset, scale, biomes)
-	local place_on, seed, node
+	local place_on, seed, decoration
 	if grasstype == "fern" then
-		node = "mcl_flowers:fern"
+		decoration = "mcl_flowers:fern"
 		place_on = {"group:grass_block_no_snow", "mcl_core:podzol","mcl_mud:mud"}
 		seed = 333
 	elseif grasstype == "tallgrass" then
-		node = "mcl_flowers:tallgrass"
+		decoration = "mcl_flowers:tallgrass"
 		place_on = {"group:grass_block_no_snow","mcl_mud:mud"}
 		seed = 420
+	elseif grasstype == "litter" then
+		decoration = {"mcl_flowers:leaf_litter_1", "mcl_flowers:leaf_litter_2", "mcl_flowers:leaf_litter_3", "mcl_flowers:leaf_litter_4"}
+		place_on = {"group:grass_block_no_snow","mcl_mud:mud"}
+		seed = 348
 	end
 	local noise = {
 		offset = offset,
@@ -3763,6 +3767,11 @@ function mcl_biomes.register_grass_decoration(grasstype, offset, scale, biomes)
 	}
 	for b=1, #biomes do
 		local param2 = core.registered_biomes[biomes[b]]._mcl_palette_index
+
+		if grasstype == "litter" then
+			param2 = bit.lshift(param2, 2)
+		end
+
 		core.register_decoration({
 			deco_type = "simple",
 			place_on = place_on,
@@ -3771,7 +3780,7 @@ function mcl_biomes.register_grass_decoration(grasstype, offset, scale, biomes)
 			biomes = { biomes[b] },
 			y_min = 1,
 			y_max = mcl_vars.mg_overworld_max,
-			decoration = node,
+			decoration = decoration,
 			param2 = param2,
 		})
 	end
@@ -3956,6 +3965,10 @@ local function register_decorations()
 		flags = "all_floors, all_ceilings, force_placement",
 		y_min = mcl_vars.mg_overworld_min,
 	})
+
+	register_grass_decoration("litter", 0.04, -0.028, {"Forest", "MesaPlateauF", "RoofedForest"})
+	register_grass_decoration("litter", 0.06, -0.013, {"Forest", "MesaPlateauF", "RoofedForest"})
+	register_grass_decoration("litter", 0.09, -0.03,  {"Forest", "MesaPlateauF", "RoofedForest"})
 
 	core.register_decoration({
 		deco_type = "simple",
@@ -5386,6 +5399,62 @@ core.register_decoration({
 		flags = "place_center_x, place_center_z",
 		rotation = "0",
 	})
+
+		-- Cactus with flowers
+	core.register_decoration({
+		deco_type = "schematic",
+		place_on = {"group:sand"},
+		sidelen = 16,
+		noise_params = {
+			offset = -0.012,
+			scale = 0.024,
+			spread = {x = 100, y = 100, z = 100},
+			seed = 485,
+			octaves = 3,
+			persist = 0.6
+		},
+		y_min = 4,
+		y_max = mcl_vars.mg_overworld_max,
+		biomes = {"Desert",
+			"Mesa","Mesa_sandlevel",
+			"MesaPlateauF","MesaPlateauF_sandlevel",
+			"MesaPlateauFM","MesaPlateauFM_sandlevel"},
+		schematic = {
+			size = {x = 1, y = 4, z = 1},
+			data = {
+				{name = "mcl_core:cactus", param1 = 255, param2 = 0},
+				{name = "mcl_core:cactus", param1 = 255, param2 = 0},
+				{name = "mcl_core:cactus", param1 = 255, param2 = 0},
+				{name = "mcl_core:cactus_flower", param1 = 255, param2 = 0}
+			}
+		}
+	})
+
+	core.register_decoration({
+		deco_type = "simple",
+		place_on = "mcl_core:dirt_with_grass",
+		fill_ratio = 0.02,
+		biomes = {"SwampLand"},
+		y_min = mcl_vars.mg_overworld_min,
+		y_max = mcl_vars.mg_overworld_max,
+		decoration = "mcl_flowers:firefly_bush",
+	})
+
+	core.register_decoration({
+		deco_type = "simple",
+		place_on = {"mcl_core:dirt_with_grass"},
+		fill_ratio = 0.02,
+		spawn_by = "group:water",
+		biomes = {
+			"Forest", "Taiga", "MegaTaiga", "MegaSpruceTaiga", "Plains", "SunflowerPlains", "FlowerForest", "BirchForest",
+			"BirchForestM", "RoofedForest", "Jungle", "JungleM", "JungleEdge", "JungleEdgeM", "BambooJungle", "Savanna",
+			"SavannaM", "MesaPlateauF", "MesaPlateauFM", "MangroveSwamp", "Meadow"
+		},
+		y_min = mcl_vars.mg_overworld_min,
+		y_max = mcl_vars.mg_overworld_max,
+		decoration = "mcl_flowers:firefly_bush",
+	})
+
 	core.register_decoration({
 		deco_type = "schematic",
 		place_on = { "mcl_core:mycelium" },

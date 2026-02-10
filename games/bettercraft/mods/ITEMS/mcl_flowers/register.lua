@@ -14,6 +14,7 @@ mcl_flowers.register_simple_flower("dandelion", {
 	potted = true,
 	_mcl_crafting_output = {single = {output = "mcl_dyes:yellow"}}
 })
+
 mcl_flowers.register_simple_flower("oxeye_daisy", {
 	desc = S("Oxeye Daisy"),
 	image = "mcl_flowers_oxeye_daisy.png",
@@ -239,7 +240,7 @@ local def_tallgrass = {
 	groups = {
 		handy = 1, shearsy = 1, attached_node = 1, deco_block = 1,
 		plant = 1, place_flowerlike = 2, non_mycelium_plant = 1,
-		flammable = 3, fire_encouragement = 60, fire_flammability = 10, dig_by_piston = 1,
+		flammable = 3, fire_encouragement = 60, fire_flammability = 100, dig_by_piston = 1,
 		dig_by_water = 1, destroy_by_lava_flow = 1, compostability = 30, grass_palette = 1
 	},
 	sounds = mcl_sounds.node_sound_leaves_defaults(),
@@ -271,6 +272,108 @@ mcl_flowerpots.register_potted_flower("mcl_flowers:fern", {
 	desc = S("Fern"),
 	image = "mcl_flowers_fern_inv.png",
 })
+
+core.register_node("mcl_flowers:firefly_bush", table.merge(def_tallgrass, {
+	description = S("Firefly Bush"),
+	drop = "",
+	tiles = {
+		{
+			name = "mcl_flowers_firefly_bush.png",
+			animation = {
+				type = "vertical_frames",
+				aspect_w = 16,
+				aspect_h = 16,
+				length = 1
+			}
+		}
+	},
+	inventory_image = "mcl_flowers_firefly_bush_inv.png",
+	wield_image = "mcl_flowers_firefly_bush_inv.png",
+	light_source = 2,
+	selection_box = {
+		type = "fixed",
+		fixed = {-0.3, -0.5, -0.3, 0.3, 0.4, 0.3}
+	},
+	_mcl_silk_touch_drop = true,
+	_mcl_shears_drop = true,
+	on_place = mcl_util.generate_on_place_plant_function(function(pos)
+		local below = vector.offset(pos, 0, -1, 0)
+		local soil = core.get_node_or_nil(below)
+		if not soil then return end
+		local allowed_nodes = {
+			"mcl_core:dirt_with_grass", "mcl_core:mycelium", "mcl_core:podzol", "mcl_core:dirt",
+			"mcl_core:coarse_dirt", "mcl_lush_caves:rooted_dirt", "mcl_farming:soil", "mcl_farming:soil_wet",
+			"mcl_colorblocks:hardened_clay", "mcl_core:sand", "mcl_core:redsand", "mcl_sus_nodes:sand",
+			"mcl_mud:mud", "mcl_mangrove:mangrove_mud_roots", "mcl_lush_caves:moss"
+		}
+
+		if table.indexof(allowed_nodes, soil.name) ~= -1 then
+			return true, 0
+		end
+	end),
+}))
+
+local litter_groups = {
+	dig_immediate = 3, dig_by_water = 1, flammable = 3, fire_encouragement = 60,
+	fire_flammability = 100, attached_node = 1, dig_by_piston = 1, destroy_by_lava_flow = 1
+}
+
+local tpl_litter = {
+	description = S("Leaf Litter"),
+	drawtype = "mesh",
+	tiles = {"mcl_flowers_leaf_litter.png"},
+	use_texture_alpha = "clip",
+	sunlight_propagates = true,
+	paramtype = "light",
+	paramtype2 = "color4dir",
+	palette = "mcl_flowers_dry_vegetation_palette.png",
+	walkable = false,
+	on_place = function(itemstack, placer, pointed_thing)
+		if pointed_thing.type ~= "node" then
+			return
+		end
+		local upos = pointed_thing.under
+		local unode = core.get_node(upos)
+		local litter = core.get_item_group(unode.name, "leaf_litter")
+		if litter > 0 and litter < 4 then
+			unode.name = "mcl_flowers:leaf_litter_" .. litter + 1
+			core.swap_node(upos, unode)
+			if not core.is_creative_enabled(placer:get_player_name()) then
+				itemstack:take_item()
+			end
+		elseif litter == 0 then
+			local opaque = core.get_item_group(unode.name, "opaque")
+			if opaque ~= 0 then
+				local p2 = core.dir_to_fourdir(placer:get_look_dir()) + mcl_util.get_pos_p2(upos)
+				core.item_place(itemstack, placer, pointed_thing, p2)
+			end
+		end
+
+		return itemstack
+	end,
+	node_placement_prediction = "",
+	selection_box = {
+		type = "fixed",
+		fixed = {-0.5, -0.5, -0.5, 0.5, -0.4375, 0.5}
+	}
+}
+
+core.register_node("mcl_flowers:leaf_litter_1", table.merge(tpl_litter, {
+	_doc_items_longdesc = S(""),
+	_mcl_burntime = 5,
+	groups = table.merge(litter_groups, {deco_block = 1, leaf_litter = 1, compostability = 30}),
+	mesh = "mcl_flowers_leaf_litter_1.obj",
+	inventory_image = "mcl_flowers_leaf_litter.png^[multiply:#A37546",
+	wield_image = "mcl_flowers_leaf_litter.png^[multiply:#A37546"
+}))
+
+for i = 2, 4 do
+	core.register_node("mcl_flowers:leaf_litter_" .. i, table.merge(tpl_litter, {
+		drop = "mcl_flowers:leaf_litter_1 " .. i,
+		groups = table.merge(litter_groups, {leaf_litter = i, not_in_creative_inventory = 1}),
+		mesh = "mcl_flowers_leaf_litter_" .. i .. ".obj"
+	}))
+end
 
 core.register_node("mcl_flowers:waterlily", {
 	description = S("Lily Pad"),
