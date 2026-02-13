@@ -35,7 +35,6 @@ mcl_itemframes.tpl_node = {
 	sounds = mcl_sounds.node_sound_defaults(),
 	node_placement_prediction = "",
 	_mcl_hardness = 0.5,
-	after_dig_node = mcl_util.drop_items_from_meta_container({"main"}),
 	allow_metadata_inventory_move = function() return 0 end,
 	allow_metadata_inventory_put = function() return 0 end,
 	allow_metadata_inventory_take = function() return 0 end,
@@ -53,163 +52,6 @@ mcl_itemframes.tpl_entity = {
 	_mcl_fishing_reelable = false,
 	_mcl_pistons_unmovable = true,
 }
-
-local function get_pointed_node(player, range)
-	range = range or 5
-
-	local eye_pos = vector.add(
-		player:get_pos(),
-		vector.new(0, player:get_properties().eye_height or 1.47, 0)
-	)
-
-	local dir = player:get_look_dir()
-	local target = vector.add(eye_pos, vector.multiply(dir, range))
-
-	local ray = core.raycast(eye_pos, target, false, false)
-	for pointed in ray do
-		if pointed.type == "node" then
-			return pointed.under
-		end
-	end
-end
-
-core.register_chatcommand("frame_setitem", {
-	params = "<itemstring> [count]",
-	description = "Coloca um item diretamente no item frame apontado",
-	privs = { server = true },
-
-	func = function(name, param)
-		if param == "" then
-			return false, "Use: /frame_setitem <itemstring> [count]"
-		end
-
-		local itemname, count = param:match("^(%S+)%s*(%d*)$")
-		count = tonumber(count) or 1
-
-		if not core.registered_items[itemname] then
-			return false, "Item inválido: "..itemname
-		end
-
-		local player = core.get_player_by_name(name)
-		if not player then return false end
-
-		local pos = get_pointed_node(player, 5)
-		if not pos then
-			return false, "Nenhum node apontado"
-		end
-
-		local node = core.get_node(pos)
-		if core.get_item_group(node.name, "itemframe") == 0 then
-			return false, "Este node não é um item frame"
-		end
-
-		if core.is_protected(pos, name) then
-			core.record_protection_violation(pos, name)
-			return false, "Área protegida"
-		end
-
-		local meta = core.get_meta(pos)
-		local inv = meta:get_inventory()
-		inv:set_size("main", 1)
-
-		inv:set_stack("main", 1, ItemStack(itemname.." "..count))
-
-		meta:set_int("mcl_item_rotation", 0)
-
-		mcl_itemframes.update_entity(pos)
-
-		return true, "Item "..itemname.." colocado no item frame"
-	end
-})
-
--- /frame_clear: limpa o item do frame
-core.register_chatcommand("frame_clear", {
-	description = "Limpa o item do item frame apontado",
-	privs = { server = true },
-	func = function(name)
-		local player = core.get_player_by_name(name)
-		if not player then return false end
-		local pos = get_pointed_node(player, 5)
-		if not pos then return false, "Nenhum node apontado" end
-
-		local node = core.get_node(pos)
-		if core.get_item_group(node.name, "itemframe") == 0 then
-			return false, "Este node não é um item frame"
-		end
-
-		if core.is_protected(pos, name) then
-			core.record_protection_violation(pos, name)
-			return false, "Área protegida"
-		end
-
-		local meta = core.get_meta(pos)
-		local inv = meta:get_inventory()
-		inv:set_size("main", 1)
-		inv:set_stack("main", 1, ItemStack(""))
-		meta:set_int("mcl_item_rotation", 0)
-
-		mcl_itemframes.update_entity(pos)
-
-		return true, "Item frame limpo"
-	end
-})
-
--- /frame_rotate: rotaciona o item no frame
-core.register_chatcommand("frame_rotate", {
-	description = "Rotaciona o item no item frame apontado",
-	privs = { server = true },
-	func = function(name)
-		local player = core.get_player_by_name(name)
-		if not player then return false end
-		local pos = get_pointed_node(player, 5)
-		if not pos then return false, "Nenhum node apontado" end
-
-		local node = core.get_node(pos)
-		if core.get_item_group(node.name, "itemframe") == 0 then
-			return false, "Este node não é um item frame"
-		end
-
-		if core.is_protected(pos, name) then
-			core.record_protection_violation(pos, name)
-			return false, "Área protegida"
-		end
-
-		local meta = core.get_meta(pos)
-		local rotation = (meta:get_int("mcl_item_rotation") + 1) % 8
-		meta:set_int("mcl_item_rotation", rotation)
-
-		mcl_itemframes.update_entity(pos)
-
-		return true, "Item frame rotacionado para posição " .. rotation
-	end
-})
-
--- /frame_getitem: retorna o item atual do frame
-core.register_chatcommand("frame_getitem", {
-	description = "Mostra o item atual no item frame apontado",
-	privs = { server = true },
-	func = function(name)
-		local player = core.get_player_by_name(name)
-		if not player then return false end
-		local pos = get_pointed_node(player, 5)
-		if not pos then return false, "Nenhum node apontado" end
-
-		local node = core.get_node(pos)
-		if core.get_item_group(node.name, "itemframe") == 0 then
-			return false, "Este node não é um item frame"
-		end
-
-		local meta = core.get_meta(pos)
-		local inv = meta:get_inventory()
-		local stack = inv:get_stack("main", 1)
-		if stack:is_empty() then
-			return true, "O item frame está vazio"
-		else
-			return true, "Item no frame: " .. stack:get_name() .. " x" .. stack:get_count()
-		end
-	end
-})
-
 
 -- Utility functions
 local function find_entity(pos)
@@ -309,7 +151,7 @@ function mcl_itemframes.tpl_node.on_rightclick(pos, _, clicker, ostack, _)
 	return ostack
 end
 
-mcl_itemframes.tpl_node.on_destruct = remove_entity
+mcl_itemframes.tpl_node.on_destruct = drop_item
 
 function mcl_itemframes.tpl_node.on_construct(pos)
 	if not mcl_structures.is_structure_constructor () then
@@ -425,14 +267,44 @@ function mcl_itemframes.tpl_entity:on_step(dtime)
 			self._item = r
 		end
 	end
+
 	self._timer = (self._timer and self._timer - dtime) or 1
 	if self._timer > 0 then return end
 	self._timer = 1
-	if core.get_item_group(core.get_node(self._itemframe_pos).name, "itemframe") <= 0 then
+
+	local pos = self._itemframe_pos
+	if not pos then return end
+
+	local node = core.get_node(pos)
+	local dir = core.wallmounted_to_dir(node.param2)
+	local support_pos = vector.subtract(pos, dir)
+	local support_node = core.get_node(support_pos)
+
+	-- 🔥 Se o bloco de suporte não for sólido, quebrar o frame
+	if not support_node
+	or support_node.name == "air"
+	or not core.registered_nodes[support_node.name]
+	or not core.registered_nodes[support_node.name].walkable then
+		
+		-- dropar item do frame
+		drop_item(pos)
+
+		-- dropar o próprio itemframe
+		core.add_item(pos, ItemStack(node.name))
+
+		-- remover node
+		core.remove_node(pos)
+
+		return
+	end
+
+	-- Se o próprio node sumiu
+	if core.get_item_group(node.name, "itemframe") <= 0 then
 		self.object:remove()
 		return
 	end
 end
+
 
 function mcl_itemframes.register_itemframe(name, def)
 	if not def.node then return end
