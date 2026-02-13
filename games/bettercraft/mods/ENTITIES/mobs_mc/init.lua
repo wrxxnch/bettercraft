@@ -54,6 +54,7 @@ local files = {
 	"skeleton+variants.lua",
 	"skeleton_wither.lua",
 	"slime+magma_cube.lua",
+	"sniffer.lua",
 	"snowman.lua",
 	"spider.lua",
 	"squid+glow_squid.lua",
