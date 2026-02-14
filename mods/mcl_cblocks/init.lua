@@ -3,7 +3,7 @@
 -- LISTA DE CORES
 -- ==============================
 local colors = {
-	{name="white", desc="White", hex="#FFFFFF", dye="white"},
+	-- {name="white", desc="White", hex="#F0F0F0", dye="white"},
 	{name="orange", desc="Orange", hex="#F9801D", dye="orange"},
 	{name="magenta", desc="Magenta", hex="#C74EBD", dye="magenta"},
 	{name="light_blue", desc="Light Blue", hex="#3AB3DA", dye="light_blue"},
