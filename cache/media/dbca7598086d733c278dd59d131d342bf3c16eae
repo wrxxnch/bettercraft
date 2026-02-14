@@ -1,0 +1,30 @@
+# textdomain: mcl_inventory
+Auto (use scroll bar if client >@= 5.11)=
+Off  (use paging buttons, faster)=
+On   (more MC like, slower)=
+Enable scrollable creative inventory=
+Building Blocks=Építőblokkok
+Decoration Blocks=Díszblokkok
+Redstone=Vöröskő
+Transportation=Szállítás
+Miscellaneous=Egyéb
+Search Items=Tárgy keresése
+Foodstuffs=Élelmiszerek
+Tools=Eszközök
+Combat=Harc
+Mobs=Mobok
+Brewing=Lepárlás
+Materials=Anyagok
+Survival Inventory=Túlélőkészlet
+Not in Creative Inventory=Nem található a Kreatív készletben
+Switch stack size=Köteg méretének állítása
+@1 / @2=
+Very large inventory displays may be slow when scrolling, especially on Luanti versions before 5.11.@nTherefore the creative inventory display can be split into pages with prev/next page buttons.@nMineclonia defaults to use scrolling unless an older Luanti version is detected.@nThis setting allows you to override that heuristic.=
+Recipe book=Receptkönyv
+Help=Segítség
+Advancements=Kihívások
+Player settings=
+Return to player inventory=
+Crafting table out of range!=
+Crafting=Barkácsolás
+Fill Craft Grid=Barkácsrács kitöltése

@@ -1,0 +1,30 @@
+# textdomain: mcl_inventory
+Auto (use scroll bar if client >@= 5.11)=
+Off  (use paging buttons, faster)=
+On   (more MC like, slower)=
+Enable scrollable creative inventory=
+Building Blocks=Blocs de construction
+Decoration Blocks=Blocs de décoration
+Redstone=Redstone
+Transportation=Transport
+Miscellaneous=Divers
+Search Items=Rechercher
+Foodstuffs=Denrées alimentaires
+Tools=Outils
+Combat=Combat
+Mobs=Créatures
+Brewing=Potions
+Materials=Matériaux
+Survival Inventory=Inventaire de survie
+Not in Creative Inventory=Pas dans l'inventaire créatif
+Switch stack size=Basculer la taille de la pile
+@1 / @2=
+Very large inventory displays may be slow when scrolling, especially on Luanti versions before 5.11.@nTherefore the creative inventory display can be split into pages with prev/next page buttons.@nMineclonia defaults to use scrolling unless an older Luanti version is detected.@nThis setting allows you to override that heuristic.=
+Recipe book=Livre de recette
+Help=Rubrique d'aide
+Advancements=Progrès
+Player settings=
+Return to player inventory=
+Crafting table out of range!=Établi hors de porté !
+Crafting=Fabrication
+Fill Craft Grid=Remplir la grille d'artisanat

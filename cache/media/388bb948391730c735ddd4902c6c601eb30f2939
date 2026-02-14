@@ -1,0 +1,30 @@
+# textdomain: mcl_inventory
+Auto (use scroll bar if client >@= 5.11)=Авто (полоса прокрутки, если клиент >@= 5.11)
+Off  (use paging buttons, faster)=Выкл.  (постраничные кнопки, быстрее)
+On   (more MC like, slower)=Вкл. (как в MC, медленнее)
+Enable scrollable creative inventory=Включить прокрутку в творческом инвентаре
+Building Blocks=Строительные блоки
+Decoration Blocks=Декоративные блоки
+Redstone=Редстоун
+Transportation=Транспорт
+Miscellaneous=Разное
+Search Items=Поиск предметов
+Foodstuffs=Пища
+Tools=Инструменты
+Combat=Оружие и броня
+Mobs=Мобы
+Brewing=Зельеварение
+Materials=Материалы
+Survival Inventory=Инвентарь выживания
+Not in Creative Inventory=Нет в творческом инвентаре
+Switch stack size=Изменить размер стака
+@1 / @2=@1 / @2
+Very large inventory displays may be slow when scrolling, especially on Luanti versions before 5.11.@nTherefore the creative inventory display can be split into pages with prev/next page buttons.@nMineclonia defaults to use scrolling unless an older Luanti version is detected.@nThis setting allows you to override that heuristic.=Отображение большого инвентаря может быть медленным, особенно на Luanti версии ниже 5.11.@nПоэтому творческий инвентарь можно отобразить с разделением на страницы с кнопками переключения вперёд/назад.@nMineclonia по умолчанию использует прокрутку, если не обнаружена старая версия Luanti.@nЭта настройка позволяет переопределить это поведение.
+Recipe book=Книга рецептов
+Help=Справка
+Advancements=Достижения
+Player settings=Настройки игрока
+Return to player inventory=Вернуться в инвентарь игрока
+Crafting table out of range!=Верстак вне достижения!
+Crafting=Создание
+Fill Craft Grid=Заполнить сетку крафта
