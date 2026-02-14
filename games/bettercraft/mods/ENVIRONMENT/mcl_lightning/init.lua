@@ -34,10 +34,8 @@ core.register_chatcommand("dodaynightcycle", {
 		if param == "false" then
 			time_frozen = true
 			frozen_time = core.get_timeofday()
-			core.chat_send_all("🌙 Day/Night cycle disabled (time frozen)")
 		else
 			time_frozen = false
-			core.chat_send_all("☀️ Day/Night cycle enabled")
 		end
 
 		return true
