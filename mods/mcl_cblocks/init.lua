@@ -28,7 +28,14 @@ local base_nodes = {
 	"mcl_core:stonebrick",
 	"mcl_trees:wood_oak",
 	"mcl_core:cobble",
+	"mcl_core:stone"
 }
+
+-- ==============================
+-- VERIFICAÇÃO DE MODS OPCIONAIS
+-- ==============================
+local has_mcl_stairs = minetest.get_modpath("mcl_stairs")
+local has_mcl_moreblocks = minetest.get_modpath("mcl_moreblocks")
 
 -- ==============================
 -- FUNÇÃO PRINCIPAL
@@ -51,12 +58,7 @@ local function register_colored_block(base_node)
 		def.groups.colored_block = 1
 		def.description = color.desc .. " " .. base_desc
 
-		-- =================================================================
-		-- SOLUÇÃO DEFINITIVA PARA TEXTURA: USANDO OVERLAY
-		-- Em vez de 'colorize', que pode apagar a textura, usamos uma sobreposição.
-		-- Isso mantém a textura original (ex: da madeira) e aplica a cor por cima.
-		-- 'mcl_cblocks_overlay.png' é uma imagem 1x1 pixel da cor branca.
-		-- =================================================================
+		-- Solução de textura usando 'color' para preservar os detalhes
 		local new_tiles = {}
 		local base_tiles = base_def.tiles or base_def.tile_images
 		
@@ -71,14 +73,14 @@ local function register_colored_block(base_node)
 		end
 		
 		def.tiles = new_tiles
-		def.tile_images = nil -- Garante que a engine use a definição de 'tiles'
+		def.tile_images = nil
 
 		minetest.register_node(":" .. node_name, def)
 
 		-- =================================================================
-		-- REGISTRO DE ESCADAS E LAJES (se o mod existir)
+		-- INTEGRAÇÃO COM mcl_stairs (se existir)
 		-- =================================================================
-		if minetest.get_modpath("mcl_stairs") then
+		if has_mcl_stairs then
 			mcl_stairs.register_stair_and_slab(
 				id .. "_" .. color.name,
 				node_name,
@@ -91,15 +93,19 @@ local function register_colored_block(base_node)
 		end
 
 		-- =================================================================
-		-- CRAFTING SHAPELESS (qualquer posição)
-		-- 8 blocos + 1 corante = 8 blocos coloridos.
+		-- INTEGRAÇÃO COM mcl_moreblocks (se existir)
+		-- Isso adicionará rampas, painéis, etc., para nossos blocos coloridos.
 		-- =================================================================
+		if has_mcl_moreblocks and mcl_moreblocks.add_block then
+			mcl_moreblocks.add_block(node_name)
+		end
+
+		-- Crafting shapeless (8 blocos + 1 corante = 8 blocos coloridos)
 		minetest.register_craft({
 			type = "shapeless",
 			output = node_name .. " 1",
 			recipe = {
-               "mcl_dyes:" .. color.dye, base_node,
-
+                "mcl_dyes:" .. color.dye, base_node,
 			}
 		})
 	end
@@ -112,4 +118,9 @@ for _, node in ipairs(base_nodes) do
 	register_colored_block(node)
 end
 
-minetest.log("action", "[mcl_cblocks] Blocos coloridos carregados com sucesso!")
+-- Mensagem de log para confirmar que o mod carregou
+local loaded_with = ""
+if has_mcl_stairs then loaded_with = loaded_with .. " [mcl_stairs support]" end
+if has_mcl_moreblocks then loaded_with = loaded_with .. " [mcl_moreblocks support]" end
+
+minetest.log("action", "[mcl_cblocks] Blocos coloridos carregados." .. loaded_with)
