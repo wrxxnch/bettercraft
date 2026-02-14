@@ -267,4 +267,5 @@ core.register_tool("mcl_armor:elytra", {
 	_mcl_armor_element = "torso",
 	_mcl_armor_texture = "mcl_armor_elytra.png",
 	_on_repair = mcl_armor.reenable_elytra,
+	_repair_material = "mcl_mobitems:phantom_membrane",
 })

@@ -359,7 +359,8 @@ local awkward_table = {
 	["mcl_core:stone"] = "mcl_potions:infestation",
 	["mcl_core:slimeblock"] = "mcl_potions:oozing",
 	["mcl_core:cobweb"] = "mcl_potions:weaving",
-	["mcl_mobitems:breeze_rod"] = "mcl_potions:wind_charged"
+	["mcl_mobitems:breeze_rod"] = "mcl_potions:wind_charged",
+	["mcl_mobitems:phantom_membrane"] = "mcl_potions:slow_falling",
 }
 
 -- API

@@ -75,6 +75,7 @@ local files = {
 	"drowned.lua",
 	"villager_zombie.lua",
 	"zombiepig.lua",
+	"phantom.lua",
 	"piglin.lua",
 }
 for _, file in pairs (files) do

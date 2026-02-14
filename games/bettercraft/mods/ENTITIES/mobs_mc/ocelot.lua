@@ -497,10 +497,10 @@ local cat_loot_table = {
 			weight = 10,
 			itemstring = "mcl_mobitems:string",
 		},
-		-- {
-		-- 	weight = 2,
-		-- 	itemstack = ItemStack ("mcl_mobitems:phantom_membrane"),
-		-- },
+		 {
+		 	weight = 2,
+		 	itemstack = ItemStack ("mcl_mobitems:phantom_membrane"),
+		 },
 	},
 }
 

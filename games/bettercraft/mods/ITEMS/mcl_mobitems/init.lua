@@ -439,6 +439,16 @@ core.register_tool("mcl_mobitems:warped_fungus_on_a_stick", {
 	_mcl_uses = 100
 })
 
+minetest.register_craftitem("mcl_mobitems:phantom_membrane", {
+	description = S("Phantom Membrane"),
+	_tt_help = S("Use to repair the elytra"),
+	_doc_items_longdesc = S("Dropped by the phantom."),
+	_doc_items_usagehelp = S("The phantom membrane is dropped by phantoms and can be used to repair the elytra."),
+	inventory_image = "mcl_mobitems_phantom_membrane.png",
+	wield_image = "mcl_mobitems_phantom_membrane.png",
+	groups = { craftitem = 1 },
+})
+
 core.register_craftitem("mcl_mobitems:nautilus_shell", {
 	description = S("Nautilus Shell"),
 	_tt_help = S("Used to craft a conduit"),

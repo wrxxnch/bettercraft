@@ -304,7 +304,13 @@ function mcl_beds.kick_player(player)
 end
 
 function mcl_beds.skip_night()
-	core.set_timeofday(0.25) -- tod = 6000
+for name, _ in pairs(mcl_beds.player) do
+		local p = minetest.get_player_by_name(name)
+		if p then
+			p:get_meta():set_int("mcl_beds:last_sleep", minetest.get_gametime())
+		end
+	end
+	minetest.set_timeofday(0.25) -- tod = 6000
 end
 
 function mcl_beds.get_bed_top (pos)
