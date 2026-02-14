@@ -15,6 +15,10 @@ local S = core.get_translator(core.get_current_modname())
 -- valor padrão do engine
 local DEFAULT_TIME_SPEED = 72
 
+local DEFAULT_TIME_SPEED = 72
+local time_frozen = false
+local frozen_time = 0
+
 core.register_chatcommand("dodaynightcycle", {
 	params = "<true|false>",
 	description = "Enable or disable day/night cycle (freeze time)",
@@ -28,18 +32,25 @@ core.register_chatcommand("dodaynightcycle", {
 		end
 
 		if param == "false" then
-			-- CONGELA O TEMPO APENAS NESTE MUNDO
-			core.set_world_setting("time_speed", "0")
+			time_frozen = true
+			frozen_time = core.get_timeofday()
 			core.chat_send_all("🌙 Day/Night cycle disabled (time frozen)")
 		else
-			-- RESTAURA PARA O PADRÃO
-			core.set_world_setting("time_speed", tostring(DEFAULT_TIME_SPEED))
+			time_frozen = false
 			core.chat_send_all("☀️ Day/Night cycle enabled")
 		end
 
 		return true
 	end
 })
+
+-- Globalstep que mantém o tempo congelado
+core.register_globalstep(function(dtime)
+	if time_frozen then
+		core.set_timeofday(frozen_time)
+	end
+end)
+
 
 
 
