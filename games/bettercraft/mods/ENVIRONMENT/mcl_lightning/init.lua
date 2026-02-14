@@ -16,30 +16,31 @@ local S = core.get_translator(core.get_current_modname())
 local DEFAULT_TIME_SPEED = 72
 
 core.register_chatcommand("dodaynightcycle", {
-	params = S("<true|false>"),
-	description = S("Enable or disable day/night cycle (freeze time)"),
+	params = "<true|false>",
+	description = "Enable or disable day/night cycle (freeze time)",
 	privs = { server = true },
 
 	func = function(name, param)
 		param = param:lower()
 
 		if param ~= "true" and param ~= "false" then
-			return false, S("Invalid parameter. Use true or false.")
+			return false, "Invalid parameter. Use true or false."
 		end
 
 		if param == "false" then
-			-- CONGELA O TEMPO
-			core.settings:set("time_speed", "0")
-			core.chat_send_all(S("🌙 Day/Night cycle disabled (time frozen)"))
+			-- CONGELA O TEMPO APENAS NESTE MUNDO
+			core.set_world_setting("time_speed", "0")
+			core.chat_send_all("🌙 Day/Night cycle disabled (time frozen)")
 		else
-			-- VOLTA A RODAR
-			core.settings:set("time_speed", tostring(DEFAULT_TIME_SPEED))
-			core.chat_send_all(S("☀️ Day/Night cycle enabled"))
+			-- RESTAURA PARA O PADRÃO
+			core.set_world_setting("time_speed", tostring(DEFAULT_TIME_SPEED))
+			core.chat_send_all("☀️ Day/Night cycle enabled")
 		end
 
 		return true
 	end
 })
+
 
 
 mcl_lightning = {
