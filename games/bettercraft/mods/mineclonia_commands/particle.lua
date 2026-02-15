@@ -38,6 +38,104 @@ local function parse_pos(args, player)
 	return base
 end
 
+-- Função auxiliar para coletar todas as texturas registradas no jogo
+local function get_all_textures()
+    local textures = {}
+    
+    -- 1. Coletar texturas de todos os itens e nós registrados
+    for name, def in pairs(minetest.registered_items) do
+        -- Texturas de inventário
+        if def.inventory_image and def.inventory_image ~= "" then
+            textures[def.inventory_image] = true
+        end
+        -- Texturas de tiles (para nós)
+        if def.tiles then
+            for _, tile in ipairs(def.tiles) do
+                local tile_name = type(tile) == "table" and tile.name or tile
+                if type(tile_name) == "string" and tile_name ~= "" then
+                    textures[tile_name] = true
+                end
+            end
+        end
+        -- Texturas especiais
+        if def.special_tiles then
+            for _, tile in ipairs(def.special_tiles) do
+                local tile_name = type(tile) == "table" and tile.name or tile
+                if type(tile_name) == "string" and tile_name ~= "" then
+                    textures[tile_name] = true
+                end
+            end
+        end
+    end
+
+    -- 2. Coletar texturas de entidades registradas
+    for name, def in pairs(minetest.registered_entities) do
+        if def.initial_properties and def.initial_properties.textures then
+            for _, tex in ipairs(def.initial_properties.textures) do
+                if type(tex) == "string" and tex ~= "" then
+                    textures[tex] = true
+                end
+            end
+        end
+    end
+
+    -- Converter o set em uma lista ordenada
+    local list = {}
+    for tex in pairs(textures) do
+        -- Limpar modificadores de textura (ex: [combine, ^, etc) para busca mais limpa
+        local base_tex = tex:split("^")[1]:split("[")[1]
+        if base_tex ~= "" then
+            list[base_tex] = true
+        end
+    end
+    
+    local final_list = {}
+    for tex in pairs(list) do
+        table.insert(final_list, tex)
+    end
+    table.sort(final_list)
+    return final_list
+end
+
+minetest.register_chatcommand("particle_search", {
+    params = "<termo>",
+    description = "Lista texturas registradas que podem ser usadas como partículas",
+    privs = {server = true},
+    func = function(name, param)
+        if param == "" then
+            return false, "Uso: /particle_search <termo>"
+        end
+        
+        local search = param:lower()
+        local all_textures = get_all_textures()
+        local found = {}
+        
+        for _, tex in ipairs(all_textures) do
+            if tex:lower():find(search, 1, true) then
+                table.insert(found, tex)
+            end
+        end
+        
+        if #found == 0 then
+            return false, "Nenhuma textura encontrada contendo: " .. param
+        end
+        
+        -- Limitar a exibição se houver muitos resultados para não travar o chat
+        local max_display = 50
+        local output = "✨ Texturas contendo '" .. param .. "':\n"
+        for i = 1, math.min(#found, max_display) do
+            output = output .. found[i] .. (i == #found and "" or ", ")
+        end
+        
+        if #found > max_display then
+            output = output .. "\n... e mais " .. (#found - max_display) .. " resultados."
+        end
+        
+        minetest.chat_send_player(name, output)
+        return true
+    end,
+})
+
 minetest.register_chatcommand("particle", {
 	params = "<textura> [args...]",
 	description = "Cria partículas (static, floating, falling, sphere, hollow)",
