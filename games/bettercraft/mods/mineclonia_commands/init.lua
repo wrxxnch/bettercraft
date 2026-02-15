@@ -10,6 +10,7 @@ local modname = minetest.get_current_modname()
 
 
 dofile(minetest.get_modpath(modname) .. "/particle.lua")
+dofile(minetest.get_modpath(modname) .. "/testfor.lua")
 
 
 -- Função para atualizar o sinal de Redstone do Command Block e ativar comparadores
@@ -136,109 +137,109 @@ local function entity_matches(obj, filters)
     return true
 end
 
--- Comando: /testfor <seletor> [x y z] [,radius=n] execute=...
-minetest.register_chatcommand("testfor", {
-    params = "<@a|@e> [x y z] [,radius=n] execute=...",
-    description = "Testa entidades/jogadores com precisão",
-    privs = { server = true },
-    func = function(name, param)
-        local player = minetest.get_player_by_name(name)
-        local exec_if, exec_unless, clean_param = extract_conditional_commands(param)
+-- -- Comando: /testfor <seletor> [x y z] [,radius=n] execute=...
+-- minetest.register_chatcommand("testfor", {
+--     params = "<@a|@e> [x y z] [,radius=n] execute=...",
+--     description = "Testa entidades/jogadores com precisão",
+--     privs = { server = true },
+--     func = function(name, param)
+--         local player = minetest.get_player_by_name(name)
+--         local exec_if, exec_unless, clean_param = extract_conditional_commands(param)
         
-        if clean_param == "" then
-            set_commandblock_result(false)
-            return false, "Filtros não especificados"
-        end
+--         if clean_param == "" then
+--             set_commandblock_result(false)
+--             return false, "Filtros não especificados"
+--         end
 
-        -- Extrair radius fora do seletor se houver (ex: ,radius=5)
-        local extra_radius = clean_param:match(",%s*radius=(%d+)") or clean_param:match(",%s*r=(%d+)")
-        if extra_radius then
-            clean_param = clean_param:gsub(",%s*radius=%d+", ""):gsub(",%s*r=%d+", "")
-        end
+--         -- Extrair radius fora do seletor se houver (ex: ,radius=5)
+--         local extra_radius = clean_param:match(",%s*radius=(%d+)") or clean_param:match(",%s*r=(%d+)")
+--         if extra_radius then
+--             clean_param = clean_param:gsub(",%s*radius=%d+", ""):gsub(",%s*r=%d+", "")
+--         end
 
-        local args = clean_param:split(" ")
-        local selector = args[1]
-        table.remove(args, 1)
+--         local args = clean_param:split(" ")
+--         local selector = args[1]
+--         table.remove(args, 1)
 
-        local filters = {}
-        local ppos = player and player:get_pos() or {x=0, y=0, z=0}
-        filters.center = {x=ppos.x, y=ppos.y, z=ppos.z}
-        filters.radius = 32768 -- Padrão: mundo todo
+--         local filters = {}
+--         local ppos = player and player:get_pos() or {x=0, y=0, z=0}
+--         filters.center = {x=ppos.x, y=ppos.y, z=ppos.z}
+--         filters.radius = 32768 -- Padrão: mundo todo
 
-        -- Tratar seletores
-        if selector:sub(1,2) == "@a" then
-            filters.only_players = true
-        end
+--         -- Tratar seletores
+--         if selector:sub(1,2) == "@a" then
+--             filters.only_players = true
+--         end
 
-        -- Extrair filtros de colchetes: @a[r=10]
-        local inside = selector:match("%[(.+)%]")
-        if inside then
-            for pair in inside:gmatch("[^,]+") do
-                local k,v = pair:match("([^=]+)=([^=]+)")
-                if k and v then
-                    if k == "x" then filters.center.x = tonumber(v) or filters.center.x
-                    elseif k == "y" then filters.center.y = tonumber(v) or filters.center.y
-                    elseif k == "z" then filters.center.z = tonumber(v) or filters.center.z
-                    elseif k == "r" or k == "radius" then filters.radius = tonumber(v)
-                    else filters[k] = v end
-                end
-            end
-        end
+--         -- Extrair filtros de colchetes: @a[r=10]
+--         local inside = selector:match("%[(.+)%]")
+--         if inside then
+--             for pair in inside:gmatch("[^,]+") do
+--                 local k,v = pair:match("([^=]+)=([^=]+)")
+--                 if k and v then
+--                     if k == "x" then filters.center.x = tonumber(v) or filters.center.x
+--                     elseif k == "y" then filters.center.y = tonumber(v) or filters.center.y
+--                     elseif k == "z" then filters.center.z = tonumber(v) or filters.center.z
+--                     elseif k == "r" or k == "radius" then filters.radius = tonumber(v)
+--                     else filters[k] = v end
+--                 end
+--             end
+--         end
 
-        -- Se houver coordenadas X Y Z diretas
-        if #args >= 3 then
-            local pos, _ = get_pos_from_args(args, player)
-            if pos then 
-                filters.center = pos 
-                -- Se forneceu coordenadas diretas mas não o raio, o padrão é 1 (precisão exata)
-                filters.radius = tonumber(extra_radius) or 1
-            end
-        elseif extra_radius then
-            filters.radius = tonumber(extra_radius)
-        end
+--         -- Se houver coordenadas X Y Z diretas
+--         if #args >= 3 then
+--             local pos, _ = get_pos_from_args(args, player)
+--             if pos then 
+--                 filters.center = pos 
+--                 -- Se forneceu coordenadas diretas mas não o raio, o padrão é 1 (precisão exata)
+--                 filters.radius = tonumber(extra_radius) or 1
+--             end
+--         elseif extra_radius then
+--             filters.radius = tonumber(extra_radius)
+--         end
 
-        local objects = minetest.get_objects_inside_radius(filters.center, filters.radius)
-        local count = 0
-        for _, obj in ipairs(objects) do
-            if entity_matches(obj, filters) then count = count + 1 end
-        end
+--         local objects = minetest.get_objects_inside_radius(filters.center, filters.radius)
+--         local count = 0
+--         for _, obj in ipairs(objects) do
+--             if entity_matches(obj, filters) then count = count + 1 end
+--         end
 
-        local success = count > 0
-        set_commandblock_result(success)
+--         local success = count > 0
+--         set_commandblock_result(success)
         
-        if success and exec_if then run_conditional_command(name, exec_if) end
-        if not success and exec_unless then run_conditional_command(name, exec_unless) end
+--         if success and exec_if then run_conditional_command(name, exec_if) end
+--         if not success and exec_unless then run_conditional_command(name, exec_unless) end
 
-        return success, (success and "Encontrado(s) " .. count .. " alvo(s)" or "Nenhum alvo encontrado")
-    end,
-})
+--         return success, (success and "Encontrado(s) " .. count .. " alvo(s)" or "Nenhum alvo encontrado")
+--     end,
+-- })
 
--- Comando: /testforblock
-minetest.register_chatcommand("testforblock", {
-    params = "<x> <y> <z> <node> execute=...",
-    description = "Testa bloco e executa comandos",
-    privs = { server = true },
-    func = function(name, param)
-        local player = minetest.get_player_by_name(name)
-        if not player then return false, "Jogador inválido" end
-        local exec_if, exec_unless, clean_param = extract_conditional_commands(param)
-        local args = clean_param:split(" ")
-        for i = #args, 1, -1 do if args[i] == "" then table.remove(args, i) end end
-        local pos, rest = get_pos_from_args(args, player)
-        local nodename = rest and rest[1]
-        if not pos or not nodename then return false, "Uso: /testforblock <x> <y> <z> <node> [execute=...]" end
-        if not nodename:find(":") then
-            local full_name = "mcl_core:" .. nodename
-            if minetest.registered_nodes[full_name] then nodename = full_name end
-        end
-        local node = minetest.get_node(pos)
-        local success = (node.name == nodename)
-        set_commandblock_result(success)
-        if success and exec_if then run_conditional_command(name, exec_if) end
-        if not success and exec_unless then run_conditional_command(name, exec_unless) end
-        return success, (success and "Bloco " .. nodename .. " encontrado" or "Encontrado " .. node.name)
-    end,
-})
+-- -- Comando: /testforblock
+-- minetest.register_chatcommand("testforblock", {
+--     params = "<x> <y> <z> <node> execute=...",
+--     description = "Testa bloco e executa comandos",
+--     privs = { server = true },
+--     func = function(name, param)
+--         local player = minetest.get_player_by_name(name)
+--         if not player then return false, "Jogador inválido" end
+--         local exec_if, exec_unless, clean_param = extract_conditional_commands(param)
+--         local args = clean_param:split(" ")
+--         for i = #args, 1, -1 do if args[i] == "" then table.remove(args, i) end end
+--         local pos, rest = get_pos_from_args(args, player)
+--         local nodename = rest and rest[1]
+--         if not pos or not nodename then return false, "Uso: /testforblock <x> <y> <z> <node> [execute=...]" end
+--         if not nodename:find(":") then
+--             local full_name = "mcl_core:" .. nodename
+--             if minetest.registered_nodes[full_name] then nodename = full_name end
+--         end
+--         local node = minetest.get_node(pos)
+--         local success = (node.name == nodename)
+--         set_commandblock_result(success)
+--         if success and exec_if then run_conditional_command(name, exec_if) end
+--         if not success and exec_unless then run_conditional_command(name, exec_unless) end
+--         return success, (success and "Bloco " .. nodename .. " encontrado" or "Encontrado " .. node.name)
+--     end,
+-- })
 
 -- Comando: /setblock
 minetest.register_chatcommand("setblock", {
