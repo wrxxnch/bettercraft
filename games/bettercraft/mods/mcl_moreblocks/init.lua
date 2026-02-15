@@ -115,6 +115,7 @@ mcl_moreblocks.add_nodes = function()
 		"mcl_blackstone:basalt_smooth",
 		"mcl_core:grass_path",
 		"mcl_core:podzol",
+		"mcl_core:stonebrickcarved",
 
 		-- vidros coloridos  
 		"mcl_core:glass_white",

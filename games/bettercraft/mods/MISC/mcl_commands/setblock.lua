@@ -254,6 +254,16 @@ core.register_chatcommand("undo_fill", {
     end
 })
 core.register_chatcommand("clone", {
+    params = "<pos1> <pos2> <dest> [replace|masked|filtered <node>|move|rotate <deg>|mirror <axis>]",
+    description = "Clona uma área para outro local.\n\n" ..
+                  "Modos disponíveis:\n" ..
+                  "replace  - Substitui tudo (padrão)\n" ..
+                  "masked   - Ignora blocos de ar\n" ..
+                  "filtered <node> - Clona apenas um tipo específico de nó\n" ..
+                  "move     - Move a área ao invés de copiar\n" ..
+                  "rotate <0|90|180|270> - Rotaciona a estrutura\n" ..
+                  "mirror <x|z> - Espelha no eixo X ou Z\n\n" ..
+                  "Também aceita: clone pos1 pos2 <dest>",
     func = function(name, param)
         local P = {}
         for w in param:gmatch("%S+") do
