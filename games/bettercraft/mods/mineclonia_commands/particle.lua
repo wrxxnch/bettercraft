@@ -12,31 +12,67 @@ end
 
 -- Parse de posição com suporte a ~ e ^
 local function parse_pos(args, player)
-	local base = vector.round(player:get_pos())
-	base.y = base.y + 1.5
 
-	local function parse_axis(v, axis)
-		if v == "~" then return base[axis] end
-		if v:sub(1,1) == "~" then
-			return base[axis] + (tonumber(v:sub(2)) or 0)
-		end
-		if v == "^" then return base[axis] end
-		if v:sub(1,1) == "^" then
-			return base[axis] + (tonumber(v:sub(2)) or 0)
-		end
-		return tonumber(v)
-	end
+    local base
 
-	if args[1] and (tonumber(args[1]) or args[1]:match("^[~^]")) then
-		return {
-			x = parse_axis(table.remove(args,1), "x"),
-			y = parse_axis(table.remove(args,1), "y"),
-			z = parse_axis(table.remove(args,1), "z"),
-		}
-	end
+    -- PRIORIDADE 1: posição do player
+    if player and player:get_pos() then
 
-	return base
+        base = vector.round(player:get_pos())
+        base.y = base.y + 1.5
+
+    -- PRIORIDADE 2: posição do command block
+    elseif core.commandblock_pos then
+
+        base = vector.round(core.commandblock_pos)
+
+    elseif minetest.get_commandblock_pos then
+
+        base = vector.round(minetest.get_commandblock_pos())
+
+    -- FALLBACK seguro
+    else
+
+        base = {x=0,y=0,z=0}
+
+    end
+
+
+    local function parse_axis(v, axis)
+
+        if not v then return base[axis] end
+
+        if v == "~" then return base[axis] end
+
+        if v:sub(1,1) == "~" then
+            return base[axis] + (tonumber(v:sub(2)) or 0)
+        end
+
+        if v == "^" then return base[axis] end
+
+        if v:sub(1,1) == "^" then
+            return base[axis] + (tonumber(v:sub(2)) or 0)
+        end
+
+        return tonumber(v) or base[axis]
+
+    end
+
+
+    if args[1] then
+
+        return {
+            x = parse_axis(table.remove(args,1), "x"),
+            y = parse_axis(table.remove(args,1), "y"),
+            z = parse_axis(table.remove(args,1), "z"),
+        }
+
+    end
+
+    return base
+
 end
+
 
 -- Função auxiliar para coletar todas as texturas registradas no jogo
 local function get_all_textures()
@@ -251,22 +287,33 @@ minetest.register_chatcommand("particle", {
 				end
 			end
 		else
-			minetest.add_particlespawner({
-				amount = cfg.count,
-				time = 0.1,
-				minpos = vector.subtract(pos, cfg.spread),
-				maxpos = vector.add(pos, cfg.spread),
-				minvel = vel,
-				maxvel = vel,
-				minacc = acc,
-				maxacc = acc,
-				minsize = cfg.size,
-				maxsize = cfg.size,
-				texture = texture,
-				collisiondetection = collision,
-				glow = 10,
-			})
-		end
+    local spread_vec = {
+        x = cfg.spread,
+        y = cfg.spread,
+        z = cfg.spread
+    }
+
+    minetest.add_particlespawner({
+        amount = cfg.count,
+        time = 0.1,
+
+        minpos = vector.subtract(pos, spread_vec),
+        maxpos = vector.add(pos, spread_vec),
+
+        minvel = vel,
+        maxvel = vel,
+
+        minacc = acc,
+        maxacc = acc,
+
+        minsize = cfg.size,
+        maxsize = cfg.size,
+
+        texture = texture,
+        collisiondetection = collision,
+        glow = 10,
+    })
+end
 
 		return true, " Particle criado: "..texture
 	end,
