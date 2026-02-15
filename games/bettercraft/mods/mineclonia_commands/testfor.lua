@@ -305,6 +305,8 @@ minetest.register_chatcommand("testforblock", {
 minetest.register_chatcommand("testforblocks", {
 
     params = "<area1> <area2> destiny execute=<command>",
+    description = "Compara duas áreas de blocos. Sintaxe: <area1> <area2> <destiny>. Suporta execute=<comando> e/ou execute!=<comando>. ex:testforblocks ~ ~1 ~ ~ ~1 ~ xyz execute=setblock xyz mcl_redstone_torch:redstoneblock,execute!=setblock xyz mcl_core:dirt",
+
 
     privs = {
         server = true
