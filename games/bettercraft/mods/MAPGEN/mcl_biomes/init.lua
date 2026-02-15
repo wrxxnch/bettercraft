@@ -5446,9 +5446,8 @@ core.register_decoration({
 		fill_ratio = 0.02,
 		spawn_by = "group:water",
 		biomes = {
-			"Forest", "Taiga", "MegaTaiga", "MegaSpruceTaiga", "Plains", "SunflowerPlains", "FlowerForest", "BirchForest",
-			"BirchForestM", "RoofedForest", "Jungle", "JungleM", "JungleEdge", "JungleEdgeM", "BambooJungle", "Savanna",
-			"SavannaM", "MesaPlateauF", "MesaPlateauFM", "MangroveSwamp", "Meadow"
+			"Jungle", "JungleM", "JungleEdge", "JungleEdgeM","Savanna",
+			"SavannaM", "MangroveSwamp", "Meadow"
 		},
 		y_min = mcl_vars.mg_overworld_min,
 		y_max = mcl_vars.mg_overworld_max,
