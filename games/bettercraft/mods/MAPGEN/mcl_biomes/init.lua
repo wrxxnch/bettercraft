@@ -5434,25 +5434,12 @@ core.register_decoration({
 		deco_type = "simple",
 		place_on = "mcl_core:dirt_with_grass",
 		fill_ratio = 0.02,
-		biomes = {"SwampLand"},
+		biomes = {"SwampLand" , "MangroveSwamp"},
 		y_min = mcl_vars.mg_overworld_min,
 		y_max = mcl_vars.mg_overworld_max,
 		decoration = "mcl_flowers:firefly_bush",
 	})
 
-	core.register_decoration({
-		deco_type = "simple",
-		place_on = {"mcl_core:dirt_with_grass"},
-		fill_ratio = 0.02,
-		spawn_by = "group:water",
-		biomes = {
-			"Jungle", "JungleM", "JungleEdge", "JungleEdgeM","Savanna",
-			"SavannaM", "MangroveSwamp", "Meadow"
-		},
-		y_min = mcl_vars.mg_overworld_min,
-		y_max = mcl_vars.mg_overworld_max,
-		decoration = "mcl_flowers:firefly_bush",
-	})
 
 	core.register_decoration({
 		deco_type = "schematic",
