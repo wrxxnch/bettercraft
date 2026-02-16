@@ -19,9 +19,22 @@ local DEFAULT_TIME_SPEED = 72
 local time_frozen = false
 local frozen_time = 0
 
+local storage = core.get_mod_storage()
+
+local DEFAULT_TIME_SPEED = 72
+
+-- carregar estado salvo do mundo
+local saved = storage:get_string("time_frozen")
+
+if saved == "true" then
+	core.settings:set("time_speed", "0")
+else
+	core.settings:set("time_speed", tostring(DEFAULT_TIME_SPEED))
+end
+
 core.register_chatcommand("dodaynightcycle", {
 	params = "<true|false>",
-	description = "Enable or disable day/night cycle (freeze time)",
+	description = "Enable or disable day/night cycle for this world",
 	privs = { server = true },
 
 	func = function(name, param)
@@ -32,10 +45,11 @@ core.register_chatcommand("dodaynightcycle", {
 		end
 
 		if param == "false" then
-			time_frozen = true
-			frozen_time = core.get_timeofday()
+			core.settings:set("time_speed", "0")
+			storage:set_string("time_frozen", "true")
 		else
-			time_frozen = false
+			core.settings:set("time_speed", tostring(DEFAULT_TIME_SPEED))
+			storage:set_string("time_frozen", "false")
 		end
 
 		return true

@@ -39,6 +39,8 @@ function natural_habitat.register_biome(def)
             y_max = ((y_min/2)/4)*3,
             y_min = y_min,
         },
+
+        
     }) do
         def = table.copy(def);
         for key, value in pairs(stage) do
