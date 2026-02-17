@@ -30,12 +30,14 @@ local base_nodes = {
 	"mcl_core:cobble",
 	"mcl_core:stone",
 
-				"mcl_trees:bark_stripped_oak",
+		"mcl_trees:bark_stripped_oak",
 		"mcl_trees:bark_stripped_dark_oak",
 		"mcl_trees:bark_stripped_jungle",
 		"mcl_trees:bark_stripped_spruce",
 		"mcl_trees:bark_stripped_acacia",
 		"mcl_trees:bark_stripped_birch",
+		"mcl_core:brick_block",
+
 		
 }
 
