@@ -116,6 +116,7 @@ local blocks_to_trap = {
     "mcl_core:dirt_with_grass",
     "mcl_core:stone",
     "mcl_core:sand",
+    "mcl_core:redsand",
     "mcl_core:gravel",
     "mcl_core:cobble",
     "mcl_core:mossycobble",
@@ -129,6 +130,34 @@ local blocks_to_trap = {
     "mcl_pale_oak:pale_oak_planks",
     --blossom
     "mcl_blossom:blossom_planks",
+    --leaves
+    "mcl_trees:leaves_oak",
+    "mcl_trees:leaves_birch",
+    "mcl_trees:leaves_spruce",
+    "mcl_trees:leaves_jungle",
+    "mcl_trees:leaves_acacia",
+    "mcl_trees:leaves_dark_oak",
+    "mcl_trees:leaves_pale_oak",
+    "mcl_trees:leaves_cherry_blossom",
+    "mcl_trees:leaves_mangrove",
+    "mcl_trees:leaves_azalea",
+    "mcl_trees:leaves_azalea_flowering",
+
+    --planks
+    "mcl_trees:wood_oak",
+    "mcl_trees:wood_birch",
+    "mcl_trees:wood_spruce",
+    "mcl_trees:wood_jungle",
+    "mcl_trees:wood_acacia",
+    "mcl_trees:wood_dark_oak",
+    "mcl_trees:wood_pale_oak",
+    "mcl_trees:wood_cherry_blossom",
+    "mcl_trees:wood_mangrove",
+    "mcl_trees:wood_crimson",
+    "mcl_trees:wood_warped",
+    "mcl_trees:wood_pale_oak",
+    "mcl_trees:wood_bamboo",
+
     -- Add more blocks here as needed
 }
 
