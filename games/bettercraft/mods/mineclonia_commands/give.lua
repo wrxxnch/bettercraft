@@ -1,15 +1,10 @@
--- =========================
--- GIVE_POINTED COMMAND
--- Copia item/node com metadata completo
--- incluindo Command Block
--- =========================
+local give_search_cache = {}
 
+local S = core.get_translator(core.get_current_modname())
 
-local last_search = {}
-
--- =========================
+--------------------------------------------------
 -- PARSE PARAMS
--- =========================
+--------------------------------------------------
 
 local function parse_params(param)
 
@@ -20,12 +15,12 @@ local function parse_params(param)
     end
 
     return args
+
 end
 
-
--- =========================
+--------------------------------------------------
 -- APPLY META
--- =========================
+--------------------------------------------------
 
 local function apply_meta(stack, params)
 
@@ -35,74 +30,32 @@ local function apply_meta(stack, params)
         meta:set_string("description", params.name)
     end
 
-    if params.enchant then
-        meta:set_string("enchantments", params.enchant)
-    end
-
-    if params.hiteffect then
-        meta:set_string("hit_effect", params.hiteffect)
-    end
-
-    if params.holdeffect then
-        meta:set_string("hold_effect", params.holdeffect)
-    end
-
     return stack
+
 end
 
+--------------------------------------------------
+-- GET POINTED NODE VIA RAYCAST
+--------------------------------------------------
 
--- =========================
--- GET POINTED ITEM
--- =========================
+local function get_pointed_node(player)
 
-local function get_pointed_stack(player, use_meta)
+    local pos = player:get_pos()
+    pos.y = pos.y + 1.5
 
-    local pointed = player:get_pointed_thing()
+    local dir = player:get_look_dir()
 
-    if not pointed then
-        return nil
-    end
+    local ray = core.raycast(
+        pos,
+        vector.add(pos, vector.multiply(dir, 10)),
+        false,
+        false
+    )
 
+    for hit in ray do
 
-    -- NODE
-    if pointed.type == "node" then
-
-        local pos = pointed.under
-        local node = core.get_node(pos)
-
-        local stack = ItemStack(node.name)
-
-        if use_meta then
-
-            local meta = core.get_meta(pos)
-
-            stack:get_meta():from_table(meta:to_table())
-
-        end
-
-        return stack
-    end
-
-
-    -- OBJECT
-    if pointed.type == "object" then
-
-        local obj = pointed.ref
-
-        if obj and obj:is_player() then
-
-            return obj:get_wielded_item()
-
-        end
-
-        if obj and obj:get_luaentity() then
-
-            local ent = obj:get_luaentity()
-
-            if ent.itemstring then
-                return ItemStack(ent.itemstring)
-            end
-
+        if hit.type == "node" then
+            return hit.under
         end
 
     end
@@ -111,11 +64,64 @@ local function get_pointed_stack(player, use_meta)
 
 end
 
+--------------------------------------------------
+-- COPY NODE TO STACK WITH META
+--------------------------------------------------
 
+local function node_to_stack(pos, use_meta)
 
--- =========================
--- COMMAND
--- =========================
+    local node = core.get_node(pos)
+
+    if not node then return nil end
+
+    local stack = ItemStack(node.name)
+
+    if use_meta then
+
+        local node_meta = core.get_meta(pos)
+        local stack_meta = stack:get_meta()
+
+        local meta_table = node_meta:to_table()
+
+        if meta_table and meta_table.fields then
+
+            for k, v in pairs(meta_table.fields) do
+                stack_meta:set_string(k, v)
+            end
+
+        end
+
+    end
+
+    return stack
+
+end
+
+--------------------------------------------------
+-- GIVE ITEM FUNCTION
+--------------------------------------------------
+
+local function give_item(playername, itemname, count, params)
+
+    local player = core.get_player_by_name(playername)
+
+    if not player then
+        return false, "Player not found"
+    end
+
+    local stack = ItemStack(itemname .. " " .. count)
+
+    stack = apply_meta(stack, params or {})
+
+    player:get_inventory():add_item("main", stack)
+
+    return true, "Given " .. stack:get_name()
+
+end
+
+--------------------------------------------------
+-- GIVEME COMMAND
+--------------------------------------------------
 
 core.register_chatcommand("giveme", {
 
@@ -131,124 +137,96 @@ core.register_chatcommand("giveme", {
             return false
         end
 
-
         local words = {}
 
         for w in param:gmatch("%S+") do
             table.insert(words, w)
         end
 
-
         local cmd = words[1]
 
-
-        -- =========================
-        -- SEARCH
-        -- =========================
+        --------------------------------------------------
+        -- give_search
+        --------------------------------------------------
 
         if cmd == "give_search" then
 
             local search = words[2] or ""
 
-            last_search[name] = {}
+            give_search_cache[name] = {}
 
-            for item, def in pairs(core.registered_items) do
+            local i = 1
 
-                if item:lower():find(search:lower()) then
-                    table.insert(last_search[name], item)
+            for item,_ in pairs(core.registered_items) do
+
+                if item:lower():find(search:lower(), 1, true) then
+
+                    table.insert(give_search_cache[name], item)
+
+                    core.chat_send_player(name,
+                        i..": "..item)
+
+                    i = i + 1
+
                 end
 
             end
 
-            return true, "Found "..#last_search[name].." items"
+            return true, "Found "..#give_search_cache[name]
 
         end
 
-
-        -- =========================
-        -- PICK
-        -- =========================
+        --------------------------------------------------
+        -- give_pick
+        --------------------------------------------------
 
         if cmd == "give_pick" then
 
             local index = tonumber(words[2] or "1")
 
-            if not last_search[name] or not last_search[name][index] then
+            local list = give_search_cache[name]
+
+            if not list or not list[index] then
                 return false, "Invalid pick"
             end
 
-            local stack = ItemStack(last_search[name][index])
-
-            player:get_inventory():add_item("main", stack)
-
-            return true, "Given "..stack:get_name()
+            return give_item(name, list[index], 1, {})
 
         end
 
-
-        -- =========================
-        -- POINTED (old)
-        -- =========================
-
-        if cmd == "pointed" then
-
-            local params = parse_params(param)
-
-            local use_meta = true
-
-            if params.meta == "false" then
-                use_meta = false
-            end
-
-            local stack = get_pointed_stack(player, use_meta)
-
-            if not stack then
-                return false, "Nothing pointed"
-            end
-
-            stack = apply_meta(stack, params)
-
-            player:get_inventory():add_item("main", stack)
-
-            return true, "Given pointed item"
-
-        end
-
-
-
-        -- =========================
-        -- NEW: GIVE_POINTED
-        -- =========================
+        --------------------------------------------------
+        -- give_pointed
+        --------------------------------------------------
 
         if cmd == "give_pointed" then
 
-            local params = parse_params(param)
-
             local use_meta = true
 
-            if params.meta == "false" then
+            if param:find("meta=false") then
                 use_meta = false
             end
 
-            local stack = get_pointed_stack(player, use_meta)
+            local pos = get_pointed_node(player)
 
-            if not stack then
-                return false, "Nothing pointed"
+            if not pos then
+                return false, "No node pointed"
             end
 
-            stack = apply_meta(stack, params)
+            local stack = node_to_stack(pos, use_meta)
+
+            if not stack then
+                return false, "Failed to copy node"
+            end
 
             player:get_inventory():add_item("main", stack)
 
-            return true, "Given pointed item via give_pointed"
+            return true, "Given pointed node"
 
         end
 
-
-
-        -- =========================
+        --------------------------------------------------
         -- NORMAL GIVE
-        -- =========================
+        --------------------------------------------------
 
         local params = parse_params(param)
 
@@ -260,104 +238,151 @@ core.register_chatcommand("giveme", {
 
         local count = tonumber(words[2] or "1")
 
-        local stack = ItemStack(itemname.." "..count)
-
-        stack = apply_meta(stack, params)
-
-        player:get_inventory():add_item("main", stack)
-
-        return true, "Given "..stack:get_name()
+        return give_item(name, itemname, count, params)
 
     end
 
 })
 
+--------------------------------------------------
+-- SEPARATE give_search
+--------------------------------------------------
 
-core.register_chatcommand("give_pointed", {
-    params = "[meta=false]",
-    description = "Give pointed node with full metadata",
+core.register_chatcommand("give_search", {
+
+    params = "<text>",
     privs = {give = true},
 
     func = function(name, param)
 
-        local player = core.get_player_by_name(name)
-        if not player then
-            return false, "Player not found"
-        end
+        give_search_cache[name] = {}
 
-        local use_meta = true
-        if param == "meta=false" then
-            use_meta = false
-        end
+        local i = 1
 
+        for item,_ in pairs(core.registered_items) do
 
-        -- raycast
-        local pos = player:get_pos()
-        pos.y = pos.y + 1.5
+            if item:lower():find(param:lower(), 1, true) then
 
-        local dir = player:get_look_dir()
+                table.insert(give_search_cache[name], item)
 
-        local ray = core.raycast(
-            pos,
-            vector.add(pos, vector.multiply(dir, 10)),
-            false,
-            false
-        )
+                core.chat_send_player(name,
+                    i..": "..item)
 
-        local pointed
-        for hit in ray do
-            pointed = hit
-            break
-        end
-
-        if not pointed or pointed.type ~= "node" then
-            return false, "No node pointed"
-        end
-
-
-        local node = core.get_node(pointed.under)
-
-        if not node then
-            return false, "Invalid node"
-        end
-
-
-        local stack = ItemStack(node.name)
-
-
-        if use_meta then
-
-            local node_meta = core.get_meta(pointed.under)
-            local stack_meta = stack:get_meta()
-
-            local meta_table = node_meta:to_table()
-
-            if meta_table and meta_table.fields then
-
-                -- copiar TODOS os campos
-                for k, v in pairs(meta_table.fields) do
-                    stack_meta:set_string(k, v)
-                end
+                i = i + 1
 
             end
 
         end
 
+        return true, "Found "..#give_search_cache[name]
+
+    end
+
+})
+
+--------------------------------------------------
+-- give_pick
+--------------------------------------------------
+
+core.register_chatcommand("give_pick", {
+
+    params = "<num>",
+    privs = {give = true},
+
+    func = function(name, param)
+
+        local num = tonumber(param)
+
+        local list = give_search_cache[name]
+
+        if not list or not list[num] then
+            return false, "Invalid number"
+        end
+
+        return give_item(name, list[num], 1, {})
+
+    end
+
+})
+
+--------------------------------------------------
+-- give_pointed SEPARATE
+--------------------------------------------------
+
+core.register_chatcommand("give_pointed", {
+
+    params = "[meta=false]",
+    description = "Copy pointed node with metadata",
+    privs = {give = true},
+
+    func = function(name, param)
+
+        local player = core.get_player_by_name(name)
+
+        if not player then
+            return false, "Player not found"
+        end
+
+        local use_meta = true
+
+        if param == "meta=false" then
+            use_meta = false
+        end
+
+        local pos = get_pointed_node(player)
+
+        if not pos then
+            return false, "No node pointed"
+        end
+
+        local stack = node_to_stack(pos, use_meta)
+
+        if not stack then
+            return false, "Copy failed"
+        end
 
         player:get_inventory():add_item("main", stack)
 
-
-        -- debug
-        local cmd = stack:get_meta():get_string("commands")
-
-        if cmd and cmd ~= "" then
-            -- core.chat_send_player(name, "Command copied: " .. cmd)
-        else
-            -- core.chat_send_player(name, "No command metadata found")
-        end
-
-
-        return true, "Given: "..node.name
+        return true, "Given pointed node"
 
     end
+
 })
+
+--------------------------------------------------
+-- COMMAND BLOCK META RESTORE
+--------------------------------------------------
+
+local function restore_meta(pos, stack)
+
+    local meta = stack:get_meta():to_table()
+
+    if meta and meta.fields then
+
+        local node_meta = core.get_meta(pos)
+
+        for k, v in pairs(meta.fields) do
+            node_meta:set_string(k, v)
+        end
+
+    end
+
+end
+
+local function override_cb(name)
+
+    core.override_item(name, {
+
+        after_place_node = function(pos, placer, itemstack)
+
+            restore_meta(pos, itemstack)
+
+        end
+
+    })
+
+end
+
+override_cb("mcl_commandblock:commandblock_off")
+override_cb("mcl_commandblock:chain_commandblock")
+override_cb("mcl_commandblock:repeating_commandblock")
