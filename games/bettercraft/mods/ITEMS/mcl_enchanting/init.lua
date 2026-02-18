@@ -62,81 +62,220 @@ dofile(modpath .. "/engine.lua")
 dofile(modpath .. "/groupcaps.lua")
 dofile(modpath .. "/enchantments.lua")
 
+-- === ADVANCED SELECTOR SUPPORT ===
+
+local function parse_selector(selector)
+	if not selector:find("%[") then
+		return selector, {}
+	end
+
+	local base = selector:match("^(@%w+)")
+	local inside = selector:match("%[(.+)%]")
+
+	local filters = {}
+
+	if inside then
+		for entry in inside:gmatch("[^,]+") do
+			local key, value = entry:match("(%w+)%=(.+)")
+			if key and value then
+				filters[key] = value
+			end
+		end
+	end
+
+	return base, filters
+end
+
+
+local function entity_matches_filters(obj, filters, executor_pos)
+
+	-- filtro por tipo
+	if filters.type then
+		if obj:is_player() then
+			if filters.type ~= "player" then
+				return false
+			end
+		else
+			local lua = obj:get_luaentity()
+			if not lua or lua.name ~= filters.type then
+				return false
+			end
+		end
+	end
+
+	-- filtro por raio
+	if filters.r and executor_pos then
+		local r = tonumber(filters.r)
+		if r then
+			local dist = vector.distance(executor_pos, obj:get_pos())
+			if dist > r then
+				return false
+			end
+		end
+	end
+
+	return true
+end
+
+
+local function get_selector_targets(selector, executor_name)
+
+	local base, filters = parse_selector(selector)
+	local targets = {}
+	local executor = core.get_player_by_name(executor_name)
+	local executor_pos = executor and executor:get_pos()
+
+	-- @s
+	if base == "@s" then
+		if executor then
+			if entity_matches_filters(executor, filters, executor_pos) then
+				table.insert(targets, executor)
+			end
+		end
+		return targets
+	end
+
+	-- @a
+	if base == "@a" then
+		for _, player in ipairs(core.get_connected_players()) do
+			if entity_matches_filters(player, filters, executor_pos) then
+				table.insert(targets, player)
+			end
+		end
+		return targets
+	end
+
+	-- @p ou @n
+	if base == "@p" or base == "@n" then
+		if not executor_pos then return {} end
+
+		local nearest
+		local nearest_dist = math.huge
+
+		for _, player in ipairs(core.get_connected_players()) do
+			local dist = vector.distance(executor_pos, player:get_pos())
+			if dist < nearest_dist then
+				if entity_matches_filters(player, filters, executor_pos) then
+					nearest_dist = dist
+					nearest = player
+				end
+			end
+		end
+
+		if nearest then
+			table.insert(targets, nearest)
+		end
+
+		return targets
+	end
+
+	-- @e
+	if base == "@e" then
+		local objects = core.get_objects_inside_radius(
+			executor_pos or {x=0,y=0,z=0},
+			tonumber(filters.r) or 31000
+		)
+
+		for _, obj in ipairs(objects) do
+			if entity_matches_filters(obj, filters, executor_pos) then
+				table.insert(targets, obj)
+			end
+		end
+
+		return targets
+	end
+
+	-- nome normal
+	local player = core.get_player_by_name(selector)
+	if player then
+		table.insert(targets, player)
+	end
+
+	return targets
+end
+
 core.register_chatcommand("enchant", {
 	description = S("Enchant an item"),
-	params = S("<player> <enchantment> [<level>]"),
+	params = S("<target> <enchantment> [<level>]"),
 	privs = {give = true},
-	func = function(_, param)
+	func = function(name, param)
+
 		local sparam = param:split(" ")
 		local target_name = sparam[1]
 		local enchantment = sparam[2]
 		local level_str = sparam[3]
 		local level = tonumber(level_str or "1")
+
 		if not target_name or not enchantment then
-			return false, S("Usage: /enchant <player> <enchantment> [<level>]")
+			return false, S("Usage: /enchant <target> <enchantment> [<level>]")
 		end
-		local target = core.get_player_by_name(target_name)
-		if not target then
-			return false, S("Player '@1' cannot be found.", target_name)
+
+		local targets = get_selector_targets(target_name, name)
+
+		if #targets == 0 then
+			return false, S("No valid targets found.")
 		end
-		local itemstack = target:get_wielded_item()
-		local can_enchant, errorstring, extra_info = mcl_enchanting.can_enchant(itemstack, enchantment, level)
-		if not can_enchant then
-			if errorstring == "enchantment invalid" then
-				return false, S("There is no such enchantment '@1'.", enchantment)
-			elseif errorstring == "item missing" then
-				return false, S("The target doesn't hold an item.")
-			elseif errorstring == "item not supported" then
-				return false, S("The selected enchantment can't be added to the target item.")
-			elseif errorstring == "level invalid" then
-				return false, S("'@1' is not a valid number", level_str)
-			elseif errorstring == "level too high" then
-				return false, S("The number you have entered (@1) is too big, it must be at most @2.", level_str, extra_info)
-			elseif errorstring == "level too small" then
-				return false, S("The number you have entered (@1) is too small, it must be at least @2.", level_str, extra_info)
-			elseif errorstring == "incompatible" then
-				return false, S("@1 can't be combined with @2.", mcl_enchanting.get_enchantment_description(enchantment, level), extra_info)
+
+		for _, target in ipairs(targets) do
+
+			if target:is_player() then
+				local itemstack = target:get_wielded_item()
+
+				local can_enchant, errorstring, extra_info =
+					mcl_enchanting.can_enchant(itemstack, enchantment, level)
+
+				if can_enchant then
+					target:set_wielded_item(
+						mcl_enchanting.enchant(itemstack, enchantment, level)
+					)
+				end
 			end
-		else
-			target:set_wielded_item(mcl_enchanting.enchant(itemstack, enchantment, level))
-			return true, S("Enchanting succeded.")
+
 		end
+
+		return true, S("Enchanting executed.")
 	end
 })
 
+
 core.register_chatcommand("forceenchant", {
 	description = S("Forcefully enchant an item"),
-	params = S("<player> <enchantment> [<level>]"),
+	params = S("<target> <enchantment> [<level>]"),
 	privs = {give = true},
-	func = function(_, param)
+	func = function(name, param)
+
 		local sparam = param:split(" ")
 		local target_name = sparam[1]
 		local enchantment = sparam[2]
 		local level_str = sparam[3]
 		local level = tonumber(level_str or "1")
+
 		if not target_name or not enchantment then
-			return false, S("Usage: /forceenchant <player> <enchantment> [<level>]")
+			return false, S("Usage: /forceenchant <target> <enchantment> [<level>]")
 		end
-		local target = core.get_player_by_name(target_name)
-		if not target then
-			return false, S("Player '@1' cannot be found.", target_name)
+
+		local targets = get_selector_targets(target_name, name)
+
+		if #targets == 0 then
+			return false, S("No valid targets found.")
 		end
-		local itemstack = target:get_wielded_item()
-		local _, errorstring = mcl_enchanting.can_enchant(itemstack, enchantment, level)
-		if errorstring == "enchantment invalid" then
-			return false, S("There is no such enchantment '@1'.", enchantment)
-		elseif errorstring == "item missing" then
-			return false, S("The target doesn't hold an item.")
-		elseif errorstring == "item not supported" and not mcl_enchanting.is_enchantable(itemstack:get_name()) then
-			return false, S("The target item is not enchantable.")
-		elseif errorstring == "level invalid" then
-			return false, S("'@1' is not a valid number.", level_str)
-		else
-			target:set_wielded_item(mcl_enchanting.enchant(itemstack, enchantment, level))
-			return true, S("Enchanting succeded.")
+
+		for _, target in ipairs(targets) do
+
+			if target:is_player() then
+				local itemstack = target:get_wielded_item()
+
+				target:set_wielded_item(
+					mcl_enchanting.enchant(itemstack, enchantment, level)
+				)
+			end
+
 		end
+
+		return true, S("Force enchant executed.")
 	end
 })
+
 
 core.register_craftitem("mcl_enchanting:book_enchanted", {
 	description = S("Enchanted Book"),
