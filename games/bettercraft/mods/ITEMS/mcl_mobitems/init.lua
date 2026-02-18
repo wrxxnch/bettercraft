@@ -546,16 +546,24 @@ core.register_craftitem("mcl_mobitems:scute", {
 	groups = { craftitem = 1 },
 })
 
+-- local turtle_egg_box = {
+-- 	type = "fixed",
+-- 	fixed = {
+-- 		{-0.1625, -0.5, -0.1625, 0.1625, -0.25, 0.1625}, -- Rod
+-- 	},
+-- }
 local turtle_egg_box = {
 	type = "fixed",
 	fixed = {
-		{-0.1625, -0.5, -0.1625, 0.1625, -0.25, 0.1625}, -- Rod
+		{-0.1875, -0.5, -0.1875, 0.1875, -0.125, 0.1875},
 	},
 }
+
+
 core.register_node("mcl_mobitems:turtle_egg", {
 	description = S("Turtle Egg"),
 	_doc_items_longdesc = S("Turtle eggs hatch to grown turtles."),
-	tiles = { "mcl_mobitems_turtle_egg.png" },
+	tiles = { "mcl_mobitems_turtle_egg_uv.png" },
 	drawtype = "nodebox",
 	is_ground_content = false,
 	paramtype = "light",
