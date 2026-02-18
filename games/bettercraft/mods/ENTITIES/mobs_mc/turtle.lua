@@ -162,4 +162,49 @@ mcl_mobs.spawn_setup(table.merge(tspawn, {
 	type_of_spawning = "water",
 }))
 
+-- =====================================
+-- Spawn natural de Turtle Egg
+-- =====================================
+
+core.register_decoration({
+	name = "mobs_mc:turtle_egg_natural",
+	deco_type = "simple",
+
+	place_on = {
+		"mcl_core:sand",
+		"mcl_core:red_sand",
+	},
+
+	-- precisa ter água perto
+	spawn_by = "group:water",
+	num_spawn_by = 1,
+
+	sidelen = 16,
+	fill_ratio = 0.002, -- chance (ajuste se quiser)
+
+	y_min = mobs_mc.water_level - 2,
+	y_max = mobs_mc.water_level + 4,
+
+	decoration = "mcl_mobitems:turtle_egg",
+
+	flags = "place_center_x, place_center_z",
+
+	biomes = {
+		"Plains_beach",
+		"ExtremeHills_beach",
+		"ColdTaiga_beach",
+		"Taiga_beach",
+		"Forest_beach",
+		"FlowerForest_beach",
+		"Savanna_beach",
+		"Jungle_shore",
+		"JungleM_shore",
+		"MangroveSwamp_shore",
+		"Desert",
+		"Desert_beach",
+		"Desert_hills",
+	}
+})
+
+
 mcl_mobs.register_egg("mobs_mc:turtle", "turtle", "#516720", "#ded88f", 0)
