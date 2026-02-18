@@ -785,6 +785,112 @@ mcl_enchanting.enchantments.unbreaking = {
 	anvil_book_factor = 1,
 }
 
+-- Criar grupo exclusivo para ouro divino
+local gold_tools = {
+	"mcl_tools:pick_gold",
+	"mcl_tools:axe_gold",
+	"mcl_tools:shovel_gold",
+	"mcl_tools:sword_gold",
+	"mcl_tools:hoe_gold",
+	--armor
+	"mcl_armor:helmet_gold",
+	"mcl_armor:chestplate_gold",
+	"mcl_armor:leggings_gold",
+	"mcl_armor:boots_gold",
+	--spear
+	"mcl_tools:spear_gold",
+}
+
+for _, name in ipairs(gold_tools) do
+	if core.registered_items[name] then
+		core.override_item(name, {
+			groups = table.merge(core.registered_items[name].groups, {
+				divine_gold_tool = 1
+			})
+		})
+	end
+end
+
+
+local S = core.get_translator("divine_gold")
+
+local MULTIPLIER = 48
+
+mcl_enchanting.enchantments.divine_gold = {
+
+	name = S("Ouro Divino"),
+
+	description = S("Ferramentas de ouro duram como diamante."),
+
+	max_level = 1,
+
+	weight = 2,
+
+	curse = false,
+
+	treasure = true,
+
+	requires_tool = true,
+
+	primary = {
+		divine_gold_tool = true,
+	},
+
+	secondary = {
+		divine_gold_tool = true,
+	},
+
+	-- 🔒 Bloqueia todos os outros tools
+	disallow = {
+	},
+
+	incompatible = {},
+
+	power_range_table = {
+		{20, 80},
+	},
+
+	inv_tool_tab = true,
+	inv_combat_tab = true,
+
+	anvil_item_factor = 4,
+	anvil_book_factor = 2,
+
+
+	on_enchant = function(itemstack, level)
+
+		local name = itemstack:get_name()
+
+		if core.get_item_group(name, "divine_gold_tool") == 0 then
+			return
+		end
+
+		local def = core.registered_tools[name]
+		if not def or not def.tool_capabilities then
+			return
+		end
+
+		local caps = table.copy(itemstack:get_tool_capabilities())
+
+		if caps.punch_attack_uses then
+			caps.punch_attack_uses =
+				math.floor(caps.punch_attack_uses * MULTIPLIER)
+		end
+
+		if caps.groupcaps then
+			for group, data in pairs(caps.groupcaps) do
+				if data.uses then
+					data.uses =
+						math.floor(data.uses * MULTIPLIER)
+				end
+			end
+		end
+
+		itemstack:get_meta():set_tool_capabilities(caps)
+
+	end,
+}
+
 -- implemented in mcl_tools
 mcl_enchanting.enchantments.lunge = {
 	name = S("Lunge"),
