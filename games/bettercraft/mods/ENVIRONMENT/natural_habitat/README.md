@@ -1,6 +1,8 @@
 # Natural Habitat
 
 ```Mod for "Minetest Game" and "MineClonia".```
+Credits to Author:https://content.luanti.org/users/Mish7913/
+Thx Mish
 
 ## Biomes
 - Dead Forest (Ash with Burnt Tree)
