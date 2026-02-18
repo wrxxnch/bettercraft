@@ -164,3 +164,42 @@ natural_habitat.register_multideco("natural_habitat:deco_coconut_palmtree", {
         pursue_nodes = { "mcl_core:water_source", },
     },
 });
+
+local schems = {
+    schempath .. "/nbt_coconut_palmtree_1.mts",
+    schempath .. "/nbt_coconut_palmtree_2.mts",
+    schempath .. "/nbt_coconut_palmtree_3.mts",
+}
+
+for _, schem in ipairs(schems) do
+
+    minetest.register_decoration({
+        name = "natural_habitat:coconut_palmtree",
+
+        deco_type = "schematic",
+        place_on = {
+            "default:dirt_with_grass",
+            "default:dry_dirt_with_dry_grass",
+            "default:dirt_rainforest_litter",
+            "default:sand",
+        },
+
+        sidelen = 16,
+        fill_ratio = 0.005,
+
+        biomes = {
+            "sandstone_desert",
+            "desert",
+            "desert_ocean",
+        },
+
+        y_min = 2,
+        y_max = 50,
+
+        schematic = schem,
+        flags = "place_center_x, place_center_z",
+
+        rotation = "random",
+    })
+
+end

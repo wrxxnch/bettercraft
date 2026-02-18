@@ -18,6 +18,7 @@ natural_habitat.trees = {
     sakura      = get_item(nil, "mcl_trees:tree_cherry_blossom");
     warped      = get_item(nil, "mcl_trees:tree_warped");
     crimson     = get_item(nil, "mcl_trees:tree_crimson");
+
     
     burnt_tree = "natural_habitat:burnt_log",
 };
