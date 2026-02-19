@@ -17,6 +17,7 @@ mobs_mc.water_level = tonumber(core.settings:get("water_level")) or 0
 local path = core.get_modpath ("mobs_mc")
 local files = {
 	"spawning.lua",
+	"allay.lua",
 	"axolotl.lua",
 	"bat.lua",
 	"blaze.lua",
