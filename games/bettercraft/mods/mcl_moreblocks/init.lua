@@ -195,8 +195,12 @@ mcl_moreblocks.add_nodes = function()
 		"mcl_copper:block_oxidized_grate",
 		"mcl_copper:block_weathered_grate",
 		"mcl_copper:block_preserved_grate",
-		
+        --bone
+		"mcl_bone:bone_block",
 
+		--natural habitat
+		"natural_habitat:burnt_wood",
+		"natural_habitat:burnt_log",
 
 }
 
