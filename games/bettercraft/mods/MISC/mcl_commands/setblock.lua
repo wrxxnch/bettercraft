@@ -11,30 +11,39 @@ local S = core.get_translator(core.get_current_modname())
 --  ~ ~1 ~-2
 --  pos1 / pos2
 -- =========================
-local function parse_any_pos(player, a, b, c)
-    if not player then
-        return nil
+local function parse_any_pos(player, a, b, c, fallback_pos)
+
+    -- pos1 / pos2 só funcionam se houver player
+    if player then
+        local pname = player:get_player_name()
+
+        if a == "pos1" then
+            return postick_get_pos(pname, "pos1")
+        end
+        if a == "pos2" then
+            return postick_get_pos(pname, "pos2")
+        end
     end
 
-    local pname = player:get_player_name()
+    -- Base de coordenadas
+    local base
 
-    if a == "pos1" then
-        return postick_get_pos(pname, "pos1")
+    if player then
+        base = vector.round(player:get_pos())
+    else
+        base = fallback_pos or {x = 0, y = 0, z = 0}
     end
-    if a == "pos2" then
-        return postick_get_pos(pname, "pos2")
-    end
-
-    local base = vector.round(player:get_pos())
 
     local function resolve(v, basev)
         if not v then
             return nil
         end
+
         if v:sub(1, 1) == "~" then
             local n = tonumber(v:sub(2))
             return basev + (n or 0)
         end
+
         return tonumber(v)
     end
 
@@ -46,11 +55,7 @@ local function parse_any_pos(player, a, b, c)
         return nil
     end
 
-    return {
-        x = x,
-        y = y,
-        z = z
-    }
+    return {x = x, y = y, z = z}
 end
 
 local function resolve_node_name_safe(name)
@@ -255,15 +260,11 @@ core.register_chatcommand("undo_fill", {
 })
 core.register_chatcommand("clone", {
     params = "<pos1> <pos2> <dest> [replace|masked|filtered <node>|move|rotate <deg>|mirror <axis>]",
-    description = "Clona uma área para outro local.\n\n" ..
-                  "Modos disponíveis:\n" ..
-                  "replace  - Substitui tudo (padrão)\n" ..
-                  "masked   - Ignora blocos de ar\n" ..
-                  "filtered <node> - Clona apenas um tipo específico de nó\n" ..
-                  "move     - Move a área ao invés de copiar\n" ..
-                  "rotate <0|90|180|270> - Rotaciona a estrutura\n" ..
-                  "mirror <x|z> - Espelha no eixo X ou Z\n\n" ..
-                  "Também aceita: clone pos1 pos2 <dest>",
+    description = "Clona uma área para outro local.\n\n" .. "Modos disponíveis:\n" ..
+        "replace  - Substitui tudo (padrão)\n" .. "masked   - Ignora blocos de ar\n" ..
+        "filtered <node> - Clona apenas um tipo específico de nó\n" .. "move     - Move a área ao invés de copiar\n" ..
+        "rotate <0|90|180|270> - Rotaciona a estrutura\n" .. "mirror <x|z> - Espelha no eixo X ou Z\n\n" ..
+        "Também aceita: clone pos1 pos2 <dest>",
     func = function(name, param)
         local P = {}
         for w in param:gmatch("%S+") do
@@ -400,9 +401,10 @@ core.register_chatcommand("fill", {
     },
 
     func = function(name, param)
-        local player = core.get_player_by_name(name)
-        if not player then
-            return false
+
+        local player = nil
+        if name and name ~= "" then
+            player = core.get_player_by_name(name)
         end
 
         local args = {}
