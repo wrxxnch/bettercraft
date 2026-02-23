@@ -233,7 +233,7 @@ end
 mcl_panes.register_pane("bar", {
 	description = S("Iron Bars"),
 	_doc_items_longdesc = S("Iron bars neatly connect to their neighbors as you build them."),
-	textures = {"xpanes_pane_iron.png","xpanes_pane_iron.png","xpanes_top_iron.png"},
+	textures = {"xpanes_pane_iron.png", "xpanes_pane_iron.png", "xpanes_top_iron.png"},
 	inventory_image = "xpanes_pane_iron.png",
 	wield_image = "xpanes_pane_iron.png",
 	groups = {pickaxey=1, iron_bars=1},
@@ -245,6 +245,7 @@ mcl_panes.register_pane("bar", {
 	},
 	_mcl_blast_resistance = 6,
 	_mcl_hardness = 5,
+
 })
 
 -- Glass Pane

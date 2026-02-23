@@ -559,7 +559,6 @@ local turtle_egg_box = {
 	},
 }
 
-
 core.register_node("mcl_mobitems:turtle_egg", {
 	description = S("Turtle Egg"),
 	_doc_items_longdesc = S("Turtle eggs hatch to grown turtles."),

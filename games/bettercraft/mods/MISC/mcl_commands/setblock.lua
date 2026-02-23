@@ -515,4 +515,3 @@ core.register_chatcommand("fill", {
         return true, S("Fill completed with @1", nodename)
     end
 })
-

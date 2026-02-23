@@ -1,9 +1,9 @@
--- colored_blocks / mcl_cblocks: Colored Blocks for Minetest
+-- mcl_cblocks: Colored Blocks for Mineclonia
 -- ==============================
 -- LISTA DE CORES
 -- ==============================
 local colors = {
-	{name="white", desc="White", hex="#abababc0", dye="white"},
+	 {name="white", desc="White", hex="#abababc0", dye="white"},
 	{name="orange", desc="Orange", hex="#F9801D", dye="orange"},
 	{name="magenta", desc="Magenta", hex="#C74EBD", dye="magenta"},
 	{name="light_blue", desc="Light Blue", hex="#3AB3DA", dye="light_blue"},
@@ -22,29 +22,14 @@ local colors = {
 }
 
 -- ==============================
--- VERIFICAÇÃO DE MODS E AMBIENTE
--- ==============================
-local has_mcl_core = minetest.get_modpath("mcl_core")
-local has_stairs = minetest.get_modpath("stairs")
-local has_mcl_stairs = minetest.get_modpath("mcl_stairs")
-local has_moreblocks = minetest.get_modpath("moreblocks")
-local has_mcl_moreblocks = minetest.get_modpath("mcl_moreblocks")
-
--- Definir prefixo dinâmico para evitar problemas de migração
-local mod_prefix = has_mcl_core and "mcl_cblocks" or "colored_blocks"
-local dye_prefix = has_mcl_core and "mcl_dyes" or "dyes"
-
--- ==============================
 -- LISTA DE NODES BASE
 -- ==============================
-local base_nodes = {}
-if has_mcl_core then
-	-- Nodes originais do Mineclonia para compatibilidade
-	base_nodes = {
-		"mcl_core:stonebrick",
-		"mcl_trees:wood_oak",
-		"mcl_core:cobble",
-		"mcl_core:stone",
+local base_nodes = {
+	"mcl_core:stonebrick",
+	"mcl_trees:wood_oak",
+	"mcl_core:cobble",
+	"mcl_core:stone",
+
 		"mcl_trees:bark_stripped_oak",
 		"mcl_trees:bark_stripped_dark_oak",
 		"mcl_trees:bark_stripped_jungle",
@@ -52,17 +37,14 @@ if has_mcl_core then
 		"mcl_trees:bark_stripped_acacia",
 		"mcl_trees:bark_stripped_birch",
 		"mcl_core:brick_block",
-	}
-else
-	-- Nodes padrão do Minetest Game
-	base_nodes = {
-		"default:stonebrick",
-		"default:wood",
-		"default:cobble",
-		"default:stone",
-		"default:brick",
-	}
-end
+
+}
+
+-- ==============================
+-- VERIFICAÇÃO DE MODS OPCIONAIS
+-- ==============================
+local has_mcl_stairs = minetest.get_modpath("mcl_stairs")
+local has_mcl_moreblocks = minetest.get_modpath("mcl_moreblocks")
 
 -- ==============================
 -- FUNÇÃO PRINCIPAL
@@ -70,7 +52,7 @@ end
 local function register_colored_block(base_node)
 	local base_def = minetest.registered_nodes[base_node]
 	if not base_def then
-		minetest.log("warning", "[" .. mod_prefix .. "] Nó base não encontrado: " .. base_node)
+		minetest.log("error", "[mcl_cblocks] Nó base não encontrado: " .. base_node)
 		return
 	end
 
@@ -78,15 +60,14 @@ local function register_colored_block(base_node)
 	local base_desc = base_def.description or id
 
 	for _, color in ipairs(colors) do
-		local node_id = id .. "_" .. color.name
-		local node_name = mod_prefix .. ":" .. node_id
+		local node_name = "mcl_cblocks:" .. id .. "_" .. color.name
 		local def = table.copy(base_def)
 
 		def.groups = table.copy(base_def.groups or {})
 		def.groups.colored_block = 1
 		def.description = color.desc .. " " .. base_desc
 
-		-- Solução de textura usando 'color'
+		-- Solução de textura usando 'color' para preservar os detalhes
 		local new_tiles = {}
 		local base_tiles = base_def.tiles or base_def.tile_images
 		
@@ -98,11 +79,6 @@ local function register_colored_block(base_node)
 					color = color.hex,
 				})
 			end
-		else
-			table.insert(new_tiles, {
-				name = base_tiles,
-				color = color.hex,
-			})
 		end
 		
 		def.tiles = new_tiles
@@ -111,23 +87,11 @@ local function register_colored_block(base_node)
 		minetest.register_node(":" .. node_name, def)
 
 		-- =================================================================
-		-- INTEGRAÇÃO COM STAIRS / SLABS
+		-- INTEGRAÇÃO COM mcl_stairs (se existir)
 		-- =================================================================
-		if has_mcl_stairs and mcl_stairs.register_stair_and_slab then
-			-- No Mineclonia, usa a API mcl_stairs para manter nomes originais
+		if has_mcl_stairs then
 			mcl_stairs.register_stair_and_slab(
-				node_id,
-				node_name,
-				def.groups,
-				def.tiles,
-				color.desc .. " " .. base_desc .. " Stair",
-				color.desc .. " " .. base_desc .. " Slab",
-				def.sounds
-			)
-		elseif has_stairs and stairs.register_stair_and_slab then
-			-- No Minetest Game
-			stairs.register_stair_and_slab(
-				node_id,
+				id .. "_" .. color.name,
 				node_name,
 				def.groups,
 				def.tiles,
@@ -138,33 +102,19 @@ local function register_colored_block(base_node)
 		end
 
 		-- =================================================================
-		-- INTEGRAÇÃO COM MOREBLOCKS
+		-- INTEGRAÇÃO COM mcl_moreblocks (se existir)
+		-- Isso adicionará rampas, painéis, etc., para nossos blocos coloridos.
 		-- =================================================================
 		if has_mcl_moreblocks and mcl_moreblocks.add_block then
-			-- Mineclonia: Adiciona o bloco ao sistema de formas extras
 			mcl_moreblocks.add_block(node_name)
-		elseif has_moreblocks and moreblocks.stairsplus and moreblocks.stairsplus.register_all then
-			-- Minetest Game: Registra todas as formas via stairsplus
-			moreblocks.stairsplus.register_all(
-				mod_prefix,
-				node_id,
-				node_name,
-				{
-					description = def.description,
-					drop = node_name,
-					groups = def.groups,
-					sounds = def.sounds,
-					tiles = def.tiles
-				}
-			)
 		end
 
-		-- Crafting shapeless
+		-- Crafting shapeless (8 blocos + 1 corante = 8 blocos coloridos)
 		minetest.register_craft({
 			type = "shapeless",
 			output = node_name .. " 1",
 			recipe = {
-				dye_prefix .. ":" .. color.dye, base_node,
+                "mcl_dyes:" .. color.dye, base_node,
 			}
 		})
 	end
@@ -177,4 +127,9 @@ for _, node in ipairs(base_nodes) do
 	register_colored_block(node)
 end
 
-minetest.log("action", "[" .. mod_prefix .. "] Blocos coloridos carregados com prefixo " .. mod_prefix)
+-- Mensagem de log para confirmar que o mod carregou
+local loaded_with = ""
+if has_mcl_stairs then loaded_with = loaded_with .. " [mcl_stairs support]" end
+if has_mcl_moreblocks then loaded_with = loaded_with .. " [mcl_moreblocks support]" end
+
+minetest.log("action", "[mcl_cblocks] Blocos coloridos carregados." .. loaded_with)

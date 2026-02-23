@@ -32,21 +32,23 @@ end
 -- ===============================
 
 local function place_with_rotation(itemstack, placer, pointed_thing)
-    if pointed_thing.type ~= "node" then
-        return itemstack
+    if not pointed_thing or pointed_thing.type ~= "node" then
+        return minetest.item_place(itemstack, placer, pointed_thing)
     end
 
-    local pos = pointed_thing.above
-    local dir = placer:get_look_dir()
-    local facedir = minetest.dir_to_facedir(dir)
+    -- Calcula a direção baseada na face clicada (vetor entre 'under' e 'above')
+    local p0 = pointed_thing.under
+    local p1 = pointed_thing.above
+    local dir = {
+        x = p1.x - p0.x,
+        y = p1.y - p0.y,
+        z = p1.z - p0.z
+    }
 
-    minetest.set_node(pos, {
-        name = itemstack:get_name(),
-        param2 = facedir
-    })
+    -- O parâmetro 'true' é essencial para habilitar as 6 direções (eixos X, Y e Z)
+    local facedir = minetest.dir_to_facedir(dir, true)
 
-    itemstack:take_item()
-    return itemstack
+    return minetest.item_place(itemstack, placer, pointed_thing, facedir)
 end
 
 -- ===============================

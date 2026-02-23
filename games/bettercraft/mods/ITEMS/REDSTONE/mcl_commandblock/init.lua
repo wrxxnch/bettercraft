@@ -513,4 +513,3 @@ core.register_on_player_receive_fields(function(player, formname, fields)
         end
     end
 end)
-
