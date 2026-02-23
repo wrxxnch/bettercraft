@@ -1,3 +1,5 @@
+
+
 local function ensure_startpos(self)
 
     if self._startpos
@@ -351,4 +353,80 @@ core.register_entity(":__builtin:falling_node", {
 
     end
 
+local function parse_coord(token, base)
+	if token == "~" then
+		return base
+	end
+	if token:sub(1, 1) == "~" then
+		local offset = tonumber(token:sub(2)) or 0
+		return base + offset
+	end
+	return tonumber(token)
+end
+
+core.register_chatcommand("fallingnode", {
+	params = "<bloco> <x> <y> <z>",
+	description = "Spawna qualquer bloco como falling node (suporta ~)",
+	privs = {server = true},
+
+	func = function(name, param)
+		local nodename, xs, ys, zs =
+			param:match("^(%S+)%s+(%S+)%s+(%S+)%s+(%S+)$")
+
+		if not nodename then
+			return false, "Uso: /fallingnode <bloco> <x> <y> <z>"
+		end
+
+		local player = core.get_player_by_name(name)
+		if not player then
+			return false, "Player não encontrado"
+		end
+
+		local base = vector.round(player:get_pos())
+
+		local x = parse_coord(xs, base.x)
+		local y = parse_coord(ys, base.y)
+		local z = parse_coord(zs, base.z)
+
+		if not x or not y or not z then
+			return false, "Coordenadas inválidas"
+		end
+
+		-- Resolver nome curto (stone -> mcl_core:stone)
+		if not core.registered_nodes[nodename] then
+			for full, _ in pairs(core.registered_nodes) do
+				if full:sub(full:find(":") + 1) == nodename then
+					nodename = full
+					break
+				end
+			end
+		end
+
+		local def = core.registered_nodes[nodename]
+		if not def then
+			return false, "Bloco inexistente: " .. nodename
+		end
+
+		local pos = vector.new(x, y, z)
+
+		-- Spawn FORÇADO do falling node
+		local obj = core.add_entity(pos, "__builtin:falling_node")
+		if not obj then
+			return false, "Falha ao criar falling node"
+		end
+
+		obj:get_luaentity():set_node({
+			name = nodename,
+			param1 = 0,
+			param2 = 0
+		}, {})
+
+		if def.sounds and def.sounds.fall then
+			core.sound_play(def.sounds.fall, {pos = pos}, true)
+		end
+
+		return true, "Falling node criado em " .. core.pos_to_string(pos)
+	end
 })
+})
+
