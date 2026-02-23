@@ -36,19 +36,25 @@ local function place_with_rotation(itemstack, placer, pointed_thing)
         return minetest.item_place(itemstack, placer, pointed_thing)
     end
 
-    -- Calcula a direção baseada na face clicada (vetor entre 'under' e 'above')
-    local p0 = pointed_thing.under
-    local p1 = pointed_thing.above
-    local dir = {
-        x = p1.x - p0.x,
-        y = p1.y - p0.y,
-        z = p1.z - p0.z
-    }
+    local under = pointed_thing.under
+    local above = pointed_thing.above
 
-    -- O parâmetro 'true' é essencial para habilitar as 6 direções (eixos X, Y e Z)
-    local facedir = minetest.dir_to_facedir(dir, true)
+    local dir = vector.subtract(above, under)
 
-    return minetest.item_place(itemstack, placer, pointed_thing, facedir)
+    local param2 = 0
+
+    -- Tronco em pé
+    if dir.y ~= 0 then
+        param2 = 0
+    -- Tronco deitado eixo X
+    elseif dir.x ~= 0 then
+        param2 = 4
+    -- Tronco deitado eixo Z
+    elseif dir.z ~= 0 then
+        param2 = 8
+    end
+
+    return minetest.item_place(itemstack, placer, pointed_thing, param2)
 end
 
 -- ===============================
