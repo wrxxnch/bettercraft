@@ -113,41 +113,47 @@ function allay:motion_step(dtime, moveresult, self_pos)
 
     local target_pos = nil
     local player = self._player and minetest.get_player_by_name(self._player)
+    local found_item = false
 
     --------------------------------------------------------
-    -- BUSCAR ITEM NO CHÃO
+    -- BUSCAR ITEM NO CHÃO (PRIORIDADE TOTAL)
     --------------------------------------------------------
 
-    if self._given_item and not self._picked_up_item then
-        local items = minetest.get_objects_inside_radius(self_pos, self.view_range)
+    if self._given_item then
+        local items = minetest.get_objects_inside_radius(self_pos, 32) -- ALCANCE MAIOR
+
         for _, o in ipairs(items) do
             local entity = o:get_luaentity()
             if entity and entity.name == "__builtin:item" then
                 local itemstack = ItemStack(entity.itemstring)
+
                 if itemstack:get_name() == self._given_item then
                     local opos = o:get_pos()
+                    found_item = true
+
                     if vector.distance(self_pos, opos) < 1.5 then
                         self._picked_up_item = entity.itemstring
                         o:remove()
                     else
                         target_pos = opos
-                        break
                     end
+
+                    break
                 end
             end
         end
     end
 
     --------------------------------------------------------
-    -- SEGUIR JOGADOR + TELEPORTE
+    -- SEGUIR JOGADOR APENAS SE NÃO ENCONTROU ITEM
     --------------------------------------------------------
 
-    if player then
+    if player and not found_item then
         local ppos = player:get_pos()
         ppos.y = ppos.y + 1.2
         local dist = vector.distance(self_pos, ppos)
 
-        if dist > 20 then
+        if dist > 40 then
             self.object:set_pos(vector.offset(ppos, math.random(-1,1), 0, math.random(-1,1)))
             return
         end
@@ -157,7 +163,7 @@ function allay:motion_step(dtime, moveresult, self_pos)
                 target_pos = ppos
             end
         elseif self._given_item then
-            if dist > 3.5 then
+            if dist > 4.0 then
                 target_pos = ppos
             end
         end
@@ -168,15 +174,24 @@ function allay:motion_step(dtime, moveresult, self_pos)
     --------------------------------------------------------
 
     if not target_pos then
-        if not self._wander_pos or vector.distance(self_pos, self._wander_pos) < 1.5 or math.random(100) == 1 then
+        if not self._wander_pos
+        or vector.distance(self_pos, self._wander_pos) < 1.5
+        or math.random(100) == 1 then
+
             local base_pos = player and player:get_pos() or self_pos
-            self._wander_pos = vector.offset(base_pos, math.random(-4, 4), math.random(1, 2), math.random(-4, 4))
+            self._wander_pos = vector.offset(base_pos,
+                math.random(-6, 6),
+                math.random(1, 3),
+                math.random(-6, 6)
+            )
 
             local node_at_pos = core.get_node(self._wander_pos)
-            if core.registered_nodes[node_at_pos.name] and core.registered_nodes[node_at_pos.name].walkable then
+            if core.registered_nodes[node_at_pos.name]
+            and core.registered_nodes[node_at_pos.name].walkable then
                 self._wander_pos = nil
             end
         end
+
         target_pos = self._wander_pos
     end
 
@@ -186,10 +201,10 @@ function allay:motion_step(dtime, moveresult, self_pos)
 
     if target_pos then
         local dir = vector.direction(self_pos, target_pos)
-        local target_vel = vector.multiply(dir, 3.0)
+        local target_vel = vector.multiply(dir, 3.5) -- levemente mais rápido
         local current_vel = self.object:get_velocity()
 
-        local smooth = 0.08
+        local smooth = 0.1
         local new_vel = {
             x = current_vel.x + (target_vel.x - current_vel.x) * smooth,
             y = current_vel.y + (target_vel.y - current_vel.y) * smooth,
