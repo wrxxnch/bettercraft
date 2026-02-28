@@ -32,8 +32,6 @@ ARGS (Preview & Load):
  pos=x,y,z         posição absoluta ou offset
  step=valor        snap da mira
  collision=true    ativa colisão (no set/load)
- glow=N            nível de brilho (ex: 0, 5, 10)
- node=true/false   true = mostra como node, false = item (some items don't have node form)
 
 Exemplos:
 /blockframe size=0.5 rotate=0,45,0
@@ -152,135 +150,96 @@ local function apply_transform(base_val, transform_val, is_rotation)
 end
 
 local function update_entity_properties(self)
-
-    if not self or not self.object then return end
-
-    local base_size = self.args.size or {x=0.5,y=0.5,z=0.5}
+    local base_size = self.args.size or {
+        x = 0.5,
+        y = 0.5,
+        z = 0.5
+    }
     local visual_v = table.copy(base_size)
 
-    -- espelhamento
-    if self.args.mirror == "x" then visual_v.x = -visual_v.x end
-    if self.args.mirror == "y" then visual_v.y = -visual_v.y end
-    if self.args.mirror == "z" then visual_v.z = -visual_v.z end
+    -- aplica espelhamento só na visualização
+    if self.args.mirror == "x" then
+        visual_v.x = -visual_v.x
+    end
+    if self.args.mirror == "y" then
+        visual_v.y = -visual_v.y
+    end
+    if self.args.mirror == "z" then
+        visual_v.z = -visual_v.z
+    end
 
-    local def = minetest.registered_nodes[self.node]
-
-    --------------------------------------------------
-    -- PROPS BASE
-    --------------------------------------------------
     local props = {
+        visual_size = visual_v,
         physical = false,
         pointable = false,
-        collisionbox = {0,0,0,0,0,0},
-        glow = tonumber(self.args.glow) or 0
+        collisionbox = {0, 0, 0, 0, 0, 0} -- padrão sem colisão
     }
 
-    -- =========================
-    -- VISUAL MODE (node / item)
-    -- =========================
-    local visual_type = "wielditem"
-    local textures = nil
-
-   if self.args.node == true and def then
-
-        -- 🔵 MESH NODE
-        if def.drawtype == "mesh" and def.mesh then
-
-            props.visual = "mesh"
-            props.mesh = def.mesh
-
-            local textures = {}
-            for i, t in ipairs(def.tiles or {}) do
-                if type(t) == "table" then
-                    textures[i] = t.name
-                else
-                    textures[i] = t
-                end
-            end
-
-            props.textures = textures
-            props.visual_size = visual_v
-
-        -- 🟢 BLOCO NORMAL
-        elseif def.drawtype == "normal" then
-
-            props.visual = "cube"
-
-            local tiles = {}
-            for i = 1, 6 do
-                local t = def.tiles and def.tiles[i] or def.tiles and def.tiles[1]
-                if type(t) == "table" then
-                    tiles[i] = t.name
-                else
-                    tiles[i] = t
-                end
-            end
-
-            props.textures = tiles
-            props.visual_size = visual_v
-
-        -- 🟡 NODEBOX / OUTROS
-        else
-
-            props.visual = "wielditem"
-            props.wield_item = self.node
-
-            props.visual_size = {
-                x = base_size.x * 2,
-                y = base_size.y * 2
-            }
-        end
-
-    --------------------------------------------------
-    -- ITEM MODE NORMAL
-    --------------------------------------------------
-    else
-        props.visual = "wielditem"
-        props.wield_item = self.node
-        props.visual_size = {
-            x = base_size.x * 2,
-            y = base_size.y * 2
-        }
-    end
-
-
-    if textures then
-        props.textures = textures
-    else
-        props.wield_item = self.node
-    end
-
-    -- =========================
-    -- COLISÃO
-    -- =========================
     if self.args.collision then
         props.physical = true
         props.pointable = true
 
-        local size = {
-            x = math.abs(base_size.x),
-            y = math.abs(base_size.y),
-            z = math.abs(base_size.z)
+        local rot_deg = parse_vec(self.args.rotate, {
+            x = 0,
+            y = 0,
+            z = 0
+        })
+        local initial_size = {}
+
+        -- define o tamanho da colisão
+        local parsed_coll
+
+        if self.args.collision ~= true then
+            parsed_coll = parse_vec(tostring(self.args.collision))
+        end
+
+        if type(parsed_coll) == "table" then
+            initial_size.x = math.abs(parsed_coll.x or base_size.x)
+            initial_size.y = math.abs(parsed_coll.y or base_size.y)
+            initial_size.z = math.abs(parsed_coll.z or base_size.z)
+        else
+            initial_size.x = math.abs(base_size.x)
+            initial_size.y = math.abs(base_size.y)
+            initial_size.z = math.abs(base_size.z)
+        end
+
+        -- converte ângulos para radianos
+        local cx, sx = math.cos(math.rad(rot_deg.x)), math.sin(math.rad(rot_deg.x))
+        local cy, sy = math.cos(math.rad(rot_deg.y)), math.sin(math.rad(rot_deg.y))
+        local cz, sz = math.cos(math.rad(rot_deg.z)), math.sin(math.rad(rot_deg.z))
+
+        local m = {{cy * cz, cz * sx * sy - cx * sz, cx * cz * sy + sx * sz},
+                   {cy * sz, sx * sy * sz + cx * cz, cx * sy * sz - cz * sx}, {-sy, cy * sx, cx * cy}}
+
+        -- calcula bounding box alinhado ao mundo
+        local final_size = {
+            x = safe(math.abs(m[1][1]) * initial_size.x + math.abs(m[1][2]) * initial_size.y + math.abs(m[1][3]) *
+                         initial_size.z),
+
+            y = safe(math.abs(m[2][1]) * initial_size.x + math.abs(m[2][2]) * initial_size.y + math.abs(m[2][3]) *
+                         initial_size.z),
+
+            z = safe(math.abs(m[3][1]) * initial_size.x + math.abs(m[3][2]) * initial_size.y + math.abs(m[3][3]) *
+                         initial_size.z)
         }
 
-        props.collisionbox = {-size.x / 2, -size.y / 2, -size.z / 2, size.x / 2, size.y / 2, size.z / 2}
+        props.collisionbox = {-final_size.x / 2, -final_size.y / 2, -final_size.z / 2, final_size.x / 2,
+                              final_size.y / 2, final_size.z / 2}
     end
 
     self.object:set_properties(props)
 
-    -- =========================
-    -- ROTAÇÃO
-    -- =========================
+    -- aplica rotação visual
     if self.args.rotate then
-        local rot = parse_vec(self.args.rotate, {
+        local rot_rad = parse_vec(self.args.rotate, {
             x = 0,
             y = 0,
             z = 0
         })
         self.object:set_rotation({
-            x = math.rad(rot.x or 0),
-            y = math.rad(rot.y or 0),
-            z = math.rad(rot.z or 0)
+            x = math.rad(rot_rad.x or 0),
+            y = math.rad(rot_rad.y or 0),
+            z = math.rad(rot_rad.z or 0)
         })
     end
 end
@@ -318,6 +277,7 @@ minetest.register_entity("blockframe:preview", {
             z = 0
         }
         self.object:set_properties({
+            wield_item = self.node,
             opacity = 120
         })
     end,
