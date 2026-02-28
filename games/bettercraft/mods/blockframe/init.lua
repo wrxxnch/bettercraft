@@ -7,37 +7,130 @@ blockframe.memory = {}
 blockframe.del_history = {}
 blockframe.world_path = minetest.get_worldpath()
 
+--gizmo.lua path
+dofile(minetest.get_modpath("blockframe") .. "/gizmo.lua")
+
 --------------------------------------------------
 -- HELP
 --------------------------------------------------
 function blockframe.help_text()
     return [[
-📦 BlockFrame — Ajuda
+📦 BlockFrame — Ajuda (Português)
 
-Uso:
+━━━━━━━━━━━━━━━━━━━━
+📌 COMANDOS
+━━━━━━━━━━━━━━━━━━━━
+
 /blockframe <args>
 /blockframe_set
 /blockframe_cancel
 /blockframe_undo
+
 /blockframe_del radius=N
 /blockframe_del_undo
+
+/blockframe_apply radius=N <args>
+/blockframe_undo_apply
+
 /blockframe_save <nome> radius=N
 /blockframe_load <nome> <args>
+
 /blockframe_help
 
-ARGS (Preview & Load):
- size=x,y,z        tamanho/escala
- rotate=x,y,z      rotação XYZ
- mirror=x|y|z      espelho
- pos=x,y,z         posição absoluta ou offset
- step=valor        snap da mira
- collision=true    ativa colisão (no set/load)
- glow=N            nível de brilho (ex: 0, 5, 10)
- node=true/false   true = mostra como node, false = item (some items don't have node form)
+━━━━━━━━━━━━━━━━━━━━
+⚙ ARGS (Preview / Load / Apply)
+━━━━━━━━━━━━━━━━━━━━
 
-Exemplos:
+size=x,y,z        tamanho/escala (ex: 1,1,1 ou 0.5)
+rotate=x,y,z      rotação XYZ em graus
+mirror=x|y|z      espelhamento em eixo
+pos=x,y,z         posição absoluta ou offset
+step=valor        snap da mira (ex: 0.5)
+collision=true    ativa colisão
+glow=N            nível de brilho (0–14)
+node=true/false   true = forma de node, false = item
+
+━━━━━━━━━━━━━━━━━━━━
+🧠 APPLY (Editar em Área)
+━━━━━━━━━━━━━━━━━━━━
+
+radius=N          raio ao redor do jogador
+
+Exemplo:
+ /blockframe_apply radius=10 size=2
+ → altera todos blockframes próximos
+
+ /blockframe_undo_apply
+ → desfaz o último apply
+
+━━━━━━━━━━━━━━━━━━━━
+💡 EXEMPLOS
+━━━━━━━━━━━━━━━━━━━━
+
 /blockframe size=0.5 rotate=0,45,0
+/blockframe_apply radius=5 glow=10
 /blockframe_load minha_casa size=2 rotate=0,90,0
+
+
+==================================================
+
+
+📦 BlockFrame — Help (English)
+
+━━━━━━━━━━━━━━━━━━━━
+📌 COMMANDS
+━━━━━━━━━━━━━━━━━━━━
+
+/blockframe <args>
+/blockframe_set
+/blockframe_cancel
+/blockframe_undo
+
+/blockframe_del radius=N
+/blockframe_del_undo
+
+/blockframe_apply radius=N <args>
+/blockframe_undo_apply
+
+/blockframe_save <name> radius=N
+/blockframe_load <name> <args>
+
+/blockframe_help
+
+━━━━━━━━━━━━━━━━━━━━
+⚙ ARGS (Preview / Load / Apply)
+━━━━━━━━━━━━━━━━━━━━
+
+size=x,y,z        scale/size (example: 1,1,1 or 0.5)
+rotate=x,y,z      XYZ rotation in degrees
+mirror=x|y|z      mirror on axis
+pos=x,y,z         absolute or offset position
+step=value        crosshair snap (example: 0.5)
+collision=true    enable collision
+glow=N            light level (0–14)
+node=true/false   true = node form, false = item form
+
+━━━━━━━━━━━━━━━━━━━━
+🧠 APPLY (Area Edit)
+━━━━━━━━━━━━━━━━━━━━
+
+radius=N          radius around the player
+
+Example:
+ /blockframe_apply radius=10 size=2
+ → modifies nearby blockframes
+
+ /blockframe_undo_apply
+ → reverts the last apply
+
+━━━━━━━━━━━━━━━━━━━━
+💡 EXAMPLES
+━━━━━━━━━━━━━━━━━━━━
+
+/blockframe size=0.5 rotate=0,45,0
+/blockframe_apply radius=5 glow=10
+/blockframe_load my_build size=2 rotate=0,90,0
+
 ]]
 end
 
@@ -151,11 +244,79 @@ local function apply_transform(base_val, transform_val, is_rotation)
     end
 end
 
-local function update_entity_properties(self)
+--------------------------------------------------
+-- Função que aplica args em blockframes ao redor
+--------------------------------------------------
+function apply_blockframe_radius(player, radius, new_args)
 
-    if not self or not self.object then return end
+    local pos = player:get_pos()
+    local objects = minetest.get_objects_inside_radius(pos, radius)
 
-    local base_size = self.args.size or {x=0.5,y=0.5,z=0.5}
+    local count = 0
+    blockframe.last_apply_backup = {}
+
+    for _, obj in ipairs(objects) do
+        local luaent = obj:get_luaentity()
+
+        if luaent and luaent.name == "blockframe:placed" then
+
+            luaent.args = luaent.args or {}
+
+            -- 🔥 SALVA BACKUP
+            table.insert(blockframe.last_apply_backup, {
+                object = obj,
+                args = table.copy(luaent.args)
+            })
+
+            -- aplica novos args
+            for k, v in pairs(new_args) do
+                luaent.args[k] = v
+            end
+
+            blockframe.update_entity_properties(luaent)
+
+            count = count + 1
+        end
+    end
+
+    return count
+end
+
+function update_entity_properties(self)
+
+        self.args = self.args or {}
+    -- =========================
+    -- SIZE SAFE HANDLING
+    -- =========================
+
+    local base_size = { x = 0.5, y = 0.5, z = 0.5 }
+
+    local size_arg = self.args.size
+
+    if type(size_arg) == "table" then
+
+        base_size = {
+            x = tonumber(size_arg.x) or 0.5,
+            y = tonumber(size_arg.y) or 0.5,
+            z = tonumber(size_arg.z) or 0.5
+        }
+
+    elseif type(size_arg) == "number" then
+
+        base_size = {
+            x = size_arg,
+            y = size_arg,
+            z = size_arg
+        }
+
+    elseif type(size_arg) == "string" then
+        -- caso venha como string "0.5"
+        local n = tonumber(size_arg)
+        if n then
+            base_size = { x = n, y = n, z = n }
+        end
+    end
+
     local visual_v = table.copy(base_size)
 
     -- espelhamento
@@ -694,6 +855,33 @@ minetest.register_chatcommand("blockframe_undo", {
     end
 })
 
+minetest.register_chatcommand("blockframe_undo_apply", {
+    description = "Desfaz o último blockframe_apply",
+    privs = {server = true},
+
+    func = function(name)
+
+        local restored = 0
+
+        for _, data in ipairs(blockframe.last_apply_backup or {}) do
+
+            if data.object and data.object:get_luaentity() then
+                local luaent = data.object:get_luaentity()
+
+                luaent.args = table.copy(data.args)
+
+                blockframe.update_entity_properties(luaent)
+
+                restored = restored + 1
+            end
+        end
+
+        blockframe.last_apply_backup = {}
+
+        return true, restored .. " blockframes restaurados."
+    end
+})
+
 minetest.register_chatcommand("blockframe_del", {
     func = function(name, param)
         local player = minetest.get_player_by_name(name)
@@ -714,6 +902,47 @@ minetest.register_chatcommand("blockframe_del", {
         end
         blockframe.del_history[name] = removed_list
         return true, "Removido " .. #removed_list .. " blocos."
+    end
+})
+
+minetest.register_chatcommand("blockframe_apply", {
+    params = "radius=<n> arg1=valor arg2=valor ...",
+    description = "Aplica argumentos em blockframes ao redor",
+    privs = {server = true},
+
+    func = function(name, param)
+
+        local player = minetest.get_player_by_name(name)
+        if not player then return false, "Jogador não encontrado." end
+
+        if param == "" then
+            return false, "Use: /blockframe_apply radius=5 glow=10 node=true"
+        end
+
+        local new_args = {}
+        local radius = 5
+
+        for key, value in string.gmatch(param, "(%S+)=(%S+)") do
+
+            if key == "radius" then
+                radius = tonumber(value) or 5
+            else
+                -- converte boolean
+                if value == "true" then
+                    new_args[key] = true
+                elseif value == "false" then
+                    new_args[key] = false
+                elseif tonumber(value) then
+                    new_args[key] = tonumber(value)
+                else
+                    new_args[key] = value
+                end
+            end
+        end
+
+        local count = apply_blockframe_radius(player, radius, new_args)
+
+        return true, count .. " blockframes atualizados."
     end
 })
 
