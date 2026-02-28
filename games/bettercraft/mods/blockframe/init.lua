@@ -156,7 +156,7 @@ end
 --------------------------------------------------
 -- FUNÇÕES AUXILIARES
 --------------------------------------------------
-local function parse_vec(str, def)
+function parse_vec(str, def)
     if not str then
         return def
     end
@@ -282,7 +282,7 @@ function apply_blockframe_radius(player, radius, new_args)
     return count
 end
 
-function update_entity_properties(self)
+function blockframe.update_entity_properties(self)
 
         self.args = self.args or {}
     -- =========================
@@ -537,7 +537,7 @@ minetest.register_entity("blockframe:preview", {
         end
 
         self.args = final_args
-        update_entity_properties(self)
+        blockframe.update_entity_properties(self)
     end,
     on_step = function(self)
         local player = minetest.get_player_by_name(self.player_name)
@@ -574,7 +574,7 @@ minetest.register_entity("blockframe:placed", {
         self.object:set_properties({
             wield_item = self.node
         })
-        update_entity_properties(self)
+        blockframe.update_entity_properties(self)
         if self.args.pos then
             self.object:set_pos(self.args.pos)
         end
