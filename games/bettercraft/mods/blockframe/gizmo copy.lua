@@ -121,24 +121,6 @@ end
 -- CENTER GIZMO
 --------------------------------------------------
 
-function blockframe.spawn_center(parent_obj)
-
-    if not parent_obj then return end
-
-    blockframe.remove_gizmos(parent_obj)
-
-    local pos = parent_obj:get_pos()
-    local entities = {}
-
-    local center = minetest.add_entity(pos, "blockframe:gizmo_center")
-    if center then
-        center:get_luaentity().parent = parent_obj
-        table.insert(entities, center)
-    end
-
-    blockframe.gizmo_entities[parent_obj] = entities
-end
-
 minetest.register_entity("blockframe:gizmo_center", {
 
     initial_properties = {
@@ -320,12 +302,8 @@ end
 -- CHAT COMMAND
 --------------------------------------------------
 
---------------------------------------------------
--- CHAT COMMAND (TOGGLE)
---------------------------------------------------
-
 minetest.register_chatcommand("blockframe_gizmos", {
-    description = "Toggle ALL gizmos (remove or show centers)",
+    description = "Spawn gizmos for nearby blockframes",
     func = function(name)
 
         local player = minetest.get_player_by_name(name)
@@ -334,48 +312,16 @@ minetest.register_chatcommand("blockframe_gizmos", {
         local pos = player:get_pos()
         local objects = minetest.get_objects_inside_radius(pos, 15)
 
-        --------------------------------------------------
-        -- VERIFICA SE EXISTE ALGUM GIZMO ATIVO
-        --------------------------------------------------
-
-        local any_active = false
-        for parent, _ in pairs(blockframe.gizmo_entities) do
-            any_active = true
-            break
-        end
-
-        --------------------------------------------------
-        -- SE EXISTE → REMOVE TODOS
-        --------------------------------------------------
-
-        if any_active then
-
-            for parent, _ in pairs(blockframe.gizmo_entities) do
-                blockframe.remove_gizmos(parent)
-            end
-
-            blockframe.gizmo_entities = {}
-            blockframe.active_parent = nil
-
-            return true, "Todos os gizmos removidos."
-
-        end
-
-        --------------------------------------------------
-        -- SE NÃO EXISTE → MOSTRA APENAS CENTERS
-        --------------------------------------------------
-
-        local shown = 0
+        local count = 0
 
         for _, obj in ipairs(objects) do
             local ent = obj:get_luaentity()
-
             if ent and ent.name == "blockframe:placed" then
-                blockframe.spawn_center(obj)
-                shown = shown + 1
+                blockframe.spawn_gizmos_for(obj)
+                count = count + 1
             end
         end
 
-        return true, "Centers mostrados: "..shown
+        return true, "Spawned gizmos for "..count.." blockframes."
     end
 })
