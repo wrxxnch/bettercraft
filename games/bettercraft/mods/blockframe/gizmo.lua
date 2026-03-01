@@ -1,10 +1,12 @@
 --------------------------------------------------
 -- BLOCKFRAME GIZMO SYSTEM (FULL WORKING)
 --------------------------------------------------
-
-blockframe = blockframe or {}
 blockframe.gizmo_entities = {}
 blockframe.active_parent = nil
+
+local MOVE_STEP = 0.1
+local ROTATE_STEP = math.rad(15)
+local SCALE_STEP = 0.1
 
 --------------------------------------------------
 -- SAFE GET PARENT
@@ -18,45 +20,14 @@ local function get_parent(self)
 end
 
 --------------------------------------------------
--- GET STEP FROM PARENT (ARG.STEP)
---------------------------------------------------
-
-local function get_steps(parent)
-
-    -- valores padrão
-    local move_step = 0.1
-    local rotate_step = math.rad(15)
-    local scale_step = 0.1
-
-    local ent = parent:get_luaentity()
-    if ent and ent.args and ent.args.step then
-
-        local step = ent.args.step
-
-        -- Se for número único → aplica para tudo
-        if type(step) == "number" then
-            move_step = step
-            rotate_step = math.rad(step)
-            scale_step = step
-
-        -- Se for tabela → controle separado
-        elseif type(step) == "table" then
-            move_step = step.move or move_step
-            rotate_step = math.rad(step.rotate or 15)
-            scale_step = step.scale or scale_step
-        end
-    end
-
-    return move_step, rotate_step, scale_step
-end
-
---------------------------------------------------
 -- REMOVE GIZMOS
 --------------------------------------------------
 
 function blockframe.remove_gizmos(parent_obj)
 
-    if not parent_obj then return end
+    if not parent_obj then
+        return
+    end
 
     local list = blockframe.gizmo_entities[parent_obj]
     if list then
@@ -75,10 +46,11 @@ function blockframe.remove_gizmos(parent_obj)
 end
 
 --------------------------------------------------
--- REMOVE ALL
+-- REMOVE ALL GIZMOS
 --------------------------------------------------
 
 local function remove_all_gizmos()
+
     for parent, _ in pairs(blockframe.gizmo_entities) do
         blockframe.remove_gizmos(parent)
     end
@@ -96,28 +68,98 @@ local function spawn_axis_gizmos(parent_obj)
     local pos = parent_obj:get_pos()
     local entities = {}
 
-    local gizmos = {
-        -- MOVE
-        {type="move", axis="x", tex="blockframe_gizmo_move_x.png", off={x=1.5,y=0,z=0}},
-        {type="move", axis="y", tex="blockframe_gizmo_move_y.png", off={x=0,y=1.5,z=0}},
-        {type="move", axis="z", tex="blockframe_gizmo_move_z.png", off={x=0,y=0,z=1.5}},
-
-        -- ROTATE
-        {type="rotate", axis="x", tex="blockframe_gizmo_rotate.png", off={x=-1.5,y=0,z=0}},
-        {type="rotate", axis="y", tex="blockframe_gizmo_rotate.png", off={x=0,y=-1.5,z=0}},
-        {type="rotate", axis="z", tex="blockframe_gizmo_rotate.png", off={x=0,y=0,z=-1.5}},
-
-        -- SCALE
-        {type="scale", axis="x", tex="blockframe_gizmo_scale.png", off={x=2.5,y=0,z=0}},
-        {type="scale", axis="y", tex="blockframe_gizmo_scale.png", off={x=0,y=2.5,z=0}},
-        {type="scale", axis="z", tex="blockframe_gizmo_scale.png", off={x=0,y=0,z=2.5}},
-    }
+    local gizmos = { -- MOVE
+    {
+        type = "move",
+        axis = "x",
+        tex = "blockframe_gizmo_move_x.png",
+        off = {
+            x = 1.5,
+            y = 0,
+            z = 0
+        }
+    }, {
+        type = "move",
+        axis = "y",
+        tex = "blockframe_gizmo_move_y.png",
+        off = {
+            x = 0,
+            y = 1.5,
+            z = 0
+        }
+    }, {
+        type = "move",
+        axis = "z",
+        tex = "blockframe_gizmo_move_z.png",
+        off = {
+            x = 0,
+            y = 0,
+            z = 1.5
+        }
+    }, -- ROTATE
+    {
+        type = "rotate",
+        axis = "x",
+        tex = "blockframe_gizmo_rotate.png",
+        off = {
+            x = -1.5,
+            y = 0,
+            z = 0
+        }
+    }, {
+        type = "rotate",
+        axis = "y",
+        tex = "blockframe_gizmo_rotate.png",
+        off = {
+            x = 0,
+            y = -1.5,
+            z = 0
+        }
+    }, {
+        type = "rotate",
+        axis = "z",
+        tex = "blockframe_gizmo_rotate.png",
+        off = {
+            x = 0,
+            y = 0,
+            z = -1.5
+        }
+    }, -- SCALE
+    {
+        type = "scale",
+        axis = "x",
+        tex = "blockframe_gizmo_scale.png",
+        off = {
+            x = 2.5,
+            y = 0,
+            z = 0
+        }
+    }, {
+        type = "scale",
+        axis = "y",
+        tex = "blockframe_gizmo_scale.png",
+        off = {
+            x = 0,
+            y = 2.5,
+            z = 0
+        }
+    }, {
+        type = "scale",
+        axis = "z",
+        tex = "blockframe_gizmo_scale.png",
+        off = {
+            x = 0,
+            y = 0,
+            z = 2.5
+        }
+    }}
 
     for _, data in ipairs(gizmos) do
 
         local obj = minetest.add_entity(vector.add(pos, data.off), "blockframe:gizmo_axis")
 
         if obj then
+
             local ent = obj:get_luaentity()
             ent.parent = parent_obj
             ent.gizmo_type = data.type
@@ -125,13 +167,17 @@ local function spawn_axis_gizmos(parent_obj)
             ent.offset = data.off
 
             obj:set_properties({
-                visual="sprite",
-                textures={data.tex},
-                visual_size={x=0.7,y=0.7},
-                glow=10,
-                physical=false,
-                pointable=true,
-                use_texture_alpha=true
+                visual = "sprite",
+                textures = {data.tex},
+                visual_size = {
+                    x = 0.7,
+                    y = 0.7
+                },
+                glow = 10,
+                hp_max = 1000,
+                physical = false,
+                pointable = true,
+                use_texture_alpha = true
             })
 
             table.insert(entities, obj)
@@ -145,22 +191,47 @@ end
 -- CENTER GIZMO
 --------------------------------------------------
 
+function blockframe.spawn_center(parent_obj)
+
+    if not parent_obj then
+        return
+    end
+
+    blockframe.remove_gizmos(parent_obj)
+
+    local pos = parent_obj:get_pos()
+    local entities = {}
+
+    local center = minetest.add_entity(pos, "blockframe:gizmo_center")
+    if center then
+        center:get_luaentity().parent = parent_obj
+        table.insert(entities, center)
+    end
+
+    blockframe.gizmo_entities[parent_obj] = entities
+end
+
 minetest.register_entity("blockframe:gizmo_center", {
 
     initial_properties = {
-        visual="sprite",
-        textures={"blockframe_gizmo_center.png"},
-        visual_size={x=0.3,y=0.3},
-        glow=8,
-        physical=false,
-        pointable=true,
-        use_texture_alpha=true
+        visual = "sprite",
+        textures = {"blockframe_gizmo_center.png"},
+        visual_size = {
+            x = 0.3,
+            y = 0.3
+        },
+        glow = 8,
+        physical = false,
+        pointable = true,
+        use_texture_alpha = true
     },
 
     on_punch = function(self)
 
         local parent = get_parent(self)
-        if not parent then return end
+        if not parent then
+            return
+        end
 
         if blockframe.active_parent == parent then
             blockframe.remove_gizmos(parent)
@@ -187,26 +258,12 @@ minetest.register_entity("blockframe:gizmo_center", {
 
 minetest.register_entity("blockframe:gizmo_axis", {
 
-    initial_properties = {
-        visual = "sprite",
-        textures = {"blockframe_gizmo_axis.png"},
-        visual_size = {x=0.5, y=0.5},
-        physical = false,
-        pointable = true,
-        glow = 10,
-        use_texture_alpha = true
-    },
-
-    --------------------------------------------------
-    -- LEFT CLICK
-    --------------------------------------------------
-    on_punch = function(self, puncher)
+    on_punch = function(self)
 
         local parent = get_parent(self)
-        if not parent then return end
-
-        local move_step, rotate_step, scale_step = get_steps(parent)
-        local ent = parent:get_luaentity()
+        if not parent then
+            return
+        end
 
         --------------------------------------------------
         -- MOVE
@@ -214,86 +271,88 @@ minetest.register_entity("blockframe:gizmo_axis", {
         if self.gizmo_type == "move" then
 
             local pos = parent:get_pos()
-            if pos and pos[self.axis] then
-                pos[self.axis] = pos[self.axis] + move_step
-                parent:set_pos(pos)
+            pos[self.axis] = pos[self.axis] + MOVE_STEP
+            parent:set_pos(pos)
 
-                if ent then
-                    ent.args = ent.args or {}
-                    ent.args.pos = pos
-                end
+            local ent = parent:get_luaentity()
+            if ent then
+                ent.args = ent.args or {}
+                ent.args.pos = pos
             end
 
-        --------------------------------------------------
-        -- ROTATE
-        --------------------------------------------------
+            --------------------------------------------------
+            -- ROTATE
+            --------------------------------------------------
         elseif self.gizmo_type == "rotate" then
 
-            local rot = parent:get_rotation()
-            if not rot then
-                rot = {x=0,y=0,z=0}
+            local rot = parent:get_rotation() or {
+                x = 0,
+                y = 0,
+                z = 0
+            }
+
+            if self.axis == "x" then
+                rot.x = rot.x + ROTATE_STEP
+            elseif self.axis == "y" then
+                rot.y = rot.y + ROTATE_STEP
+            elseif self.axis == "z" then
+                rot.z = rot.z + ROTATE_STEP
             end
 
-            rot.x = rot.x or 0
-            rot.y = rot.y or 0
-            rot.z = rot.z or 0
+            parent:set_rotation(rot)
 
-            rot[self.axis] = rot[self.axis] + rotate_step
-
-            parent:set_rotation({
-                x = rot.x,
-                y = rot.y,
-                z = rot.z
-            })
-
+            local ent = parent:get_luaentity()
             if ent then
                 ent.args = ent.args or {}
                 ent.args.rotate = {
-                    x = rot.x,
-                    y = rot.y,
-                    z = rot.z
+                    x = math.deg(rot.x),
+                    y = math.deg(rot.y),
+                    z = math.deg(rot.z)
                 }
             end
 
-        --------------------------------------------------
-        -- SCALE
-        --------------------------------------------------
+            --------------------------------------------------
+            -- SCALE
+            --------------------------------------------------
         elseif self.gizmo_type == "scale" then
 
             local props = parent:get_properties()
-            local size = props.visual_size or {x=1,y=1}
-
-            size.x = size.x or 1
-            size.y = size.y or 1
+            local size = props.visual_size or {
+                x = 1,
+                y = 1
+            }
 
             if self.axis == "x" then
-                size.x = size.x + scale_step
+                size.x = size.x + SCALE_STEP
             elseif self.axis == "y" then
-                size.y = size.y + scale_step
+                size.y = size.y + SCALE_STEP
             elseif self.axis == "z" then
-                size.x = size.x + scale_step
-                size.y = size.y + scale_step
+                size.x = size.x + SCALE_STEP
+                size.y = size.y + SCALE_STEP
             end
 
-            parent:set_properties({visual_size = size})
+            parent:set_properties({
+                visual_size = size
+            })
 
+            local ent = parent:get_luaentity()
             if ent then
                 ent.args = ent.args or {}
-                ent.args.size = {x=size.x, y=size.y}
+                ent.args.size = {
+                    x = size.x / 2,
+                    y = size.y / 2,
+                    z = size.x / 2
+                }
             end
         end
     end,
 
-    --------------------------------------------------
-    -- RIGHT CLICK
-    --------------------------------------------------
-    on_rightclick = function(self, clicker)
+    on_rightclick = function(self)
 
         local parent = get_parent(self)
-        if not parent then return end
-
-        local move_step, rotate_step, scale_step = get_steps(parent)
-        local ent = parent:get_luaentity()
+        if not parent then
+            return
+        end
 
         --------------------------------------------------
         -- MOVE
@@ -301,79 +360,82 @@ minetest.register_entity("blockframe:gizmo_axis", {
         if self.gizmo_type == "move" then
 
             local pos = parent:get_pos()
-            if pos and pos[self.axis] then
-                pos[self.axis] = pos[self.axis] - move_step
-                parent:set_pos(pos)
+            pos[self.axis] = pos[self.axis] - MOVE_STEP
+            parent:set_pos(pos)
 
-                if ent then
-                    ent.args = ent.args or {}
-                    ent.args.pos = pos
-                end
+            local ent = parent:get_luaentity()
+            if ent then
+                ent.args = ent.args or {}
+                ent.args.pos = pos
             end
 
-        --------------------------------------------------
-        -- ROTATE
-        --------------------------------------------------
+            --------------------------------------------------
+            -- ROTATE
+            --------------------------------------------------
         elseif self.gizmo_type == "rotate" then
 
-            local rot = parent:get_rotation()
-            if not rot then
-                rot = {x=0,y=0,z=0}
+            local rot = parent:get_rotation() or {
+                x = 0,
+                y = 0,
+                z = 0
+            }
+
+            if self.axis == "x" then
+                rot.x = rot.x - ROTATE_STEP
+            elseif self.axis == "y" then
+                rot.y = rot.y - ROTATE_STEP
+            elseif self.axis == "z" then
+                rot.z = rot.z - ROTATE_STEP
             end
 
-            rot.x = rot.x or 0
-            rot.y = rot.y or 0
-            rot.z = rot.z or 0
+            parent:set_rotation(rot)
 
-            rot[self.axis] = rot[self.axis] - rotate_step
-
-            parent:set_rotation({
-                x = rot.x,
-                y = rot.y,
-                z = rot.z
-            })
-
+            local ent = parent:get_luaentity()
             if ent then
                 ent.args = ent.args or {}
                 ent.args.rotate = {
-                    x = rot.x,
-                    y = rot.y,
-                    z = rot.z
+                    x = math.deg(rot.x),
+                    y = math.deg(rot.y),
+                    z = math.deg(rot.z)
                 }
             end
 
-        --------------------------------------------------
-        -- SCALE
-        --------------------------------------------------
+            --------------------------------------------------
+            -- SCALE
+            --------------------------------------------------
         elseif self.gizmo_type == "scale" then
 
             local props = parent:get_properties()
-            local size = props.visual_size or {x=1,y=1}
-
-            size.x = size.x or 1
-            size.y = size.y or 1
+            local size = props.visual_size or {
+                x = 1,
+                y = 1
+            }
 
             if self.axis == "x" then
-                size.x = math.max(0.1, size.x - scale_step)
+                size.x = math.max(0.1, size.x - SCALE_STEP)
             elseif self.axis == "y" then
-                size.y = math.max(0.1, size.y - scale_step)
+                size.y = math.max(0.1, size.y - SCALE_STEP)
             elseif self.axis == "z" then
-                size.x = math.max(0.1, size.x - scale_step)
-                size.y = math.max(0.1, size.y - scale_step)
+                size.x = math.max(0.1, size.x - SCALE_STEP)
+                size.y = math.max(0.1, size.y - SCALE_STEP)
             end
 
-            parent:set_properties({visual_size = size})
+            parent:set_properties({
+                visual_size = size
+            })
 
+            local ent = parent:get_luaentity()
             if ent then
                 ent.args = ent.args or {}
-                ent.args.size = {x=size.x, y=size.y}
+                ent.args.size = {
+                    x = size.x / 2,
+                    y = size.y / 2,
+                    z = size.x / 2
+                }
             end
         end
     end,
 
-    --------------------------------------------------
-    -- FOLLOW PARENT
-    --------------------------------------------------
     on_step = function(self)
 
         local parent = get_parent(self)
@@ -383,36 +445,9 @@ minetest.register_entity("blockframe:gizmo_axis", {
         end
 
         local base = parent:get_pos()
-        if base and self.offset then
-            self.object:set_pos(vector.add(base, self.offset))
-        end
+        self.object:set_pos(vector.add(base, self.offset))
     end
 })
---------------------------------------------------
--- CENTER GIZMO
---------------------------------------------------
-
-function blockframe.spawn_center(parent_obj)
-
-    if not parent_obj then
-        return
-    end
-
-    blockframe.remove_gizmos(parent_obj)
-
-    local pos = parent_obj:get_pos()
-    local entities = {}
-
-    local center = minetest.add_entity(pos, "blockframe:gizmo_center")
-    if center then
-        center:get_luaentity().parent = parent_obj
-        table.insert(entities, center)
-    end
-
-    blockframe.gizmo_entities[parent_obj] = entities
-end
-
-
 
 --------------------------------------------------
 -- SPAWN CENTER
@@ -428,15 +463,17 @@ function blockframe.spawn_gizmos_for(obj)
         ent.parent = obj
     end
 end
+--------------------------------------------------
+-- CHAT COMMAND
+--------------------------------------------------
 
 --------------------------------------------------
--- CHAT COMMAND (TOGGLE + STEP CONTROL)
+-- CHAT COMMAND (TOGGLE)
 --------------------------------------------------
 
 minetest.register_chatcommand("blockframe_gizmos", {
-    params = "[step=VALOR ou step.move=VALOR]",
-    description = "Toggle gizmos ou definir step dinamico",
-    func = function(name, param)
+    description = "Toggle ALL gizmos (remove or show centers)",
+    func = function(name)
 
         local player = minetest.get_player_by_name(name)
         if not player then
@@ -447,57 +484,7 @@ minetest.register_chatcommand("blockframe_gizmos", {
         local objects = minetest.get_objects_inside_radius(pos, 15)
 
         --------------------------------------------------
-        -- SE PASSOU ARGUMENTO (STEP)
-        --------------------------------------------------
-
-        if param and param ~= "" then
-
-            local key, value = param:match("([^=]+)=([^=]+)")
-            if not key or not value then
-                return false, "Formato inválido. Use step=5"
-            end
-
-            value = tonumber(value)
-            if not value then
-                return false, "Valor inválido."
-            end
-
-            local changed = 0
-
-            for _, obj in ipairs(objects) do
-                local ent = obj:get_luaentity()
-
-                if ent and ent.name == "blockframe:placed" then
-
-                    ent.args = ent.args or {}
-                    ent.args.step = ent.args.step or {}
-
-                    if key == "step" then
-                        -- Step único
-                        ent.args.step = value
-
-                    elseif key == "step.move" then
-                        ent.args.step.move = value
-
-                    elseif key == "step.rotate" then
-                        ent.args.step.rotate = value
-
-                    elseif key == "step.scale" then
-                        ent.args.step.scale = value
-
-                    else
-                        return false, "Chave inválida."
-                    end
-
-                    changed = changed + 1
-                end
-            end
-
-            return true, "Step aplicado em "..changed.." objetos."
-        end
-
-        --------------------------------------------------
-        -- TOGGLE NORMAL
+        -- VERIFICA SE EXISTE ALGUM GIZMO ATIVO
         --------------------------------------------------
 
         local any_active = false
@@ -505,6 +492,10 @@ minetest.register_chatcommand("blockframe_gizmos", {
             any_active = true
             break
         end
+
+        --------------------------------------------------
+        -- SE EXISTE → REMOVE TODOS
+        --------------------------------------------------
 
         if any_active then
 
@@ -516,7 +507,12 @@ minetest.register_chatcommand("blockframe_gizmos", {
             blockframe.active_parent = nil
 
             return true, "Todos os gizmos removidos."
+
         end
+
+        --------------------------------------------------
+        -- SE NÃO EXISTE → MOSTRA APENAS CENTERS
+        --------------------------------------------------
 
         local shown = 0
 
@@ -529,6 +525,6 @@ minetest.register_chatcommand("blockframe_gizmos", {
             end
         end
 
-        return true, "Centers mostrados: "..shown
+        return true, "Centers mostrados: " .. shown
     end
 })

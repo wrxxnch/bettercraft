@@ -750,12 +750,34 @@ minetest.register_chatcommand("blockframe_load", {
         local global_args = blockframe.parse_args(args_str)
         local preview_objs = {}
 
+        -- calcular centro vertical do modelo
+        local min_y, max_y = nil, nil
+
+        for _, e in ipairs(data.entities) do
+            local ry = e.rel_pos.y
+            if not min_y or ry < min_y then
+                min_y = ry
+            end
+            if not max_y or ry > max_y then
+                max_y = ry
+            end
+        end
+
+        local center_offset_y = 0
+        if min_y and max_y then
+            center_offset_y = (min_y + max_y) / 2
+        end
+
         for _, e in ipairs(data.entities) do
             local obj = minetest.add_entity(minetest.get_player_by_name(name):get_pos(), "blockframe:preview",
                 minetest.serialize({
                     node = e.node,
                     player_name = name,
-                    rel_pos = e.rel_pos
+                    rel_pos = {
+                        x = e.rel_pos.x,
+                        y = e.rel_pos.y - center_offset_y,
+                        z = e.rel_pos.z
+                    }
                 }))
             if obj then
                 local ent = obj:get_luaentity()
