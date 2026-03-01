@@ -58,14 +58,22 @@ function selectors.resolve(caller_name, param_str)
 		candidates = minetest.get_objects_inside_radius(pos, 500)
 	end
 	
-	-- Parse filters
-	local filters = {}
-	for pair in args_str:gmatch("([^,]+)") do
-		local k, v = pair:match("([^=]+)=([^=]+)")
-		if k and v then
-			filters[k:trim()] = v:trim()
+	-- Parse filters (allow multiple same keys)
+local filters = {}
+
+for pair in args_str:gmatch("([^,]+)") do
+	local k, v = pair:match("([^=]+)=([^=]+)")
+	if k and v then
+		k = k:trim()
+		v = v:trim()
+
+		if not filters[k] then
+			filters[k] = {}
 		end
+
+		table.insert(filters[k], v)
 	end
+end
 	
 	for _, obj in ipairs(candidates) do
 		local keep = true
@@ -80,19 +88,27 @@ function selectors.resolve(caller_name, param_str)
 		end
 		
 		-- Type filter
-		local t = filters.type
-		if t then
-			local obj_type = get_entity_type(obj)
-			if t == "monster" then
-				if obj_type ~= "monster" then keep = false end
-			elseif t == "item" then
-				if obj_type ~= "item" then keep = false end
-			elseif t == "passive" then
-				if obj_type ~= "passive" then keep = false end
-			else
-				if not obj_type:find(t) then keep = false end
-			end
+		local types = filters.type
+if types then
+	local obj_type = get_entity_type(obj)
+	local match = false
+
+	for _, t in ipairs(types) do
+		if t == "monster" and obj_type == "monster" then
+			match = true
+		elseif t == "item" and obj_type == "item" then
+			match = true
+		elseif t == "passive" and obj_type == "passive" then
+			match = true
+		elseif obj_type:find(t) then
+			match = true
 		end
+	end
+
+	if not match then
+		keep = false
+	end
+end
 		
 		if keep then
 			table.insert(targets, obj)

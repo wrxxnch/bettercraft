@@ -47,37 +47,70 @@ end
 
 -- 2. Override /teleport (tp)
 local function handle_tp(name, param)
+
+	if param == "" then
+		return false, "Uso: /tp <x y z> OU /tp <alvo> <x y z>"
+	end
+
+	local caller = minetest.get_player_by_name(name)
+	if not caller then
+		return false, "Player não encontrado."
+	end
+
+	--------------------------------------------------
+	-- CASO 1: /tp x y z  (teleporta a si mesmo)
+	--------------------------------------------------
+	local x1, y1, z1 = param:match("^([%d.~%-]+)[, ]+([%d.~%-]+)[, ]+([%d.~%-]+)$")
+
+	if x1 and y1 and z1 then
+		local pos = minetest.parse_coordinates(x1, y1, z1, caller:get_pos())
+		if not pos then
+			return false, "Coordenadas inválidas."
+		end
+
+		caller:set_pos(pos)
+		return true, "Teletransportado para " .. minetest.pos_to_string(pos)
+	end
+
+	--------------------------------------------------
+	-- CASO 2: /tp <alvo> <x y z>
+	--------------------------------------------------
 	local target_str, dest_str = param:match("^(%S+)%s+(.+)$")
 	if not target_str then
-		-- Fallback to original behavior if it's just one param (teleport self)
-		return minetest.registered_chatcommands["teleport"].func(name, param)
+		return false, "Uso inválido."
 	end
-	
+
 	local targets = selectors.resolve(name, target_str)
+	if #targets == 0 then
+		return false, "Alvo não encontrado: " .. target_str
+	end
+
+	-- Tentar coordenadas
+	local x, y, z = dest_str:match("^([%d.~%-]+)[, ]+([%d.~%-]+)[, ]+([%d.~%-]+)$")
 	local dest_pos
-	
-	-- Try to parse dest as coordinates
-	local x, y, z = dest_str:match("^([%d.~-]+)[, ] *([%d.~-]+)[, ] *([%d.~-]+)$")
+
 	if x and y and z then
-		local caller = minetest.get_player_by_name(name)
-		dest_pos = minetest.parse_coordinates(x, y, z, caller and caller:get_pos())
+		dest_pos = minetest.parse_coordinates(x, y, z, caller:get_pos())
 	else
-		-- Try to parse dest as a player name
+		-- Tentar player como destino
 		local target_player = minetest.get_player_by_name(dest_str)
 		if target_player then
 			dest_pos = target_player:get_pos()
 		end
 	end
-	
+
 	if not dest_pos then
 		return false, "Destino inválido: " .. dest_str
 	end
-	
+
 	local count = 0
 	for _, obj in ipairs(targets) do
-		obj:set_pos(dest_pos)
-		count = count + 1
+		if obj and obj:get_pos() then
+			obj:set_pos(dest_pos)
+			count = count + 1
+		end
 	end
+
 	return true, "Teleportados " .. count .. " alvos para " .. minetest.pos_to_string(dest_pos)
 end
 
