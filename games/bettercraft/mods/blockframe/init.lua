@@ -7,7 +7,7 @@ blockframe.memory = {}
 blockframe.del_history = {}
 blockframe.world_path = minetest.get_worldpath()
 
---gizmo.lua path
+-- gizmo.lua path
 dofile(minetest.get_modpath("blockframe") .. "/gizmo.lua")
 
 --------------------------------------------------
@@ -284,12 +284,16 @@ end
 
 function blockframe.update_entity_properties(self)
 
-        self.args = self.args or {}
+    self.args = self.args or {}
     -- =========================
     -- SIZE SAFE HANDLING
     -- =========================
 
-    local base_size = { x = 0.5, y = 0.5, z = 0.5 }
+    local base_size = {
+        x = 0.5,
+        y = 0.5,
+        z = 0.5
+    }
 
     local size_arg = self.args.size
 
@@ -313,16 +317,26 @@ function blockframe.update_entity_properties(self)
         -- caso venha como string "0.5"
         local n = tonumber(size_arg)
         if n then
-            base_size = { x = n, y = n, z = n }
+            base_size = {
+                x = n,
+                y = n,
+                z = n
+            }
         end
     end
 
     local visual_v = table.copy(base_size)
 
     -- espelhamento
-    if self.args.mirror == "x" then visual_v.x = -visual_v.x end
-    if self.args.mirror == "y" then visual_v.y = -visual_v.y end
-    if self.args.mirror == "z" then visual_v.z = -visual_v.z end
+    if self.args.mirror == "x" then
+        visual_v.x = -visual_v.x
+    end
+    if self.args.mirror == "y" then
+        visual_v.y = -visual_v.y
+    end
+    if self.args.mirror == "z" then
+        visual_v.z = -visual_v.z
+    end
 
     local def = minetest.registered_nodes[self.node]
 
@@ -332,7 +346,7 @@ function blockframe.update_entity_properties(self)
     local props = {
         physical = false,
         pointable = false,
-        collisionbox = {0,0,0,0,0,0},
+        collisionbox = {0, 0, 0, 0, 0, 0},
         glow = tonumber(self.args.glow) or 0
     }
 
@@ -342,7 +356,7 @@ function blockframe.update_entity_properties(self)
     local visual_type = "wielditem"
     local textures = nil
 
-   if self.args.node == true and def then
+    if self.args.node == true and def then
 
         -- 🔵 MESH NODE
         if def.drawtype == "mesh" and def.mesh then
@@ -362,7 +376,7 @@ function blockframe.update_entity_properties(self)
             props.textures = textures
             props.visual_size = visual_v
 
-        -- 🟢 BLOCO NORMAL
+            -- 🟢 BLOCO NORMAL
         elseif def.drawtype == "normal" then
 
             props.visual = "cube"
@@ -380,7 +394,7 @@ function blockframe.update_entity_properties(self)
             props.textures = tiles
             props.visual_size = visual_v
 
-        -- 🟡 NODEBOX / OUTROS
+            -- 🟡 NODEBOX / OUTROS
         else
 
             props.visual = "wielditem"
@@ -392,9 +406,9 @@ function blockframe.update_entity_properties(self)
             }
         end
 
-    --------------------------------------------------
-    -- ITEM MODE NORMAL
-    --------------------------------------------------
+        --------------------------------------------------
+        -- ITEM MODE NORMAL
+        --------------------------------------------------
     else
         props.visual = "wielditem"
         props.wield_item = self.node
@@ -403,7 +417,6 @@ function blockframe.update_entity_properties(self)
             y = base_size.y * 2
         }
     end
-
 
     if textures then
         props.textures = textures
@@ -567,19 +580,40 @@ minetest.register_entity("blockframe:placed", {
         },
         collisionbox = {0, 0, 0, 0, 0, 0}
     },
+
     on_activate = function(self, staticdata)
         local data = minetest.deserialize(staticdata) or {}
+
         self.node = data.node or "default:stone"
         self.args = data.args or {}
+
+        -- 🔴 GARANTE QUE POSIÇÃO FIQUE DENTRO DE args
+        if not self.args.pos then
+            self.args.pos = self.object:get_pos()
+        end
+
         self.object:set_properties({
             wield_item = self.node
         })
+
         blockframe.update_entity_properties(self)
+
         if self.args.pos then
-            self.object:set_pos(self.args.pos)
+            local fixed_pos = parse_vec(self.args.pos, self.object:get_pos())
+            self.args.pos = fixed_pos
+            self.object:set_pos(fixed_pos)
         end
     end,
+
     get_staticdata = function(self)
+
+        local p = self.object:get_pos()
+        self.args.pos = {
+            x = p.x,
+            y = p.y,
+            z = p.z
+        }
+
         return minetest.serialize({
             node = self.node,
             args = self.args
@@ -857,7 +891,9 @@ minetest.register_chatcommand("blockframe_undo", {
 
 minetest.register_chatcommand("blockframe_undo_apply", {
     description = "Desfaz o último blockframe_apply",
-    privs = {server = true},
+    privs = {
+        server = true
+    },
 
     func = function(name)
 
@@ -908,12 +944,16 @@ minetest.register_chatcommand("blockframe_del", {
 minetest.register_chatcommand("blockframe_apply", {
     params = "radius=<n> arg1=valor arg2=valor ...",
     description = "Aplica argumentos em blockframes ao redor",
-    privs = {server = true},
+    privs = {
+        server = true
+    },
 
     func = function(name, param)
 
         local player = minetest.get_player_by_name(name)
-        if not player then return false, "Jogador não encontrado." end
+        if not player then
+            return false, "Jogador não encontrado."
+        end
 
         if param == "" then
             return false, "Use: /blockframe_apply radius=5 glow=10 node=true"

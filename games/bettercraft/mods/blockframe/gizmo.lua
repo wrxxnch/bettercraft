@@ -187,12 +187,26 @@ minetest.register_entity("blockframe:gizmo_center", {
 
 minetest.register_entity("blockframe:gizmo_axis", {
 
-    on_punch = function(self)
+    initial_properties = {
+        visual = "sprite",
+        textures = {"blockframe_gizmo_axis.png"},
+        visual_size = {x=0.5, y=0.5},
+        physical = false,
+        pointable = true,
+        glow = 10,
+        use_texture_alpha = true
+    },
+
+    --------------------------------------------------
+    -- LEFT CLICK
+    --------------------------------------------------
+    on_punch = function(self, puncher)
 
         local parent = get_parent(self)
         if not parent then return end
 
         local move_step, rotate_step, scale_step = get_steps(parent)
+        local ent = parent:get_luaentity()
 
         --------------------------------------------------
         -- MOVE
@@ -200,18 +214,46 @@ minetest.register_entity("blockframe:gizmo_axis", {
         if self.gizmo_type == "move" then
 
             local pos = parent:get_pos()
-            pos[self.axis] = pos[self.axis] + move_step
-            parent:set_pos(pos)
+            if pos and pos[self.axis] then
+                pos[self.axis] = pos[self.axis] + move_step
+                parent:set_pos(pos)
+
+                if ent then
+                    ent.args = ent.args or {}
+                    ent.args.pos = pos
+                end
+            end
 
         --------------------------------------------------
         -- ROTATE
         --------------------------------------------------
         elseif self.gizmo_type == "rotate" then
 
-            local rot = parent:get_rotation() or {x=0,y=0,z=0}
+            local rot = parent:get_rotation()
+            if not rot then
+                rot = {x=0,y=0,z=0}
+            end
+
+            rot.x = rot.x or 0
+            rot.y = rot.y or 0
+            rot.z = rot.z or 0
 
             rot[self.axis] = rot[self.axis] + rotate_step
-            parent:set_rotation(rot)
+
+            parent:set_rotation({
+                x = rot.x,
+                y = rot.y,
+                z = rot.z
+            })
+
+            if ent then
+                ent.args = ent.args or {}
+                ent.args.rotate = {
+                    x = rot.x,
+                    y = rot.y,
+                    z = rot.z
+                }
+            end
 
         --------------------------------------------------
         -- SCALE
@@ -220,6 +262,9 @@ minetest.register_entity("blockframe:gizmo_axis", {
 
             local props = parent:get_properties()
             local size = props.visual_size or {x=1,y=1}
+
+            size.x = size.x or 1
+            size.y = size.y or 1
 
             if self.axis == "x" then
                 size.x = size.x + scale_step
@@ -230,16 +275,25 @@ minetest.register_entity("blockframe:gizmo_axis", {
                 size.y = size.y + scale_step
             end
 
-            parent:set_properties({visual_size=size})
+            parent:set_properties({visual_size = size})
+
+            if ent then
+                ent.args = ent.args or {}
+                ent.args.size = {x=size.x, y=size.y}
+            end
         end
     end,
 
-    on_rightclick = function(self)
+    --------------------------------------------------
+    -- RIGHT CLICK
+    --------------------------------------------------
+    on_rightclick = function(self, clicker)
 
         local parent = get_parent(self)
         if not parent then return end
 
         local move_step, rotate_step, scale_step = get_steps(parent)
+        local ent = parent:get_luaentity()
 
         --------------------------------------------------
         -- MOVE
@@ -247,17 +301,46 @@ minetest.register_entity("blockframe:gizmo_axis", {
         if self.gizmo_type == "move" then
 
             local pos = parent:get_pos()
-            pos[self.axis] = pos[self.axis] - move_step
-            parent:set_pos(pos)
+            if pos and pos[self.axis] then
+                pos[self.axis] = pos[self.axis] - move_step
+                parent:set_pos(pos)
+
+                if ent then
+                    ent.args = ent.args or {}
+                    ent.args.pos = pos
+                end
+            end
 
         --------------------------------------------------
         -- ROTATE
         --------------------------------------------------
         elseif self.gizmo_type == "rotate" then
 
-            local rot = parent:get_rotation() or {x=0,y=0,z=0}
+            local rot = parent:get_rotation()
+            if not rot then
+                rot = {x=0,y=0,z=0}
+            end
+
+            rot.x = rot.x or 0
+            rot.y = rot.y or 0
+            rot.z = rot.z or 0
+
             rot[self.axis] = rot[self.axis] - rotate_step
-            parent:set_rotation(rot)
+
+            parent:set_rotation({
+                x = rot.x,
+                y = rot.y,
+                z = rot.z
+            })
+
+            if ent then
+                ent.args = ent.args or {}
+                ent.args.rotate = {
+                    x = rot.x,
+                    y = rot.y,
+                    z = rot.z
+                }
+            end
 
         --------------------------------------------------
         -- SCALE
@@ -266,6 +349,9 @@ minetest.register_entity("blockframe:gizmo_axis", {
 
             local props = parent:get_properties()
             local size = props.visual_size or {x=1,y=1}
+
+            size.x = size.x or 1
+            size.y = size.y or 1
 
             if self.axis == "x" then
                 size.x = math.max(0.1, size.x - scale_step)
@@ -276,10 +362,18 @@ minetest.register_entity("blockframe:gizmo_axis", {
                 size.y = math.max(0.1, size.y - scale_step)
             end
 
-            parent:set_properties({visual_size=size})
+            parent:set_properties({visual_size = size})
+
+            if ent then
+                ent.args = ent.args or {}
+                ent.args.size = {x=size.x, y=size.y}
+            end
         end
     end,
 
+    --------------------------------------------------
+    -- FOLLOW PARENT
+    --------------------------------------------------
     on_step = function(self)
 
         local parent = get_parent(self)
@@ -289,7 +383,9 @@ minetest.register_entity("blockframe:gizmo_axis", {
         end
 
         local base = parent:get_pos()
-        self.object:set_pos(vector.add(base, self.offset))
+        if base and self.offset then
+            self.object:set_pos(vector.add(base, self.offset))
+        end
     end
 })
 --------------------------------------------------
