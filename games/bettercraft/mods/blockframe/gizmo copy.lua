@@ -174,7 +174,7 @@ local function spawn_axis_gizmos(parent_obj)
                     y = 0.7
                 },
                 glow = 10,
-                
+                hp_max = 1000,
                 physical = false,
                 pointable = true,
                 use_texture_alpha = true
@@ -259,7 +259,6 @@ minetest.register_entity("blockframe:gizmo_center", {
 minetest.register_entity("blockframe:gizmo_axis", {
 
     on_punch = function(self)
-        self.object:set_hp(1000)
 
         local parent = get_parent(self)
         if not parent then
@@ -464,6 +463,9 @@ function blockframe.spawn_gizmos_for(obj)
         ent.parent = obj
     end
 end
+--------------------------------------------------
+-- CHAT COMMAND
+--------------------------------------------------
 
 --------------------------------------------------
 -- CHAT COMMAND (TOGGLE)
