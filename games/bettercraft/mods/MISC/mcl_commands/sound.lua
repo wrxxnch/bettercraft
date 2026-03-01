@@ -1,64 +1,129 @@
 local S = core.get_translator(core.get_current_modname())
 
--- =========================
--- /playsound (direto)
--- =========================
+--------------------------------------------------
+-- GLOBAL SOUND CACHE
+--------------------------------------------------
+
+local ALL_SOUNDS = {}
+
+--------------------------------------------------
+-- COUNT HELPER
+--------------------------------------------------
+
+local function table_count(t)
+	local c = 0
+	for _ in pairs(t) do
+		c = c + 1
+	end
+	return c
+end
+
+--------------------------------------------------
+-- BUILD SOUND CACHE (ALL MODS SAFE)
+--------------------------------------------------
+
+local function build_sound_cache()
+
+	ALL_SOUNDS = {}
+
+	local modnames = core.get_modnames()
+
+	for _, modname in ipairs(modnames) do
+
+		local modpath = core.get_modpath(modname)
+
+		if modpath then
+			local soundpath = modpath .. "/sounds"
+
+			-- verificar se pasta existe
+			if core.get_dir_list(soundpath, false) then
+
+				local files = core.get_dir_list(soundpath, false)
+
+				for _, file in ipairs(files) do
+					if file:match("%.ogg$") then
+
+						local soundname = file:gsub("%.ogg$", "")
+
+						ALL_SOUNDS[soundname] = true
+					end
+				end
+			end
+		end
+	end
+
+	core.log("action", "[PlaySound] Loaded sounds: " .. table_count(ALL_SOUNDS))
+end
+
+--------------------------------------------------
+-- BUILD CACHE AFTER ALL MODS LOADED
+--------------------------------------------------
+
+core.register_on_mods_loaded(function()
+	build_sound_cache()
+end)
+
+--------------------------------------------------
+-- /playsound
+--------------------------------------------------
+
 core.register_chatcommand("playsound", {
-	params = S("<sound> <target>"),
-	description = S("Play a sound"),
+	params = "<sound> <target>",
+	description = "Play a sound directly",
 	privs = { server = true },
 
 	func = function(_, rawparams)
+
 		local sound, target = rawparams:match("^(%S+)%s+(%S+)$")
 
 		if not sound then
-			return false, S("Sound name is invalid!")
+			return false, "Sound name is invalid!"
 		end
 
 		if not (target and core.player_exists(target)) then
-			return false, S("Target is invalid!")
+			return false, "Target is invalid!"
 		end
 
-		core.sound_play(
-			{ name = sound },
-			{ to_player = target },
-			true
-		)
+		core.sound_play(sound, {
+			to_player = target,
+			gain = 1.0,
+		})
 
-		return true, S("Sound played.")
+		return true, "Sound played."
 	end,
 })
 
--- =========================
+--------------------------------------------------
 -- /playsound_search
--- =========================
+--------------------------------------------------
+
 core.register_chatcommand("playsound_search", {
-	params = S("<search>"),
-	description = S("Search sounds and cache results"),
+	params = "<search>",
+	description = "Search sounds globally",
 	privs = { server = true },
 
 	func = function(name, param)
+
 		if param == "" then
-			return false, S("You must provide a search term")
+			return false, "You must provide a search term"
 		end
 
 		local search = param:lower()
 		local results = {}
 
-		for soundname in pairs(core.registered_sounds or {}) do
+		for soundname in pairs(ALL_SOUNDS) do
 			if soundname:lower():find(search, 1, true) then
 				results[#results + 1] = soundname
-				if #results >= 10 then
+				if #results >= 20 then
 					break
 				end
 			end
 		end
 
 		if #results == 0 then
-			return false, S("No sounds found for: @1", search)
+			return false, "No sounds found for: " .. search
 		end
 
-		-- cache persistente
 		local player = core.get_player_by_name(name)
 		if not player then
 			return false
@@ -67,36 +132,100 @@ core.register_chatcommand("playsound_search", {
 		local meta = player:get_meta()
 		meta:set_string("playsound_search_results", core.serialize(results))
 
-		-- listar
-		local msg = S("Cached sounds:\n")
+		local msg = "Cached sounds:\n"
+
 		for i, snd in ipairs(results) do
 			msg = msg .. i .. ": " .. snd .. "\n"
 		end
-		msg = msg .. S("Use: /playsound_pick <number> <player>")
+
+		msg = msg .. "\nUse: /playsound_pick <number> <player>"
 
 		core.chat_send_player(name, msg)
-		return true, S("Search cached.")
+
+		return true, "Search cached."
 	end,
 })
 
--- =========================
--- /playsound_pick
--- =========================
+--------------------------------------------------
+-- TARGET PARSER
+--------------------------------------------------
+
+local function get_targets(executor_name, target_string)
+
+	local targets = {}
+
+	-- sem argumento = self
+	if not target_string or target_string == "" then
+		local player = core.get_player_by_name(executor_name)
+		if player then
+			table.insert(targets, player)
+		end
+		return targets
+	end
+
+	-- @s
+	if target_string == "@s" then
+		local player = core.get_player_by_name(executor_name)
+		if player then
+			table.insert(targets, player)
+		end
+		return targets
+	end
+
+	-- @e
+	if target_string == "@e" then
+		for _, player in ipairs(core.get_connected_players()) do
+			table.insert(targets, player)
+		end
+		return targets
+	end
+
+	-- @e[r=10]
+	local radius = target_string:match("^@e%[r=(%d+)%]$")
+	if radius then
+		radius = tonumber(radius)
+
+		local executor = core.get_player_by_name(executor_name)
+		if not executor then return targets end
+
+		local pos = executor:get_pos()
+
+		for _, player in ipairs(core.get_connected_players()) do
+			if vector.distance(pos, player:get_pos()) <= radius then
+				table.insert(targets, player)
+			end
+		end
+
+		return targets
+	end
+
+	-- nome específico
+	if core.player_exists(target_string) then
+		local player = core.get_player_by_name(target_string)
+		if player then
+			table.insert(targets, player)
+		end
+	end
+
+	return targets
+end
+
+--------------------------------------------------
+-- /playsound_pick (UPGRADED)
+--------------------------------------------------
+
 core.register_chatcommand("playsound_pick", {
-	params = S("<number> <target>"),
-	description = S("Play cached sound"),
+	params = "<number> [target]",
+	description = "Play cached sound",
 	privs = { server = true },
 
 	func = function(name, rawparams)
-		local idx, target = rawparams:match("^(%d+)%s+(%S+)$")
+
+		local idx, target = rawparams:match("^(%d+)%s*(.*)$")
 		idx = tonumber(idx)
 
 		if not idx then
-			return false, S("Invalid number")
-		end
-
-		if not (target and core.player_exists(target)) then
-			return false, S("Target is invalid!")
+			return false, "Invalid number"
 		end
 
 		local player = core.get_player_by_name(name)
@@ -108,15 +237,22 @@ core.register_chatcommand("playsound_pick", {
 		local results = core.deserialize(meta:get_string("playsound_search_results"))
 
 		if not (results and results[idx]) then
-			return false, S("No cached sound found")
+			return false, "No cached sound found"
 		end
 
-		core.sound_play(
-			{ name = results[idx] },
-			{ to_player = target },
-			true
-		)
+		local targets = get_targets(name, target)
 
-		return true, S("Sound played: @1", results[idx])
+		if #targets == 0 then
+			return false, "No valid targets"
+		end
+
+		for _, target_player in ipairs(targets) do
+			core.sound_play(results[idx], {
+				to_player = target_player:get_player_name(),
+				gain = 1.0,
+			})
+		end
+
+		return true, "Sound played: " .. results[idx]
 	end,
 })
