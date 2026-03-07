@@ -260,6 +260,7 @@ function mcl_itemframes.tpl_entity:on_activate(staticdata, dtime_s)
 end
 
 function mcl_itemframes.tpl_entity:on_step(dtime)
+
 	local def = core.registered_items[self._item]
 	if def and def._on_entity_step then
 		local r = def._on_entity_step(self, dtime, self._item)
@@ -276,27 +277,6 @@ function mcl_itemframes.tpl_entity:on_step(dtime)
 	if not pos then return end
 
 	local node = core.get_node(pos)
-	local dir = core.wallmounted_to_dir(node.param2)
-	local support_pos = vector.subtract(pos, dir)
-	local support_node = core.get_node(support_pos)
-
-	-- 🔥 Se o bloco de suporte não for sólido, quebrar o frame
-	if not support_node
-	or support_node.name == "air"
-	or not core.registered_nodes[support_node.name]
-	or not core.registered_nodes[support_node.name].walkable then
-		
-		-- dropar item do frame
-		drop_item(pos)
-
-		-- dropar o próprio itemframe
-		core.add_item(pos, ItemStack(node.name))
-
-		-- remover node
-		core.remove_node(pos)
-
-		return
-	end
 
 	-- Se o próprio node sumiu
 	if core.get_item_group(node.name, "itemframe") <= 0 then
@@ -304,7 +284,6 @@ function mcl_itemframes.tpl_entity:on_step(dtime)
 		return
 	end
 end
-
 
 function mcl_itemframes.register_itemframe(name, def)
 	if not def.node then return end
