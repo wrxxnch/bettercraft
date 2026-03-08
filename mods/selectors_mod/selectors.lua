@@ -1,121 +1,264 @@
--- selectors.lua
-local S = minetest.get_translator("selectors")
-
 local selectors = {}
 
--- Helper to get entity type classification
+--------------------------------------------------
+-- DISTANCE
+--------------------------------------------------
+
+local function get_distance(p1, p2)
+    if not p1 or not p2 then
+        return math.huge
+    end
+
+    return math.sqrt(
+        (p1.x - p2.x)^2 +
+        (p1.y - p2.y)^2 +
+        (p1.z - p2.z)^2
+    )
+end
+
+--------------------------------------------------
+-- PARSE ARGUMENTS
+--------------------------------------------------
+
+local function parse_args(arg_str)
+
+    local args = {}
+
+    if not arg_str or arg_str == "" then
+        return args
+    end
+
+    arg_str = arg_str:gsub("^%[", ""):gsub("%]$", "")
+
+    for pair in arg_str:gmatch("([^,]+)") do
+
+        local key, value = pair:match("([^=]+)=([^=]+)")
+
+        if key and value then
+            key = key:gsub("^%s*(.-)%s*$", "%1")
+            value = value:gsub("^%s*(.-)%s*$", "%1")
+
+            args[key] = value
+        end
+
+    end
+
+    return args
+end
+
+--------------------------------------------------
+-- ENTITY TYPE
+--------------------------------------------------
+
 local function get_entity_type(obj)
-	if obj:is_player() then
-		return "player"
-	end
-	local lua_entity = obj:get_luaentity()
-	if not lua_entity then
-		return "unknown"
-	end
-	
-	local name = lua_entity.name
-	if name == "__builtin:item" then
-		return "item"
-	end
-	
-	local groups = lua_entity.groups or {}
-	if groups.monster or name:find("monster") or name:find("zombie") then
-		return "monster"
-	end
-	if groups.passive or groups.animal or name:find("animal") or name:find("sheep") then
-		return "passive"
-	end
-	
-	return name
+
+    if obj:is_player() then
+        return "player"
+    end
+
+    local ent = obj:get_luaentity()
+
+    if ent and ent.name then
+        return ent.name
+    end
+
+    return "unknown"
+
 end
 
--- Main function to resolve @a, @e, etc.
-function selectors.resolve(caller_name, param_str)
-	local selector, args_str = param_str:match("(@[ae])%[(.*)%]")
-	if not selector then
-		selector = param_str:match("(@[ae])")
-		args_str = ""
-	end
-	
-	if not selector then
-		-- Not a selector, return as is (could be a player name)
-		return {param_str}
-	end
-	
-	local caller = minetest.get_player_by_name(caller_name)
-	local caller_pos = caller and caller:get_pos()
-	
-	local targets = {}
-	local candidates = {}
-	
-	if selector == "@a" then
-		for _, p in ipairs(minetest.get_connected_players()) do
-			table.insert(candidates, p)
-		end
-	elseif selector == "@e" then
-		-- For @e, we use a large radius around the caller or origin
-		local pos = caller_pos or {x=0, y=0, z=0}
-		candidates = minetest.get_objects_inside_radius(pos, 500)
-	end
-	
-	-- Parse filters (allow multiple same keys)
-local filters = {}
+--------------------------------------------------
+-- SAFE GET POS
+--------------------------------------------------
 
-for pair in args_str:gmatch("([^,]+)") do
-	local k, v = pair:match("([^=]+)=([^=]+)")
-	if k and v then
-		k = k:trim()
-		v = v:trim()
+local function safe_get_pos(obj)
 
-		if not filters[k] then
-			filters[k] = {}
-		end
+    if obj and obj.get_pos then
+        return obj:get_pos()
+    end
 
-		table.insert(filters[k], v)
-	end
+    return nil
+
 end
-	
-	for _, obj in ipairs(candidates) do
-		local keep = true
-		
-		-- Radius filter
-		local r = tonumber(filters.r or filters.radius)
-		if r and caller_pos then
-			local pos = obj:get_pos()
-			if pos and vector.distance(caller_pos, pos) > r then
-				keep = false
-			end
-		end
-		
-		-- Type filter
-		local types = filters.type
-if types then
-	local obj_type = get_entity_type(obj)
-	local match = false
 
-	for _, t in ipairs(types) do
-		if t == "monster" and obj_type == "monster" then
-			match = true
-		elseif t == "item" and obj_type == "item" then
-			match = true
-		elseif t == "passive" and obj_type == "passive" then
-			match = true
-		elseif obj_type:find(t) then
-			match = true
-		end
-	end
+--------------------------------------------------
+-- TYPE CHECK
+--------------------------------------------------
 
-	if not match then
-		keep = false
-	end
+local function type_matches(obj, wanted)
+
+    if not wanted then
+        return true
+    end
+
+    local etype = get_entity_type(obj)
+
+    if etype == wanted then
+        return true
+    end
+
+    if etype:match(":" .. wanted .. "$") then
+        return true
+    end
+
+    return false
+
 end
-		
-		if keep then
-			table.insert(targets, obj)
-		end
-	end
-	
-	return targets
+
+--------------------------------------------------
+-- FILTER FUNCTION
+--------------------------------------------------
+
+local function filter_objects(objs, caller_pos, args)
+
+    local results = {}
+
+    for _, obj in ipairs(objs) do
+
+        local keep = true
+
+        local pos = safe_get_pos(obj)
+
+        if not pos then
+            keep = false
+        end
+
+        if args.type and keep then
+            if not type_matches(obj, args.type) then
+                keep = false
+            end
+        end
+
+        if args.r and caller_pos and keep then
+            if get_distance(caller_pos, pos) > tonumber(args.r) then
+                keep = false
+            end
+        end
+
+        if keep then
+            table.insert(results, obj)
+        end
+
+    end
+
+    return results
+
+end
+
+--------------------------------------------------
+-- RESOLVE
+--------------------------------------------------
+
+function selectors.resolve(caller_name, selector_str)
+
+    local selector_type = selector_str:match("^(@%w+)")
+    local arg_str = selector_str:match("%[.*%]")
+    local args = parse_args(arg_str)
+
+    local caller = minetest.get_player_by_name(caller_name)
+    local caller_pos = caller and caller:get_pos()
+
+    local candidates = {}
+
+    --------------------------------------------------
+    -- BASE SELECTION
+    --------------------------------------------------
+
+    if selector_type == "@a" then
+
+        candidates = minetest.get_connected_players()
+
+    elseif selector_type == "@s" then
+
+        if caller then
+            table.insert(candidates, caller)
+        end
+
+    elseif selector_type == "@e" then
+
+        if not caller_pos then
+            return {}
+        end
+
+        local radius = tonumber(args.r) or 100
+
+        candidates = minetest.get_objects_inside_radius(caller_pos, radius)
+
+    elseif selector_type == "@p" then
+
+        if not caller_pos then
+            return {}
+        end
+
+        local radius = tonumber(args.r) or 100
+
+        local objs = minetest.get_objects_inside_radius(caller_pos, radius)
+
+        objs = filter_objects(objs, caller_pos, args)
+
+        local nearest
+        local min_dist = math.huge
+
+        for _, obj in ipairs(objs) do
+
+            local pos = safe_get_pos(obj)
+
+            if pos then
+
+                local d = get_distance(caller_pos, pos)
+
+                if d < min_dist then
+                    min_dist = d
+                    nearest = obj
+                end
+
+            end
+
+        end
+
+        if nearest then
+            table.insert(candidates, nearest)
+        end
+
+        return candidates
+
+    elseif selector_type == "@r" then
+
+        if not caller_pos then
+            return {}
+        end
+
+        local radius = tonumber(args.r) or 100
+
+        local objs = minetest.get_objects_inside_radius(caller_pos, radius)
+
+        objs = filter_objects(objs, caller_pos, args)
+
+        if #objs > 0 then
+            table.insert(candidates, objs[math.random(#objs)])
+        end
+
+        return candidates
+
+    else
+
+        local player = minetest.get_player_by_name(selector_str)
+
+        if player then
+            return {player}
+        end
+
+        return {}
+
+    end
+
+    --------------------------------------------------
+    -- FILTER FINAL
+    --------------------------------------------------
+
+    candidates = filter_objects(candidates, caller_pos, args)
+
+    return candidates
+
 end
 
 return selectors
