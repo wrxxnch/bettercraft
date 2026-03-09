@@ -368,34 +368,31 @@ minetest.register_entity("blockframe:gizmo_axis", {
             rot[self.axis] = rot[self.axis] - rotate_step
             parent:set_rotation(rot)
 
-       elseif self.gizmo_type == "scale" then
+        elseif self.gizmo_type == "scale" then
 
-    local ent = parent:get_luaentity()
-    if not ent then return end
+            local props = parent:get_properties()
+            local size = props.visual_size or {
+                x = 1,
+                y = 1
+            }
 
-    ent.args = ent.args or {}
-    ent.args.size = ent.args.size or {x=1,y=1,z=1}
+            if self.axis == "x" then
+                size.x = math.max(0.1, size.x - scale_step)
+            elseif self.axis == "y" then
+                size.y = math.max(0.1, size.y - scale_step)
+            elseif self.axis == "z" then
+                size.x = math.max(0.1, size.x - scale_step)
+                size.y = math.max(0.1, size.y - scale_step)
+            end
 
-    local size = ent.args.size
-
-    if self.axis == "x" then
-        size.x = math.max(0.01, size.x - scale_step)
-
-    elseif self.axis == "y" then
-        size.y = math.max(0.01, size.y - scale_step)
-
-    elseif self.axis == "z" then
-        size.z = math.max(0.01, size.z - scale_step)
-    end
-
-    -- aplicar no visual (engine usa só XY)
-    parent:set_properties({
-        visual_size = {
-            x = size.x,
-            y = size.y
-        }
-    })
-end
+            parent:set_properties({
+                visual_size = size
+            })
+            local ent = parent:get_luaentity()
+            ent.args = ent.args or {}
+            ent.args.scale = size
+        end
+    end,
 
     on_step = function(self)
 
@@ -407,9 +404,7 @@ end
 
         self.object:set_pos(vector.add(parent:get_pos(), self.offset))
     end
-end
 })
-
 
 --------------------------------------------------
 -- CHAT COMMAND

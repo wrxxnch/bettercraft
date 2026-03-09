@@ -582,12 +582,12 @@ minetest.register_entity("blockframe:placed", {
     },
 
     on_activate = function(self, staticdata)
+
         local data = minetest.deserialize(staticdata) or {}
 
         self.node = data.node or "default:stone"
         self.args = data.args or {}
 
-        -- 🔴 GARANTE QUE POSIÇÃO FIQUE DENTRO DE args
         if not self.args.pos then
             self.args.pos = self.object:get_pos()
         end
@@ -595,6 +595,13 @@ minetest.register_entity("blockframe:placed", {
         self.object:set_properties({
             wield_item = self.node
         })
+
+        -- ✅ RESTAURAR SCALE SE EXISTIR
+        if self.args.scale then
+            self.object:set_properties({
+                visual_size = self.args.scale
+            })
+        end
 
         blockframe.update_entity_properties(self)
 
@@ -608,11 +615,16 @@ minetest.register_entity("blockframe:placed", {
     get_staticdata = function(self)
 
         local p = self.object:get_pos()
+
         self.args.pos = {
             x = p.x,
             y = p.y,
             z = p.z
         }
+
+        -- ✅ SALVAR SCALE ATUAL
+        local props = self.object:get_properties()
+        self.args.scale = props.visual_size
 
         return minetest.serialize({
             node = self.node,
@@ -748,6 +760,10 @@ minetest.register_chatcommand("blockframe_load", {
 
         blockframe.clear_active(name)
         local global_args = blockframe.parse_args(args_str)
+        -- tamanho padrão ao carregar
+        if not global_args.size then
+            global_args.size = "0.5"
+        end
         local preview_objs = {}
 
         -- calcular centro vertical do modelo
@@ -792,7 +808,7 @@ minetest.register_chatcommand("blockframe_load", {
             step = tonumber(global_args.step) or 0,
             offset = parse_vec(global_args.pos, {
                 x = 0,
-                y = 0,
+                y = 0.8,
                 z = 0
             })
         }
@@ -877,7 +893,7 @@ function blockframe.save_map(filename, center_pos, radius)
         if ent and ent.name == "blockframe:placed" then
             table.insert(data.entities, {
                 node = ent.node,
-                rel_pos = vector.subtract(obj:get_pos(), center_pos),
+                rel_pos = vector.subtract(obj:get_pos(), vector.round(center_pos)),
                 args = ent.args
             })
         end
@@ -928,7 +944,7 @@ minetest.register_chatcommand("blockframe_undo_apply", {
 
                 luaent.args = table.copy(data.args)
 
-                blockframe.update_entity_properties(luaent)
+                blockframe.update_entity_properties(self)
 
                 restored = restored + 1
             end
