@@ -1,5 +1,5 @@
 --------------------------------------------------
--- INIT.LUA COMPLETO - BLOCKFRAME (UPDATED V6)
+-- INIT.LUA COMPLETO - BLOCKFRAME (UPDATED V9)
 --------------------------------------------------
 
 blockframe = {}
@@ -85,6 +85,7 @@ function blockframe.parse_args(param)
 		if k then 
 			if v == "true" then v = true 
 			elseif v == "false" then v = false 
+			elseif tonumber(v) then v = tonumber(v)
 			end
 			args[k] = v 
 		end
@@ -152,14 +153,22 @@ local function update_entity_properties(self)
 	
 	local props = {visual_size = v}
 	
+	-- 🛠️ AJUSTE DINÂMICO DO COLLISIONBOX
+	-- O visual_size do wielditem é relativo ao tamanho original (0.5 costuma ser o padrão visual)
+	-- Para nodes, o tamanho padrão é 1x1x1. Se o visual_size for {x=0.5, y=0.5, z=0.5}, o bloco tem 0.5 nodes de tamanho.
 	if self.args.collision then
 		props.physical = true
 		local sx, sy, sz = math.abs(v.x), math.abs(v.y), math.abs(v.z)
-		props.collisionbox = {-sx, -sy, -sz, sx, sy, sz}
+		-- A caixa de colisão vai de -metade até +metade do tamanho visual
+		props.collisionbox = {-sx/2, -sy/2, -sz/2, sx/2, sy/2, sz/2}
 		props.pointable = true
 	else
 		props.physical = false
 		props.collisionbox = {0,0,0,0,0,0}
+		-- Mesmo sem colisão física, o objeto deve ser clicável se for "placed"
+		if self.name == "blockframe:placed" then
+			props.pointable = true
+		end
 	end
 	
 	if self.args.glow then
@@ -186,6 +195,44 @@ local function update_entity_properties(self)
 	end
 end
 
+-- Shared function to apply arguments to any blockframe entity
+local function shared_apply_args(self, args, global_args)
+	local final_args = table.copy(self.args or {})
+	local new_args = table.copy(args or {})
+
+	-- 🔴 CONVERSÕES IMPORTANTES
+	if new_args.size then
+		new_args.size = parse_vec(new_args.size, {x=0.5,y=0.5,z=0.5})
+	end
+	if new_args.rotate then
+		new_args.rotate = parse_vec(new_args.rotate, {x=0,y=0,z=0})
+	end
+
+	-- Merge new_args into final_args
+	for k, v in pairs(new_args) do
+		final_args[k] = v
+	end
+		
+	-- Merge with global_args (from /blockframe_load)
+	if global_args then
+		if global_args.size then 
+			local scale = parse_vec(global_args.size, {x=1,y=1,z=1})
+			final_args.size = apply_transform(final_args.size or {x=0.5,y=0.5,z=0.5}, scale, false)
+		end
+		if global_args.rotate then
+			local rot_offset = parse_vec(global_args.rotate, {x=0,y=0,z=0})
+			final_args.rotate = apply_transform(final_args.rotate or {x=0,y=0,z=0}, rot_offset, true)
+		end
+		if global_args.mirror then final_args.mirror = global_args.mirror end
+		if global_args.collision ~= nil then final_args.collision = global_args.collision end
+		if global_args.glow then final_args.glow = global_args.glow end
+		if global_args.step then final_args.step = global_args.step end
+	end
+
+	self.args = final_args
+	update_entity_properties(self)
+end
+
 --------------------------------------------------
 -- ENTIDADES
 --------------------------------------------------
@@ -198,40 +245,11 @@ minetest.register_entity("blockframe:preview", {
 		local data = minetest.deserialize(staticdata) or {}
 		self.node = data.node or "default:stone"
 		self.args = {}
-		self.step = 0
 		self.player_name = data.player_name
 		self.rel_pos = data.rel_pos or {x=0,y=0,z=0}
-		self.offset = {x=0,y=0,z=0}
 		self.object:set_properties({wield_item=self.node, opacity=120})
 	end,
-	apply_args = function(self, args, global_args)
-		local final_args = table.copy(args or {})
-
-		if final_args.size then
-			final_args.size = parse_vec(final_args.size, {x=0.5,y=0.5,z=0.5})
-		end
-
-		if final_args.rotate then
-			final_args.rotate = parse_vec(final_args.rotate, {x=0,y=0,z=0})
-		end
-			
-		if global_args then
-			if global_args.size then 
-				local scale = parse_vec(global_args.size, {x=1,y=1,z=1})
-				final_args.size = apply_transform(final_args.size or {x=0.5,y=0.5,z=0.5}, scale, false)
-			end
-			if global_args.rotate then
-				local rot_offset = parse_vec(global_args.rotate, {x=0,y=0,z=0})
-				final_args.rotate = apply_transform(final_args.rotate or {x=0,y=0,z=0}, rot_offset, true)
-			end
-			if global_args.mirror then final_args.mirror = global_args.mirror end
-			if global_args.collision ~= nil then final_args.collision = global_args.collision end
-			if global_args.glow then final_args.glow = global_args.glow end
-		end
-
-		self.args = final_args
-		update_entity_properties(self)
-	end,
+	apply_args = shared_apply_args,
 	on_step = function(self)
 		local player = minetest.get_player_by_name(self.player_name)
 		if not player then return end
@@ -256,7 +274,15 @@ minetest.register_entity("blockframe:placed", {
 			if p then self.object:set_pos(p) end
 		end
 	end,
+	apply_args = shared_apply_args,
 	get_staticdata=function(self)
+		-- Sincronizar propriedades visuais antes de salvar
+		local props = self.object:get_properties()
+		local rot = self.object:get_rotation()
+		self.args.size = props.visual_size
+		self.args.rotate = {x=math.deg(rot.x), y=math.deg(rot.y), z=math.deg(rot.z)}
+		self.args.pos = self.object:get_pos()
+		self.args.glow = props.glow
 		return minetest.serialize({node=self.node, args=self.args})
 	end
 })
@@ -357,7 +383,7 @@ minetest.register_chatcommand("blockframe_load", {
 		local global_args = blockframe.parse_args(args_str)
 		local preview_objs = {}
 		
-		-- CALCULAR CENTRO (Bounding Box) PARA CENTRALIZAÇÃO
+		-- CALCULAR CENTRO PARA CENTRALIZAÇÃO
 		local min_p, max_p = {x=0,y=0,z=0}, {x=0,y=0,z=0}
 		if #data.entities > 0 then
 			min_p = table.copy(data.entities[1].rel_pos)
@@ -377,7 +403,6 @@ minetest.register_chatcommand("blockframe_load", {
 
 		local player = minetest.get_player_by_name(name)
 		for _, e in ipairs(data.entities) do
-			-- Subtrai o center_offset para que o conjunto fique centralizado no cursor
 			local adjusted_rel = vector.subtract(e.rel_pos, center_offset)
 			local obj = minetest.add_entity(player:get_pos(), "blockframe:preview", 
 				minetest.serialize({node=e.node, player_name=name, rel_pos=adjusted_rel}))
@@ -391,7 +416,7 @@ minetest.register_chatcommand("blockframe_load", {
 		blockframe.active[name] = {
 			type = "composite",
 			entities = preview_objs,
-			step = tonumber(global_args.step) or 0,
+			step = tonumber(global_args.step) or tonumber(data.entities[1] and data.entities[1].args.step) or 0,
 			offset = parse_vec(global_args.pos, {x=0,y=0,z=0})
 		}
 		
@@ -429,6 +454,7 @@ function blockframe.save_map(filename, center_pos, radius)
 	for _, obj in ipairs(objs) do
 		local ent = obj:get_luaentity()
 		if ent and ent.name == "blockframe:placed" then
+			-- Capturar estado atual completo
 			local props = obj:get_properties()
 			local rot = obj:get_rotation()
 			ent.args.size = props.visual_size
@@ -524,8 +550,10 @@ minetest.register_chatcommand("blockframe_apply", {
 		for _, obj in ipairs(objs) do
 			local ent = obj:get_luaentity()
 			if ent and ent.name == "blockframe:placed" then
-				ent:apply_args(args)
-				count = count + 1
+				if ent.apply_args then
+					ent:apply_args(args)
+					count = count + 1
+				end
 			end
 		end
 		return true, "Aplicado a " .. count .. " blocos."
