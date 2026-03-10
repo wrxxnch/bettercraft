@@ -1,5 +1,5 @@
 --------------------------------------------------
--- INIT.LUA COMPLETO - BLOCKFRAME (UPDATED V4)
+-- INIT.LUA COMPLETO - BLOCKFRAME (UPDATED V6)
 --------------------------------------------------
 
 blockframe = {}
@@ -257,8 +257,6 @@ minetest.register_entity("blockframe:placed", {
 		end
 	end,
 	get_staticdata=function(self)
-		-- Sincronizar args antes de salvar se estiverem desatualizados (ex: por gizmos)
-		-- O gizmo já atualiza self.args, então basta serializar
 		return minetest.serialize({node=self.node, args=self.args})
 	end
 })
@@ -359,10 +357,30 @@ minetest.register_chatcommand("blockframe_load", {
 		local global_args = blockframe.parse_args(args_str)
 		local preview_objs = {}
 		
+		-- CALCULAR CENTRO (Bounding Box) PARA CENTRALIZAÇÃO
+		local min_p, max_p = {x=0,y=0,z=0}, {x=0,y=0,z=0}
+		if #data.entities > 0 then
+			min_p = table.copy(data.entities[1].rel_pos)
+			max_p = table.copy(data.entities[1].rel_pos)
+			for i=2, #data.entities do
+				local p = data.entities[i].rel_pos
+				min_p.x, max_p.x = math.min(min_p.x, p.x), math.max(max_p.x, p.x)
+				min_p.y, max_p.y = math.min(min_p.y, p.y), math.max(max_p.y, p.y)
+				min_p.z, max_p.z = math.min(min_p.z, p.z), math.max(max_p.z, p.z)
+			end
+		end
+		local center_offset = {
+			x = (min_p.x + max_p.x) / 2,
+			y = (min_p.y + max_p.y) / 2,
+			z = (min_p.z + max_p.z) / 2
+		}
+
 		local player = minetest.get_player_by_name(name)
 		for _, e in ipairs(data.entities) do
+			-- Subtrai o center_offset para que o conjunto fique centralizado no cursor
+			local adjusted_rel = vector.subtract(e.rel_pos, center_offset)
 			local obj = minetest.add_entity(player:get_pos(), "blockframe:preview", 
-				minetest.serialize({node=e.node, player_name=name, rel_pos=e.rel_pos}))
+				minetest.serialize({node=e.node, player_name=name, rel_pos=adjusted_rel}))
 			if obj then
 				local ent = obj:get_luaentity()
 				ent:apply_args(e.args, global_args)
@@ -377,7 +395,7 @@ minetest.register_chatcommand("blockframe_load", {
 			offset = parse_vec(global_args.pos, {x=0,y=0,z=0})
 		}
 		
-		return true, "Preview carregado. Use /blockframe_set para confirmar."
+		return true, "Preview carregado (centralizado). Use /blockframe_set para confirmar."
 	end
 })
 
@@ -411,7 +429,6 @@ function blockframe.save_map(filename, center_pos, radius)
 	for _, obj in ipairs(objs) do
 		local ent = obj:get_luaentity()
 		if ent and ent.name == "blockframe:placed" then
-			-- Sincronizar argumentos visuais atuais para os args salvos
 			local props = obj:get_properties()
 			local rot = obj:get_rotation()
 			ent.args.size = props.visual_size
@@ -520,5 +537,4 @@ minetest.register_chatcommand("blockframe_help", { func = function() return true
 minetest.register_on_leaveplayer(function(player) 
 	local name = player:get_player_name()
 	blockframe.clear_active(name)
-	-- Gizmos são removidos automaticamente se forem entities e static_save=false (o que são por padrão)
 end)

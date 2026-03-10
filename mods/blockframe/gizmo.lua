@@ -1,12 +1,15 @@
 --------------------------------------------------
--- BLOCKFRAME GIZMO SYSTEM (FIXED V4)
+-- BLOCKFRAME GIZMO SYSTEM (FIXED V5)
 --------------------------------------------------
 blockframe.gizmo_entities = {}
 blockframe.active_parent = nil
 
-local MOVE_STEP = 0.1
-local ROTATE_STEP = math.rad(15)
-local SCALE_STEP = 0.1
+-- Valores padrão (podem ser sobrescritos pelo step no comando)
+blockframe.gizmo_step = {
+    move = 0.1,
+    rotate = math.rad(15),
+    scale = 0.1
+}
 
 --------------------------------------------------
 -- SAFE GET PARENT
@@ -149,24 +152,27 @@ minetest.register_entity("blockframe:gizmo_axis", {
         if not ent then return end
 
         if self.gizmo_type == "move" then
+            local step = blockframe.gizmo_step.move
             local pos = parent:get_pos()
-            pos[self.axis] = pos[self.axis] + MOVE_STEP
+            pos[self.axis] = pos[self.axis] + step
             parent:set_pos(pos)
             ent.args.pos = pos
         elseif self.gizmo_type == "rotate" then
+            local step = blockframe.gizmo_step.rotate
             local rot = parent:get_rotation() or {x = 0, y = 0, z = 0}
-            rot[self.axis] = rot[self.axis] + ROTATE_STEP
+            rot[self.axis] = rot[self.axis] + step
             parent:set_rotation(rot)
             ent.args.rotate = {x = math.deg(rot.x), y = math.deg(rot.y), z = math.deg(rot.z)}
         elseif self.gizmo_type == "scale" then
+            local step = blockframe.gizmo_step.scale
             local props = parent:get_properties()
             local size = table.copy(props.visual_size or {x = 0.5, y = 0.5, z = 0.5})
             if self.axis == "z" then
-                size.x = size.x + SCALE_STEP
-                size.y = size.y + SCALE_STEP
-                size.z = size.z + SCALE_STEP
+                size.x = size.x + step
+                size.y = size.y + step
+                size.z = size.z + step
             else
-                size[self.axis] = size[self.axis] + SCALE_STEP
+                size[self.axis] = size[self.axis] + step
             end
             parent:set_properties({visual_size = size})
             ent.args.size = size
@@ -180,24 +186,27 @@ minetest.register_entity("blockframe:gizmo_axis", {
         if not ent then return end
 
         if self.gizmo_type == "move" then
+            local step = blockframe.gizmo_step.move
             local pos = parent:get_pos()
-            pos[self.axis] = pos[self.axis] - MOVE_STEP
+            pos[self.axis] = pos[self.axis] - step
             parent:set_pos(pos)
             ent.args.pos = pos
         elseif self.gizmo_type == "rotate" then
+            local step = blockframe.gizmo_step.rotate
             local rot = parent:get_rotation() or {x = 0, y = 0, z = 0}
-            rot[self.axis] = rot[self.axis] - ROTATE_STEP
+            rot[self.axis] = rot[self.axis] - step
             parent:set_rotation(rot)
             ent.args.rotate = {x = math.deg(rot.x), y = math.deg(rot.y), z = math.deg(rot.z)}
         elseif self.gizmo_type == "scale" then
+            local step = blockframe.gizmo_step.scale
             local props = parent:get_properties()
             local size = table.copy(props.visual_size or {x = 0.5, y = 0.5, z = 0.5})
             if self.axis == "z" then
-                size.x = math.max(0.1, size.x - SCALE_STEP)
-                size.y = math.max(0.1, size.y - SCALE_STEP)
-                size.z = math.max(0.1, size.z - SCALE_STEP)
+                size.x = math.max(0.1, size.x - step)
+                size.y = math.max(0.1, size.y - step)
+                size.z = math.max(0.1, size.z - step)
             else
-                size[self.axis] = math.max(0.1, size[self.axis] - SCALE_STEP)
+                size[self.axis] = math.max(0.1, size[self.axis] - step)
             end
             parent:set_properties({visual_size = size})
             ent.args.size = size
@@ -216,14 +225,34 @@ minetest.register_entity("blockframe:gizmo_axis", {
 })
 
 --------------------------------------------------
--- CHAT COMMAND (TOGGLE)
+-- CHAT COMMAND (TOGGLE & STEP)
 --------------------------------------------------
 minetest.register_chatcommand("blockframe_gizmos", {
-    description = "Toggle ALL gizmos (remove or show centers)",
-    func = function(name)
+    description = "Toggle ALL gizmos or change step (ex: /blockframe_gizmos step=0.5)",
+    params = "[step=N]",
+    func = function(name, param)
         local player = minetest.get_player_by_name(name)
         if not player then return false end
 
+        local args = blockframe.parse_args(param)
+        local new_step = tonumber(args.step)
+
+        -- Se o usuário forneceu um step, atualiza os valores globais dos gizmos
+        if new_step then
+            blockframe.gizmo_step.move = new_step
+            blockframe.gizmo_step.scale = new_step
+            -- Para rotação, converte graus para radianos (assumindo que o usuário digita em graus para facilitar)
+            -- Ou se for um valor muito pequeno, pode ser radianos, mas 15 graus é o padrão.
+            -- Vamos tratar como graus se for > 1, ou manter como valor direto se for pequeno.
+            if new_step >= 1 then
+                blockframe.gizmo_step.rotate = math.rad(new_step)
+            else
+                blockframe.gizmo_step.rotate = new_step -- assume radianos se for decimal pequeno
+            end
+            return true, "Step dos gizmos atualizado para: " .. new_step
+        end
+
+        -- Lógica normal de Toggle
         local any_active = false
         for parent, _ in pairs(blockframe.gizmo_entities) do
             any_active = true
