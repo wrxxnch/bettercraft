@@ -1,5 +1,5 @@
 --------------------------------------------------
--- INIT.LUA COMPLETO - BLOCKFRAME (UPDATED V3)
+-- INIT.LUA COMPLETO - BLOCKFRAME (UPDATED V4)
 --------------------------------------------------
 
 blockframe = {}
@@ -13,7 +13,7 @@ dofile(minetest.get_modpath("blockframe") .. "/gizmo.lua")
 
 --------------------------------------------------
 -- HELP
---------------------------------------------------
+-------------------------------------------------- 
 function blockframe.help_text()
     return [[
 📦 BlockFrame — Ajuda (Português)
@@ -72,69 +72,8 @@ Exemplo:
 /blockframe_apply radius=5 glow=10
 /blockframe_load minha_casa size=2 rotate=0,90,0
 
-
-==================================================
-
-
-📦 BlockFrame — Help (English)
-
-━━━━━━━━━━━━━━━━━━━━
-📌 COMMANDS
-━━━━━━━━━━━━━━━━━━━━
-
-/blockframe <args>
-/blockframe_set
-/blockframe_cancel
-/blockframe_undo
-
-/blockframe_del radius=N
-/blockframe_del_undo
-
-/blockframe_apply radius=N <args>
-/blockframe_undo_apply
-
-/blockframe_save <name> radius=N
-/blockframe_load <name> <args>
-
-/blockframe_help
-
-━━━━━━━━━━━━━━━━━━━━
-⚙ ARGS (Preview / Load / Apply)
-━━━━━━━━━━━━━━━━━━━━
-
-size=x,y,z        scale/size (example: 1,1,1 or 0.5)
-rotate=x,y,z      XYZ rotation in degrees
-mirror=x|y|z      mirror on axis
-pos=x,y,z         absolute or offset position
-step=value        crosshair snap (example: 0.5)
-collision=true    enable collision
-glow=N            light level (0–14)
-node=true/false   true = node form, false = item form
-
-━━━━━━━━━━━━━━━━━━━━
-🧠 APPLY (Area Edit)
-━━━━━━━━━━━━━━━━━━━━
-
-radius=N          radius around the player
-
-Example:
- /blockframe_apply radius=10 size=2
- → modifies nearby blockframes
-
- /blockframe_undo_apply
- → reverts the last apply
-
-━━━━━━━━━━━━━━━━━━━━
-💡 EXAMPLES
-━━━━━━━━━━━━━━━━━━━━
-
-/blockframe size=0.5 rotate=0,45,0
-/blockframe_apply radius=5 glow=10
-/blockframe_load my_build size=2 rotate=0,90,0
-
 ]]
 end
-
 
 --------------------------------------------------
 -- PARSER
@@ -223,26 +162,28 @@ local function update_entity_properties(self)
 		props.collisionbox = {0,0,0,0,0,0}
 	end
 	
+	if self.args.glow then
+		props.glow = tonumber(self.args.glow) or 0
+	end
+
 	self.object:set_properties(props)
 	
 	if self.args.rotate then
-	local rot = self.args.rotate
+		local rot = self.args.rotate
+		if type(rot) == "number" then
+			rot = {x = 0, y = rot, z = 0}
+		elseif type(rot) == "string" then
+			rot = parse_vec(rot, {x=0,y=0,z=0})
+		elseif type(rot) ~= "table" then
+			rot = {x=0,y=0,z=0}
+		end
 
-	if type(rot) == "number" then
-		rot = {x = 0, y = rot, z = 0}
-	elseif type(rot) == "string" then
-		rot = parse_vec(rot, {x=0,y=0,z=0})
-	elseif type(rot) ~= "table" then
-		rot = {x=0,y=0,z=0}
+		self.object:set_rotation({
+			x = math.rad(rot.x or 0),
+			y = math.rad(rot.y or 0),
+			z = math.rad(rot.z or 0)
+		})
 	end
-
-	self.object:set_rotation({
-		x = math.rad(rot.x or 0),
-		y = math.rad(rot.y or 0),
-		z = math.rad(rot.z or 0)
-	})
-end
-
 end
 
 --------------------------------------------------
@@ -259,24 +200,21 @@ minetest.register_entity("blockframe:preview", {
 		self.args = {}
 		self.step = 0
 		self.player_name = data.player_name
-		self.rel_pos = data.rel_pos or {x=0,y=0,z=0} -- para composite
+		self.rel_pos = data.rel_pos or {x=0,y=0,z=0}
 		self.offset = {x=0,y=0,z=0}
 		self.object:set_properties({wield_item=self.node, opacity=120})
 	end,
-apply_args = function(self, args, global_args)
-	local final_args = table.copy(args or {})
+	apply_args = function(self, args, global_args)
+		local final_args = table.copy(args or {})
 
-	-- 🔴 CONVERSÕES IMPORTANTES
-	if final_args.size then
-		final_args.size = parse_vec(final_args.size, {x=0.5,y=0.5,z=0.5})
-	end
+		if final_args.size then
+			final_args.size = parse_vec(final_args.size, {x=0.5,y=0.5,z=0.5})
+		end
 
-	if final_args.rotate then
-		final_args.rotate = parse_vec(final_args.rotate, {x=0,y=0,z=0})
-	end
-
-		
-		-- Merge com argumentos globais (do comando /blockframe_load)
+		if final_args.rotate then
+			final_args.rotate = parse_vec(final_args.rotate, {x=0,y=0,z=0})
+		end
+			
 		if global_args then
 			if global_args.size then 
 				local scale = parse_vec(global_args.size, {x=1,y=1,z=1})
@@ -288,6 +226,7 @@ apply_args = function(self, args, global_args)
 			end
 			if global_args.mirror then final_args.mirror = global_args.mirror end
 			if global_args.collision ~= nil then final_args.collision = global_args.collision end
+			if global_args.glow then final_args.glow = global_args.glow end
 		end
 
 		self.args = final_args
@@ -296,12 +235,8 @@ apply_args = function(self, args, global_args)
 	on_step = function(self)
 		local player = minetest.get_player_by_name(self.player_name)
 		if not player then return end
-		
 		local active = blockframe.active[self.player_name]
 		if not active then return end
-
-		-- Apenas a entidade "mestre" ou controlada pelo step calcula a posição
-		-- Se for composite, o controlador central cuida da posição de todos
 	end
 })
 
@@ -316,17 +251,21 @@ minetest.register_entity("blockframe:placed", {
 		self.args = data.args or {}
 		self.object:set_properties({wield_item=self.node})
 		update_entity_properties(self)
-		if self.args.pos then self.object:set_pos(self.args.pos) end
+		if self.args.pos then 
+			local p = parse_vec(self.args.pos)
+			if p then self.object:set_pos(p) end
+		end
 	end,
 	get_staticdata=function(self)
-		return minetest.serialize({node=self.node,args=self.args})
+		-- Sincronizar args antes de salvar se estiverem desatualizados (ex: por gizmos)
+		-- O gizmo já atualiza self.args, então basta serializar
+		return minetest.serialize({node=self.node, args=self.args})
 	end
 })
 
 --------------------------------------------------
 -- CENTRAL PREVIEW LOGIC
 --------------------------------------------------
--- Gerencia o movimento de todos os previews ativos de um jogador
 minetest.register_globalstep(function(dtime)
 	for name, data in pairs(blockframe.active) do
 		local player = minetest.get_player_by_name(name)
@@ -366,7 +305,7 @@ end)
 function blockframe.clear_active(name)
 	if blockframe.active[name] then
 		for _, obj in ipairs(blockframe.active[name].entities) do
-			obj:remove()
+			if obj:get_luaentity() then obj:remove() end
 		end
 		blockframe.active[name] = nil
 	end
@@ -420,8 +359,9 @@ minetest.register_chatcommand("blockframe_load", {
 		local global_args = blockframe.parse_args(args_str)
 		local preview_objs = {}
 		
+		local player = minetest.get_player_by_name(name)
 		for _, e in ipairs(data.entities) do
-			local obj = minetest.add_entity(minetest.get_player_by_name(name):get_pos(), "blockframe:preview", 
+			local obj = minetest.add_entity(player:get_pos(), "blockframe:preview", 
 				minetest.serialize({node=e.node, player_name=name, rel_pos=e.rel_pos}))
 			if obj then
 				local ent = obj:get_luaentity()
@@ -455,7 +395,6 @@ minetest.register_chatcommand("blockframe_set",{
 				final_args.pos = pos
 				minetest.add_entity(pos, "blockframe:placed", minetest.serialize({node=ent.node, args=final_args}))
 				
-				-- Salvar no memory (apenas o último para single, ou info geral para composite)
 				blockframe.memory[name] = {node=ent.node, args=final_args, pos=pos}
 				count = count + 1
 			end
@@ -465,6 +404,32 @@ minetest.register_chatcommand("blockframe_set",{
 		return true, "Confirmado: " .. count .. " bloco(s) colocado(s)."
 	end
 })
+
+function blockframe.save_map(filename, center_pos, radius)
+	local objs = minetest.get_objects_inside_radius(center_pos, radius)
+	local data = { version = 1, entities = {} }
+	for _, obj in ipairs(objs) do
+		local ent = obj:get_luaentity()
+		if ent and ent.name == "blockframe:placed" then
+			-- Sincronizar argumentos visuais atuais para os args salvos
+			local props = obj:get_properties()
+			local rot = obj:get_rotation()
+			ent.args.size = props.visual_size
+			ent.args.rotate = {x=math.deg(rot.x), y=math.deg(rot.y), z=math.deg(rot.z)}
+			ent.args.pos = obj:get_pos()
+			ent.args.glow = props.glow
+
+			table.insert(data.entities, {
+				node = ent.node,
+				rel_pos = vector.subtract(obj:get_pos(), center_pos),
+				args = table.copy(ent.args)
+			})
+		end
+	end
+	local file = io.open(blockframe.world_path .. "/" .. filename .. ".bf", "w")
+	if file then file:write(minetest.serialize(data)); file:close(); return true, #data.entities end
+	return false, "Erro ao salvar."
+end
 
 minetest.register_chatcommand("blockframe_save", {
 	params = "<nome> [radius=N]",
@@ -487,27 +452,6 @@ minetest.register_chatcommand("blockframe_cancel",{
 	end
 })
 
--- (Manter comandos blockframe_undo, blockframe_del, blockframe_del_undo e blockframe_help iguais, mas atualizados com as novas tabelas se necessário)
--- Re-implementando blockframe_save para compatibilidade
-function blockframe.save_map(filename, center_pos, radius)
-	local objs = minetest.get_objects_inside_radius(center_pos, radius)
-	local data = { version = 1, entities = {} }
-	for _, obj in ipairs(objs) do
-		local ent = obj:get_luaentity()
-		if ent and ent.name == "blockframe:placed" then
-			table.insert(data.entities, {
-				node = ent.node,
-				rel_pos = vector.subtract(obj:get_pos(), center_pos),
-				args = ent.args
-			})
-		end
-	end
-	local file = io.open(blockframe.world_path .. "/" .. filename .. ".bf", "w")
-	if file then file:write(minetest.serialize(data)); file:close(); return true, #data.entities end
-	return false, "Erro ao salvar."
-end
-
--- Re-adicionando comandos de deleção e undo para garantir o arquivo completo
 minetest.register_chatcommand("blockframe_undo",{
 	func=function(name)
 		local mem = blockframe.memory[name]
@@ -553,6 +497,28 @@ minetest.register_chatcommand("blockframe_del_undo", {
 	end
 })
 
+minetest.register_chatcommand("blockframe_apply", {
+	func = function(name, param)
+		local player = minetest.get_player_by_name(name)
+		local args = blockframe.parse_args(param)
+		local radius = tonumber(args.radius) or 5
+		local objs = minetest.get_objects_inside_radius(player:get_pos(), radius)
+		local count = 0
+		for _, obj in ipairs(objs) do
+			local ent = obj:get_luaentity()
+			if ent and ent.name == "blockframe:placed" then
+				ent:apply_args(args)
+				count = count + 1
+			end
+		end
+		return true, "Aplicado a " .. count .. " blocos."
+	end
+})
+
 minetest.register_chatcommand("blockframe_help", { func = function() return true, blockframe.help_text() end })
 
-minetest.register_on_leaveplayer(function(player) blockframe.clear_active(player:get_player_name()) end)
+minetest.register_on_leaveplayer(function(player) 
+	local name = player:get_player_name()
+	blockframe.clear_active(name)
+	-- Gizmos são removidos automaticamente se forem entities e static_save=false (o que são por padrão)
+end)
