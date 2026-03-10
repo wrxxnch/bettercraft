@@ -1,5 +1,5 @@
 --------------------------------------------------
--- INIT.LUA COMPLETO - BLOCKFRAME (UPDATED V9)
+-- INIT.LUA COMPLETO - BLOCKFRAME (UPDATED V11)
 --------------------------------------------------
 
 blockframe = {}
@@ -118,6 +118,10 @@ local function snap(v, step)
 	}
 end
 
+local function safe(v)
+    return math.max(0.001, math.abs(v or 0))
+end
+
 local function get_wielded_item(player)
 	local stack = player:get_wielded_item()
 	if stack:is_empty() then return end
@@ -144,31 +148,59 @@ local function apply_transform(base_val, transform_val, is_rotation)
 end
 
 local function update_entity_properties(self)
-	local base = self.args.size or {x=0.5,y=0.5,z=0.5}
-	local v = table.copy(base)
+	local base_size = self.args.size or {x=0.5, y=0.5, z=0.5}
+	local visual_v = table.copy(base_size)
 	
-	if self.args.mirror=="x" then v.x=-v.x end
-	if self.args.mirror=="y" then v.y=-v.y end
-	if self.args.mirror=="z" then v.z=-v.z end
+	if self.args.mirror=="x" then visual_v.x=-visual_v.x end
+	if self.args.mirror=="y" then visual_v.y=-visual_v.y end
+	if self.args.mirror=="z" then visual_v.z=-visual_v.z end
 	
-	local props = {visual_size = v}
+	local props = {
+		visual_size = visual_v,
+		physical = false,
+		pointable = true,
+		collisionbox = {0,0,0,0,0,0}
+	}
 	
-	-- 🛠️ AJUSTE DINÂMICO DO COLLISIONBOX
-	-- O visual_size do wielditem é relativo ao tamanho original (0.5 costuma ser o padrão visual)
-	-- Para nodes, o tamanho padrão é 1x1x1. Se o visual_size for {x=0.5, y=0.5, z=0.5}, o bloco tem 0.5 nodes de tamanho.
+	-- 🛠️ LÓGICA DE COLISÃO AVANÇADA (DA PASTE_2)
 	if self.args.collision then
 		props.physical = true
-		local sx, sy, sz = math.abs(v.x), math.abs(v.y), math.abs(v.z)
-		-- A caixa de colisão vai de -metade até +metade do tamanho visual
-		props.collisionbox = {-sx/2, -sy/2, -sz/2, sx/2, sy/2, sz/2}
-		props.pointable = true
-	else
-		props.physical = false
-		props.collisionbox = {0,0,0,0,0,0}
-		-- Mesmo sem colisão física, o objeto deve ser clicável se for "placed"
-		if self.name == "blockframe:placed" then
-			props.pointable = true
+		
+		local rot_deg = parse_vec(self.args.rotate, {x=0, y=0, z=0})
+		local initial_size = {
+			x = math.abs(base_size.x),
+			y = math.abs(base_size.y),
+			z = math.abs(base_size.z)
+		}
+
+		-- Se collision for um vetor (ex: collision=1,2,1), usa ele como base
+		if type(self.args.collision) == "string" then
+			local parsed_coll = parse_vec(self.args.collision)
+			if parsed_coll then
+				initial_size.x = math.abs(parsed_coll.x)
+				initial_size.y = math.abs(parsed_coll.y)
+				initial_size.z = math.abs(parsed_coll.z)
+			end
 		end
+
+		-- Matriz de rotação para calcular o bounding box alinhado ao mundo (AABB)
+		local cx, sx = math.cos(math.rad(rot_deg.x)), math.sin(math.rad(rot_deg.x))
+		local cy, sy = math.cos(math.rad(rot_deg.y)), math.sin(math.rad(rot_deg.y))
+		local cz, sz = math.cos(math.rad(rot_deg.z)), math.sin(math.rad(rot_deg.z))
+
+		local m = {
+			{cy * cz, cz * sx * sy - cx * sz, cx * cz * sy + sx * sz},
+			{cy * sz, sx * sy * sz + cx * cz, cx * sy * sz - cz * sx},
+			{-sy, cy * sx, cx * cy}
+		}
+
+		local final_size = {
+			x = safe(math.abs(m[1][1]) * initial_size.x + math.abs(m[1][2]) * initial_size.y + math.abs(m[1][3]) * initial_size.z),
+			y = safe(math.abs(m[2][1]) * initial_size.x + math.abs(m[2][2]) * initial_size.y + math.abs(m[2][3]) * initial_size.z),
+			z = safe(math.abs(m[3][1]) * initial_size.x + math.abs(m[3][2]) * initial_size.y + math.abs(m[3][3]) * initial_size.z)
+		}
+
+		props.collisionbox = {-final_size.x/2, -final_size.y/2, -final_size.z/2, final_size.x/2, final_size.y/2, final_size.z/2}
 	end
 	
 	if self.args.glow then
