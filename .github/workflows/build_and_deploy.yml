@@ -1,0 +1,83 @@
+name: Build and Deploy Luanti (bettercraft) to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main  # Altere para a sua branch principal (ex: master) se necessário
+  workflow_dispatch: # Permite executar o workflow manualmente na aba Actions
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build Minetest WASM with Bettercraft
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout seu repositório (Bettercraft)
+        uses: actions/checkout@v4
+        with:
+          path: my-repo
+
+      - name: Checkout minetest-wasm
+        uses: actions/checkout@v4
+        with:
+          repository: paradust7/minetest-wasm
+          path: minetest-wasm
+
+      - name: Inject Bettercraft into build
+        run: |
+          cd minetest-wasm
+          
+          # Cria uma pasta temporária para os jogos customizados
+          mkdir -p custom_games
+          
+          # Copia o seu jogo bettercraft para a pasta custom_games
+          # NOTA: Verifique se o caminho ../my-repo/games/bettercraft está correto para o seu repositório
+          cp -r ../my-repo/games/bettercraft custom_games/
+          
+          # Modifica o Dockerfile do minetest-wasm para injetar o nosso jogo antes da compilação
+          # 1. Copia o bettercraft para a pasta sources dentro do container
+          # 2. Modifica o script build_fsroot.sh para empacotar o 'bettercraft' em vez do 'minetest_game' padrão
+          sed -i '/RUN .\/build_all.sh/i COPY custom_games\/bettercraft \/minetest-wasm\/sources\/bettercraft\nRUN sed -i "s/minetest_game/bettercraft/g" build_fsroot.sh' Dockerfile
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker Image
+        run: |
+          cd minetest-wasm
+          # O processo de build completo acontece dentro do Docker
+          docker build . -t mtweb
+
+      - name: Extract Build Files
+        run: |
+          # Cria um container temporário para extrair os arquivos compilados (pasta www)
+          docker create --name mtweb_container mtweb
+          docker cp mtweb_container:/minetest-wasm/www ./www
+          docker rm mtweb_container
+          
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './www'
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
