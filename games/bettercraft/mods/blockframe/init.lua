@@ -148,83 +148,79 @@ local function apply_transform(base_val, transform_val, is_rotation)
 end
 
 local function update_entity_properties(self)
-	local base_size = self.args.size or {x=0.5, y=0.5, z=0.5}
-	local visual_v = table.copy(base_size)
-	
-	if self.args.mirror=="x" then visual_v.x=-visual_v.x end
-	if self.args.mirror=="y" then visual_v.y=-visual_v.y end
-	if self.args.mirror=="z" then visual_v.z=-visual_v.z end
-	
-	local props = {
-		visual_size = visual_v,
-		physical = false,
-		pointable = true,
-		collisionbox = {0,0,0,0,0,0}
-	}
-	
-	-- 🛠️ LÓGICA DE COLISÃO AVANÇADA (DA PASTE_2)
-	if self.args.collision then
-		props.physical = true
-		
-		local rot_deg = parse_vec(self.args.rotate, {x=0, y=0, z=0})
-		local initial_size = {
-			x = math.abs(base_size.x),
-			y = math.abs(base_size.y),
-			z = math.abs(base_size.z)
-		}
 
-		-- Se collision for um vetor (ex: collision=1,2,1), usa ele como base
-		if type(self.args.collision) == "string" then
-			local parsed_coll = parse_vec(self.args.collision)
-			if parsed_coll then
-				initial_size.x = math.abs(parsed_coll.x)
-				initial_size.y = math.abs(parsed_coll.y)
-				initial_size.z = math.abs(parsed_coll.z)
-			end
-		end
+    -- 🛠️ CORREÇÃO: sempre garantir vetor
+    local base_size = self.args.size
 
-		-- Matriz de rotação para calcular o bounding box alinhado ao mundo (AABB)
-		local cx, sx = math.cos(math.rad(rot_deg.x)), math.sin(math.rad(rot_deg.x))
-		local cy, sy = math.cos(math.rad(rot_deg.y)), math.sin(math.rad(rot_deg.y))
-		local cz, sz = math.cos(math.rad(rot_deg.z)), math.sin(math.rad(rot_deg.z))
+    if type(base_size) == "number" then
+        base_size = {x = base_size, y = base_size, z = base_size}
 
-		local m = {
-			{cy * cz, cz * sx * sy - cx * sz, cx * cz * sy + sx * sz},
-			{cy * sz, sx * sy * sz + cx * cz, cx * sy * sz - cz * sx},
-			{-sy, cy * sx, cx * cy}
-		}
+    elseif type(base_size) == "string" then
+        base_size = parse_vec(base_size, {x=0.5,y=0.5,z=0.5})
 
-		local final_size = {
-			x = safe(math.abs(m[1][1]) * initial_size.x + math.abs(m[1][2]) * initial_size.y + math.abs(m[1][3]) * initial_size.z),
-			y = safe(math.abs(m[2][1]) * initial_size.x + math.abs(m[2][2]) * initial_size.y + math.abs(m[2][3]) * initial_size.z),
-			z = safe(math.abs(m[3][1]) * initial_size.x + math.abs(m[3][2]) * initial_size.y + math.abs(m[3][3]) * initial_size.z)
-		}
+    elseif type(base_size) ~= "table" then
+        base_size = {x=0.5,y=0.5,z=0.5}
+    end
 
-		props.collisionbox = {-final_size.x/2, -final_size.y/2, -final_size.z/2, final_size.x/2, final_size.y/2, final_size.z/2}
-	end
-	
-	if self.args.glow then
-		props.glow = tonumber(self.args.glow) or 0
-	end
+    -- fallback de segurança
+    base_size.x = base_size.x or 0.5
+    base_size.y = base_size.y or 0.5
+    base_size.z = base_size.z or 0.5
 
-	self.object:set_properties(props)
-	
-	if self.args.rotate then
-		local rot = self.args.rotate
-		if type(rot) == "number" then
-			rot = {x = 0, y = rot, z = 0}
-		elseif type(rot) == "string" then
-			rot = parse_vec(rot, {x=0,y=0,z=0})
-		elseif type(rot) ~= "table" then
-			rot = {x=0,y=0,z=0}
-		end
+    local visual_v = table.copy(base_size)
 
-		self.object:set_rotation({
-			x = math.rad(rot.x or 0),
-			y = math.rad(rot.y or 0),
-			z = math.rad(rot.z or 0)
-		})
-	end
+    -- mirror
+    if self.args.mirror=="x" then visual_v.x=-visual_v.x end
+    if self.args.mirror=="y" then visual_v.y=-visual_v.y end
+    if self.args.mirror=="z" then visual_v.z=-visual_v.z end
+
+    local props = {
+        visual_size = visual_v,
+        physical = false,
+        pointable = true,
+        collisionbox = {0,0,0,0,0,0}
+    }
+
+    -- colisão
+    if self.args.collision then
+        props.physical = true
+
+        local size = {
+            x = math.abs(base_size.x),
+            y = math.abs(base_size.y),
+            z = math.abs(base_size.z)
+        }
+
+        props.collisionbox = {
+            -size.x/2, -size.y/2, -size.z/2,
+             size.x/2,  size.y/2,  size.z/2
+        }
+    end
+
+    if self.args.glow then
+        props.glow = tonumber(self.args.glow) or 0
+    end
+
+    self.object:set_properties(props)
+
+    -- rotação
+    if self.args.rotate then
+        local rot = self.args.rotate
+
+        if type(rot) == "number" then
+            rot = {x=0,y=rot,z=0}
+        elseif type(rot) == "string" then
+            rot = parse_vec(rot, {x=0,y=0,z=0})
+        elseif type(rot) ~= "table" then
+            rot = {x=0,y=0,z=0}
+        end
+
+        self.object:set_rotation({
+            x = math.rad(rot.x or 0),
+            y = math.rad(rot.y or 0),
+            z = math.rad(rot.z or 0)
+        })
+    end
 end
 
 -- Shared function to apply arguments to any blockframe entity
