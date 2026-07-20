@@ -1,0 +1,60 @@
+Armor Stand with Arms
+=====================
+
+This mod is a derivative of two armor stand mods by Stuart Jones
+(stujones11): the "3d Armor Stand" mod (mcl_armor_stand) that ships with
+Mineclonia and VoxeLibre, and the "3d_armor_stand" mod from the 3d_armor
+modpack for Minetest Game.
+
+Modifications for this mod Copyright (C) 2026 nandologia.
+Original armor stands Copyright (C) 2013-2023 Stuart Jones.
+
+
+Source code
+-----------
+License: LGPL 2.1 or later
+
+    This program is free software; you can redistribute it and/or modify it
+    under the terms of the GNU Lesser General Public License as published by
+    the Free Software Foundation; either version 2.1 of the License, or (at
+    your option) any later version.
+
+    This program is distributed in the hope that it will be useful, but
+    WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser
+    General Public License for more details.
+
+    You should have received a copy of the GNU Lesser General Public License
+    along with this program; if not, see <https://www.gnu.org/licenses/>.
+
+Applies to: init.lua, mcl.lua, minetest_game.lua and the scripts in tools/.
+
+
+Models and textures
+--------------------
+License: CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)
+
+    models/armor_stand_arms.obj
+    models/armor_stand_arms_minetest.obj
+    textures/armor_stand_arms_item.png
+    textures/armor_stand_arms_shield.png
+
+armor_stand_arms.obj and the item icon are extended versions of Mineclonia's
+armor stand model (3d_armor_stand.obj) and inventory icon
+(3d_armor_stand_item.png), which are themselves licensed CC BY-SA 3.0 by
+Stuart Jones. The arms were added on top of the original art.
+
+armor_stand_arms_minetest.obj is an extended version of the 3d_armor
+modpack's armor stand model (also named 3d_armor_stand.obj, also CC BY-SA
+3.0). The arms were added on top of the original geometry; the model still
+uses 3d_armor_stand's own texture atlas at runtime.
+
+armor_stand_arms_shield.png is an unmodified copy of Mineclonia's shield
+icon (mcl_shields:mcl_shield_48.png), also CC BY-SA 3.0. It is shown on
+VoxeLibre stands in place of that game's own shield icon, which is drawn at
+an angle and looks skewed when displayed flat on the stand's arm.
+
+At runtime the mod also displays the running game's armor-stand body model
+(3d_armor_entity.obj) and, on Minetest Game, 3d_armor's textures; those
+files are provided by Mineclonia/VoxeLibre or the 3d_armor modpack and are
+not redistributed here.
