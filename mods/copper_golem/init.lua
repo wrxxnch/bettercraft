@@ -31,6 +31,7 @@
 --     honeycomb     : mcl_honey:honeycomb
 --     chest inv     : core.get_inventory({type="node", pos=p}) -> list "main"
 --------------------------------------------------------------------------------
+---trying to MOD to looks similar or even BETTER than MCraft wrxxnch was here
 
 copper_golem = {}
 
