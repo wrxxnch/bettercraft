@@ -23,13 +23,26 @@ local function safe_vec(v)
 end
 
 local function add_honey(pos)
-	local node = minetest.get_node_or_nil(pos)
-	if not node or not node.name then return end
-	local lvl = tonumber(node.name:match("_(%d)$")) or 0
-	if lvl < 5 then
-		local base = node.name:gsub("_%d$", "")
-		minetest.swap_node(pos, {name = base .. "_" .. (lvl + 1), param2 = node.param2})
-	end
+    local node = minetest.get_node(pos)
+    
+    -- ADICIONE ESTA VERIFICAÇÃO:
+    -- Verifica se o nome do bloco contém "beehive" ou "bee_nest" 
+    -- antes de tentar concatenar o nível de mel.
+    if not node.name:find("beehive") and not node.name:find("bee_nest") then
+        return -- Sai da função se não for uma colmeia válida
+    end
+
+    -- Se o código original for algo como:
+    -- minetest.swap_node(pos, {name = node.name .. "_1"})
+    -- Garanta que ele só rode se o node.name for o esperado.
+    
+    -- Exemplo de correção mais robusta:
+    local new_name = node.name .. "_1"
+    if minetest.registered_nodes[new_name] then
+        minetest.swap_node(pos, {name = new_name})
+    else
+        minetest.log("warning", "[bee_custom] Tentativa de criar node inexistente: " .. new_name)
+    end
 end
 
 local function obstructed(a, b)
