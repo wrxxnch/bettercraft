@@ -172,37 +172,57 @@ mcl_mobs.register_mob("mcl_bees:bee", {
         if self.angry then
             self.angry_timer = self.angry_timer - dtime
 
+            -- Lógica de morte após picar
+            if self.has_stung then
+                self.death_timer = (self.death_timer or 10) - dtime
+                if self.death_timer <= 0 then
+                    self.object:remove()
+                    return
+                end
+                -- Se já picou, ela para de atacar e só voa por aí até morrer
+                self.attack_target = nil
+            end
+
             local target = self.attack_target
             local target_pos = target and target:get_pos()
 
-            if self.angry_timer <= 0 or not target or not target_pos then
+            if (self.angry_timer <= 0 and not self.has_stung) or not target or not target_pos then
                 self.angry = false
                 self.attack_target = nil
-                self.order = "stand"
+                self.object:set_properties({textures = {"mobs_mc_bee.png"}})
                 return
             end
 
-            -- persegue o alvo
+            -- Persegue o alvo
             local dir = vector.direction(pos, target_pos)
-            self.object:set_velocity({
-                x = dir.x * (self.fly_velocity or 4),
-                y = dir.y * (self.fly_velocity or 4),
-                z = dir.z * (self.fly_velocity or 4),
-            })
+            self.object:set_velocity(vector.multiply(dir, 4))
 
-            -- se estiver perto o suficiente, ataca
+            -- Ataque
             local dist = vector.distance(pos, target_pos)
-            if dist <= 1.2 then
-                self.attack_wait = self.attack_wait - dtime
+            if dist <= 1.5 and not self.has_stung then
+                self.attack_wait = (self.attack_wait or 0) - dtime
                 if self.attack_wait <= 0 then
+                    -- Aplica o Dano
                     target:punch(self.object, 1.0, {
-                        full_punch_interval = ATTACK_COOLDOWN,
-                        damage_groups = { fleshy = ATTACK_DAMAGE },
+                        full_punch_interval = 1.0,
+                        damage_groups = { fleshy = 2 },
                     }, dir)
-                    self.attack_wait = ATTACK_COOLDOWN
+                    
+                    -- Aplica Veneno (10 segundos)
+                    if mcl_potions then
+                        mcl_potions.give_effect_by_level("poison", target, 1, 10)
+                    end
+
+                    -- Marca que já picou para morrer em 10s
+                    self.has_stung = true
+                    self.death_timer = 10
+                    self.angry_timer = 11 -- garante que não pare de ser "angry" antes de morrer
+                    
+                    -- Feedback
+                    minetest.chat_send_player(target:get_player_name(), "Você foi picado! A abelha morrerá em breve.")
                 end
             end
-            return -- enquanto brava, ignora namoro/procura de flores
+            return 
         end
 
         -- ---------------------------------------------------
@@ -303,8 +323,6 @@ mcl_mobs.register_mob("mcl_bees:bee", {
     },
 })
 
-mcl_mobs.register_egg("mcl_bees:bee", "Bee", "#6f4833", "#daa047", 0)
-
 -- =========================================================
 -- FUNÇÃO COMPARTILHADA: colheita de mel/favo da colmeia e do ninho
 -- =========================================================
@@ -366,47 +384,9 @@ local function on_rightclick_hive(pos, node, clicker, itemstack)
     return itemstack
 end
 
--- =========================================================
--- NÓS: COLMEIA (Beehive) e NINHO DE ABELHA (Bee Nest)
--- =========================================================
 
-minetest.register_node("mcl_bees:beehive", {
-    description = "Beehive",
-    tiles = {
-        "mcl_bees_beehive_top.png", "mcl_bees_beehive_top.png",
-        "mcl_bees_beehive_side.png", "mcl_bees_beehive_side.png",
-        "mcl_bees_beehive_side.png", "mcl_bees_beehive_front.png"
-    },
-    groups = { pickaxey = 1, axey = 1, handy = 1, deco_block = 1 },
-    sounds = mcl_sounds.node_sound_wood_defaults(),
-    on_construct = function(pos)
-        local meta = minetest.get_meta(pos)
-        meta:set_int("honey_level", 0)
-        meta:set_int("bee_count", 0)
-    end,
-    on_rightclick = function(pos, node, clicker, itemstack)
-        return on_rightclick_hive(pos, node, clicker, itemstack)
-    end,
-})
 
-minetest.register_node("mcl_bees:bee_nest", {
-    description = "Bee Nest",
-    tiles = {
-        "mcl_bees_bee_nest_top.png", "mcl_bees_bee_nest_bottom.png",
-        "mcl_bees_bee_nest_side.png", "mcl_bees_bee_nest_side.png",
-        "mcl_bees_bee_nest_side.png", "mcl_bees_bee_nest_front.png"
-    },
-    groups = { pickaxey = 1, axey = 1, handy = 1, deco_block = 1 },
-    sounds = mcl_sounds.node_sound_wood_defaults(),
-    on_construct = function(pos)
-        local meta = minetest.get_meta(pos)
-        meta:set_int("honey_level", 0)
-        meta:set_int("bee_count", 0)
-    end,
-    on_rightclick = function(pos, node, clicker, itemstack)
-        return on_rightclick_hive(pos, node, clicker, itemstack)
-    end,
-})
+
 
 -- =========================================================
 -- PRODUÇÃO DE MEL AO LONGO DO TEMPO
@@ -432,69 +412,7 @@ minetest.register_abm({
     end,
 })
 
--- =========================================================
--- ITENS: Mel e Favo de Mel
--- =========================================================
 
-minetest.register_craftitem("mcl_bees:honey_bottle", {
-    description = "Honey Bottle",
-    inventory_image = "mcl_bees_honey_bottle.png",
-    on_use = minetest.item_eat(6, "mcl_core:glass_bottle"),
-})
 
-minetest.register_craftitem("mcl_bees:honeycomb", {
-    description = "Honeycomb",
-    inventory_image = "mcl_bees_honeycomb.png",
-})
 
--- =========================================================
--- RECEITAS DE CRAFTING
--- =========================================================
 
-minetest.register_craft({
-    output = "mcl_bees:beehive",
-    recipe = {
-        { "mcl_core:wood", "mcl_core:wood", "mcl_core:wood" },
-        { "mcl_bees:honeycomb", "mcl_bees:honeycomb", "mcl_bees:honeycomb" },
-        { "mcl_core:wood", "mcl_core:wood", "mcl_core:wood" },
-    }
-})
-
--- =========================================================
--- SPAWN DAS ABELHAS
--- =========================================================
-
-mcl_mobs.spawn({
-    name = "mcl_bees:bee",
-    nodes = { "mcl_core:dirt_with_grass" },
-    min_light = 10,
-    max_light = 15,
-    interval = 60,
-    chance = 8000,
-    active_object_count = 2,
-    min_height = 1,
-    max_height = 31000,
-})
-
--- Adicionar abelhas aos biomas específicos (Planícies, Florestas, etc.)
-if minetest.get_modpath("mcl_biomes") then
-    mcl_mobs.spawn({
-        name = "mcl_bees:bee",
-        nodes = { "mcl_core:dirt_with_grass" },
-        neighbors = { "air" },
-        min_light = 10,
-        max_light = 15,
-        interval = 60,
-        chance = 8000,
-        active_object_count = 2,
-        min_height = 1,
-        max_height = 31000,
-        biomes = {
-            "plains",
-            "sunflower_plains",
-            "forest",
-            "flower_forest",
-            "birch_forest"
-        }
-    })
-end
