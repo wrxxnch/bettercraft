@@ -13,6 +13,7 @@ dofile(minetest.get_modpath(modname) .. "/particle.lua")
 dofile(minetest.get_modpath(modname) .. "/testfor.lua")
 dofile(minetest.get_modpath(modname) .. "/give.lua")
 dofile(minetest.get_modpath(modname) .. "/setblock.lua")
+dofile(minetest.get_modpath(modname) .. "/param.lua")
 
 -- Função para atualizar o sinal de Redstone do Command Block e ativar comparadores
 local function set_commandblock_result(success)
