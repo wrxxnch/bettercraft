@@ -78,30 +78,52 @@ natural_habitat.register_multideco("natural_habitat:deco_stick", {
     },
 });
 
+
 -- OVERRIDE STICK ITEM
 core.override_item(natural_habitat.stick, {
     on_place = function(itemstack, placer, pointed_thing)
-        local pos = pointed_thing.under;
-        local rc = natural_habitat.check_on_rightclick(pos, itemstack, placer);
-        if rc then return rc; end;
+        -- Proteção básica
+        if not pointed_thing or pointed_thing.type ~= "node" then
+            return itemstack
+        end
+
+        local pos = pointed_thing.under
+        local node = core.get_node(pos)
+        local node_def = core.registered_nodes[node.name]
+
+        -- Se o jogador NÃO estiver agachado (sneak), tentamos interagir com o bloco (ex: Sweet Berries)
+        if placer and not placer:get_player_control().sneak then
+            -- Se o bloco sob o graveto tiver uma função de clique (como colher frutas)
+            if node_def and node_def.on_rightclick then
+                -- Chamamos diretamente passando TODOS os parâmetros que o MineClone exige
+                return node_def.on_rightclick(pos, node, placer, itemstack, pointed_thing) or itemstack
+            end
+            
+            -- Fallback para a API do mod, mas agora passando o pointed_thing
+            local rc = natural_habitat.check_on_rightclick(pos, itemstack, placer, pointed_thing)
+            if rc then return rc end
+        end
+
+        -- Lógica de empilhamento de gravetos (stick, stick_2, stick_3)
+        if node.name == "natural_habitat:stick" then
+            core.set_node(pos, { name="natural_habitat:stick_2", param2=node.param2 })
+            natural_habitat.take_item(placer, itemstack)
+            return itemstack
+        elseif node.name == "natural_habitat:stick_2" then
+            core.set_node(pos, { name="natural_habitat:stick_3", param2=node.param2 })
+            natural_habitat.take_item(placer, itemstack)
+            return itemstack
+        end
         
-        local node = core.get_node(pos);
-        if (node.name == "natural_habitat:stick") then
-            core.set_node(pos, { name="natural_habitat:stick_2", param2=node.param2 });
-            natural_habitat.take_item(placer, itemstack);
-            return itemstack;
-        elseif (node.name == "natural_habitat:stick_2") then
-            core.set_node(pos, { name="natural_habitat:stick_3", param2=node.param2 });
-            natural_habitat.take_item(placer, itemstack);
-            return itemstack;
-        end;
-        
-        if not string.find(core.get_node(pos).name, "natural_habitat:stick") then
+        -- Se não for graveto e não for interação, tenta colocar um graveto novo
+        -- (usando pointed_thing.above para não substituir o bloco de baixo)
+        if not string.find(node.name, "natural_habitat:stick") then
             return natural_habitat.place_item(
                 itemstack, placer, pointed_thing, 
                 "natural_habitat:stick"
-            );
-        end;
-        return itemstack;
+            )
+        end
+        
+        return itemstack
     end,
-});
+})
