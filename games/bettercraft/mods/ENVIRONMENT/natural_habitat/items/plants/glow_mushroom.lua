@@ -12,7 +12,6 @@ local def = {
     walkable = false,
     light_source = 7,
     sounds = natural_habitat.sound_leaves(),
-
     y_mix = -31000,
 
     selection_box = {
