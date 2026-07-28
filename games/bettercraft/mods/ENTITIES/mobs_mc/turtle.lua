@@ -28,12 +28,10 @@ mcl_mobs.register_mob("mobs_mc:turtle", {
 		{"mobs_mc_turtle.png"},
 	},
 	makes_footstep_sound = true,
-	walk_velocity = 1,
-	run_velocity = 4,
 	view_range = 16,
 	stepheight = 1.1,
-	jump = true,
-	jump_height = 10,
+	jump =false,
+	jump_height = 0,
 	--suffocation = true,
 	fear_height = 4,
 	---
@@ -47,18 +45,19 @@ mcl_mobs.register_mob("mobs_mc:turtle", {
 	},
 
 	drops = {
-	   -- {name = "turtle:turtle", min = 1, max = 2},
 	},
 
+	walk_velocity = 0.2,
+	pace_bonus=0.3,
+
+
 	animation = {
-		-- swing = 145,165
-		-- idling underwater = 175,250
+		-- Terra
 		stand_start = 1, stand_end = 20, stand_speed = 10,
-		walk_start = 30, walk_end =85, speed_normal = 10,
-		--run_start = 0, run_end = 0, run_speed = 15,
-		--punch_start = 0, punch_end = 0, punch_speed =15,
-		-- = 145,fly_end = 165,fly_speed = 10,
-		--die_start = 0, die_end = 0, die_speed = 0,--die_loop = 0,
+		walk_start = 30, walk_end = 85, speed_normal = 10,
+		
+	
+		fly_start = 1.45, fly_end = 1.65, fly_speed = 1.5, -- Animação de natação (swing)
 	},
 
 	on_rightclick = function(self, clicker)
@@ -78,11 +77,32 @@ mcl_mobs.register_mob("mobs_mc:turtle", {
 	end,
 	go_home = function(self)
 		if not self._home then return end
-		if vector.distance(self.object:get_pos() < 25) then
+		-- CORREÇÃO: vector.distance precisa de (pos1, pos2)
+		if vector.distance(self.object:get_pos(), self._home) < 5 then
+			self._has_egg = false -- Já chegou em casa
+			self:lay_egg() -- Tenta botar o ovo
 			return true
 		end
-		self:go_to_pos(self._home)
+		-- Faz o mob caminhar até a posição home
+		self:set_velocity(self.walk_velocity)
+		self:set_animation("walk")
+		local dir = vector.direction(self.object:get_pos(), self._home)
+		self.object:set_yaw(math.atan2(dir.z, dir.x) - math.pi / 2)
 	end,
+
+	lay_egg = function(self)
+		local pos = self.object:get_pos()
+		-- Procura areia abaixo ou ao redor
+		local node_under = core.get_node(vector.offset(pos, 0, -1, 0)).name
+		
+		if node_under == "mcl_core:sand" or node_under == "mcl_core:red_sand" then
+			-- Bota o ovo na posição atual do mob
+			core.set_node(pos, { name = "mcl_mobitems:turtle_egg" })
+			self._has_egg = false
+			-- O on_construct do ovo vai disparar o timer automaticamente agora
+		end
+	end,
+
 	lay_egg = function(self)
 		local pos = self.object:get_pos()
 		local nn = core.find_nodes_in_area_under_air(vector.offset(pos, -32, -5, -32), vector.offset(pos, 32, 5, 32), { "mcl_core:sand", "mcl_core:red_sand" } )
@@ -111,25 +131,49 @@ mcl_mobs.register_mob("mobs_mc:turtle", {
 })
 
 local function start_egg_timer(pos)
-	core.get_node_timer(pos):start(math.random(3600,24000))
+	-- Inicia um timer aleatório (ex: entre 2 a 5 minutos para não demorar horas reais)
+	-- No Minecraft original é bem longo, mas para gameplay 120-300s é melhor.
+	core.get_node_timer(pos):start(math.random(120, 300))
 end
 
 core.override_item("mcl_mobitems:turtle_egg", {
+	-- Garante que o timer inicie sempre que o ovo aparecer no mundo
+	on_construct = start_egg_timer,
+	
+	-- Garante que inicie se o jogador colocar o ovo da mão
+	after_place_node = function(pos, placer, itemstack, pointed_thing)
+		start_egg_timer(pos)
+	end,
+
 	on_timer = function(pos)
 		local tod = core.get_timeofday()
-		if tod > 0.14 and tod < 0.18 then
-			mcl_mobs.spawn_child(pos, "mobs_mc:turtle")
-			core.remove_node(pos)
-		else
-			-- wait 15 minutes of game time until early morning;
-			-- check time_speed setting, because the hatching time
-			-- window is rather small
-			local time_speed = tonumber(core.settings:get("time_speed")) or 72
-			core.get_node_timer(pos):start(900 / time_speed)
+		
+		-- Lógica de Horário: No Minecraft elas nascem no fim da noite/madrugada
+		-- tod 0.0 é meia noite. 0.2 é manhã. 
+		-- Se quiser que nasça a qualquer hora, remova o IF do 'tod'.
+		if tod < 0.25 or tod > 0.85 then
+			-- Tenta spawnar o filhote
+			local obj = core.add_entity(pos, "mobs_mc:turtle")
+			if obj then
+				local ent = obj:get_luaentity()
+				if ent then
+					ent.child = true -- Define como filhote
+					-- Ajusta o tamanho visual para filhote imediatamente
+					obj:set_properties({
+						visual_size = {x = 0.4, y = 0.4},
+						collisionbox = {-0.2, -0.01, -0.2, 0.2, 0.2, 0.2},
+					})
+				end
+				-- Remove o ovo
+				core.remove_node(pos)
+				return false -- Para o timer
+			end
 		end
+
+		-- Se não for o horário ou falhou, tenta de novo em 20 segundos
+		core.get_node_timer(pos):start(20)
 		return false
 	end,
-	on_construct = start_egg_timer,
 })
 
 local tspawn = {
