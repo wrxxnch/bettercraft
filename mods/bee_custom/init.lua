@@ -22,6 +22,84 @@ local function safe_vec(v)
 	}
 end
 
+-- Função para transformar a abelha em "Brava"
+local function make_bee_angry(bee_obj, player)
+	if not bee_obj or not player then return end
+	
+	local lua_ent = bee_obj:get_luaentity()
+	if lua_ent then
+		-- 1. Mudar Textura para Brava
+		bee_obj:set_properties({
+			textures = {"mobs_mc_bee_angry.png"},
+		})
+		
+		-- 2. Definir o Player como alvo (Lógica mobs_mc / mobs_redo)
+		lua_ent.attack = player
+		lua_ent.state = "attack"
+		
+		-- 3. Sobrescrever a função de ataque da abelha específica
+		-- Para que ao picar, ela aplique veneno e agende a morte
+		local old_custom_attack = lua_ent.custom_attack
+		lua_ent.do_custom_attack = function(self, target)
+			if target:is_player() then
+				-- Aplica veneno (mcl_status_effects do MineClone)
+				if mcl_status_effects then
+					mcl_status_effects.add_effect(target, "poison", 10, 0)
+				end
+				
+				-- 4. Morrer 10 segundos depois de picar
+				minetest.chat_send_all("A abelha te picou e morrerá em breve!")
+				minetest.after(10, function()
+					if bee_obj:get_pos() then
+						bee_obj:remove() -- Remove a abelha do jogo
+					end
+				end)
+				
+				-- Desativa o ataque para ela não picar de novo enquanto espera a morte
+				self.attack = nil
+				self.state = "stand"
+			end
+		end
+	end
+end
+
+-- Sobrescrever a colmeia para reagir a mãos/itens errados
+local hives = {"mcl_bees:beehive_5", "mcl_bees:bee_nest_5"}
+
+for _, hive_name in ipairs(hives) do
+	local old_node = minetest.registered_nodes[hive_name]
+	if old_node then
+		minetest.override_item(hive_name, {
+			on_rightclick = function(pos, node, clicker, itemstack, pointed_thing)
+				local tool = itemstack:get_name()
+				
+				-- Se não for tesoura, as abelhas atacam!
+				if tool ~= "mcl_tools:shears" then
+					local meta = minetest.get_meta(pos)
+					local bee_count = meta:get_int("bees_count") or 3
+					
+					for i = 1, bee_count do
+						minetest.after(i * 0.2, function()
+							local obj = minetest.add_entity(pos, "mcl_bees:bee")
+							if obj then
+								make_bee_angry(obj, clicker)
+							end
+						end)
+					end
+					
+					-- Esvazia a colmeia (opcional, elas saíram pra atacar)
+					meta:set_int("bees_count", 0)
+				end
+				
+				-- Executa a lógica original (se houver)
+				if old_node.on_rightclick then
+					return old_node.on_rightclick(pos, node, clicker, itemstack, pointed_thing)
+				end
+			end,
+		})
+	end
+end
+
 local function add_honey(pos)
     local node = minetest.get_node(pos)
     
@@ -147,29 +225,52 @@ mcl_mobs.register_mob("bee_custom:bee", {
 			end
 			return
 		end
-
-		---------------------------------------------------
-		-- ATAQUE SE IRRITADA
+		
+        ---------------------------------------------------
+		-- ATAQUE SE IRRITADA (CORRIGIDO)
 		---------------------------------------------------
 		if self.angry then
-			for _,p in ipairs(minetest.get_connected_players()) do
-				local ppos = p:get_pos()
-				if vector.distance(pos, ppos) < 2 then
-					puncher = p
-					puncher:punch(self.object, 1, {
-						full_punch_interval = 1,
-						damage_groups = {fleshy = 2}
-					})
-					mcl_potions.give_effect_by_level("poison", puncher, 1, 4)
+			-- Se ela já picou, ela não ataca mais e apenas espera a morte
+			if self.has_stung then
+				self.attack = nil
+			else
+				for _, p in ipairs(minetest.get_connected_players()) do
+					local ppos = p:get_pos()
+					if ppos and vector.distance(pos, ppos) < 1.5 then
+						-- 1. Aplica o Dano (Punch)
+						p:punch(self.object, 1.0, {
+							full_punch_interval = 1.0,
+							damage_groups = {fleshy = 2}
+						})
+
+						-- 2. Aplica Veneno por 10 segundos
+						if mcl_potions and mcl_potions.give_effect_by_level then
+							mcl_potions.give_effect_by_level("poison", p, 1, 10)
+						elseif mcl_status_effects then
+							mcl_status_effects.add_effect(p, "poison", 10, 0)
+						end
+
+						-- 3. Marca que picou e agenda a morte
+						self.has_stung = true
+						minetest.chat_send_player(p:get_player_name(), "A abelha te picou e morrerá em breve!")
+						
+						minetest.after(10, function()
+							if self.object and self.object:get_pos() then
+								self.object:remove()
+							end
+						end)
+						
+						break -- Sai do loop para não picar múltiplos jogadores ao mesmo tempo
+					end
 				end
 			end
 		end
 
-		--deixar todas abelhas nervosas
+		-- Ativar estado bravo e mudar textura
 		if self.attack and not self.angry then
 			self.angry = true
 			self.angry_timer = ANGER_TIME
-			self.object:set_properties({textures={"mobs_mc_bee_angry_e.png"}})
+			self.object:set_properties({textures = {"mobs_mc_bee_angry.png"}})
 		end
 
 
