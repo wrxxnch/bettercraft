@@ -165,6 +165,32 @@ natural_habitat.register_multideco("natural_habitat:deco_coconut_palmtree", {
     },
 });
 
+local S = core.get_translator(core.get_current_modname())
+
+core.register_craftitem("natural_habitat:coconut_water", {
+    description = S("Coconut Water"),
+    inventory_image = "natural_habitat_coconut_water.png",
+    groups = { 
+        food = 2, 
+        eatable = 6, 
+        drink = 1,
+        compostability = 40 
+    },
+    on_secondary_use = function(itemstack, user, pointed_thing)
+
+        return core.do_item_eat(6, nil, itemstack, user, pointed_thing)
+    end,
+})
+
+-- Receita: Stick em cima do Coco
+core.register_craft({
+    output = "natural_habitat:coconut_water",
+    recipe = {
+        {"mcl_core:stick"},
+        {"natural_habitat:coconut"},
+    }
+})
+
 local schems = {
     schempath .. "/nbt_coconut_palmtree_1.mts",
     schempath .. "/nbt_coconut_palmtree_2.mts",
