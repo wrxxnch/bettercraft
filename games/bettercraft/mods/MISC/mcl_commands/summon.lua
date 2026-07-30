@@ -53,6 +53,23 @@ if mob_class then
         end
         return ret
     end
+
+    -- =========================
+    -- NAMETAG INVISÍVEL (name_visible=false)
+    -- ----------------------------------------------------------------
+    -- `mob_class:get_nametag()` (api.lua:98) só retorna `self.nametag`.
+    -- Pra esconder o texto SEM apagar o nome de verdade (outros
+    -- comandos, tipo o de remover mobs "nametagged", checam
+    -- `o.nametag` diretamente), guardamos uma flag separada
+    -- (`_nametag_hidden`) e sobrescrevemos só o que é MOSTRADO.
+    -- =========================
+    local original_get_nametag = mob_class.get_nametag
+    function mob_class:get_nametag()
+        if self._nametag_hidden then
+            return ""
+        end
+        return original_get_nametag(self)
+    end
 else
     minetest.log("warning", "[summon] mcl_mobs.mob_class não encontrado -- "
         .. "scale= não vai persistir entre recarregamentos do mob. "
@@ -294,8 +311,8 @@ minetest.register_chatcommand("summon", {
         "Coordenadas: absolutas (10 20 30), relativas (~ ~5 ~) ou locais (^ ^ ^3) -- não misture estilos.",
         "Args (chave=valor, separados por espaço ou vírgula; use sempre '=' mesmo pra texto, ex: name=Bob):",
         "  Vida: hp, hp_max, breath, breath_max",
-        "  Visual: name, glow, scale (persiste ao recarregar), child (true/false)",
-        "  Equipamento: hand (só funciona se o mob puder segurar itens), helmet, chestplate, leggings, boots",
+        "  Visual: name, name_visible (false esconde o texto sem remover o nome), glow, scale (persiste ao recarregar), child (true/false)",
+        "  Equipamento: hand (força can_wield_items; pode ficar em posição estranha em mobs sem 'mão'), helmet, chestplate, leggings, boots",
         "  Montaria: ride=<mob_proximo> (monta em cima de um mob já spawnado, no raio de 3 nodes)",
         "  Comportamento: passive, retaliates, docile_by_day (ou day_docile), persistent, persist_in_peaceful, owner, tamed, order",
         "  Combate: damage, reach, knock_back, armor",
@@ -416,6 +433,15 @@ minetest.register_chatcommand("summon", {
                 minetest.chat_send_player(name, "name= precisa de um texto (ex: name=Bob). Ignorado.")
             end
         end
+
+        -- name_visible=false esconde o texto flutuante SEM apagar o
+        -- nome de verdade (mob.nametag continua com o valor real, só
+        -- o que é MOSTRADO fica em branco -- ver o "wrap" de
+        -- get_nametag no topo do arquivo).
+        if args.name_visible ~= nil then
+            mob._nametag_hidden = (args.name_visible == false)
+            mob:update_tag()
+        end
         if args.glow then
             obj:set_properties({ glow = args.glow })
         end
@@ -423,16 +449,30 @@ minetest.register_chatcommand("summon", {
         -- hand= precisa usar mob_class:set_wielditem(), não
         -- set_properties no objeto principal do mob. O item exibido
         -- na mão é uma ENTIDADE FILHA separada ("mcl_mobs:wielditem",
-        -- ver combat.lua), controlada só por essa função -- setar uma
-        -- propriedade no mob em si não tem efeito nenhum na visual.
-        -- Só funciona se o mob tiver `can_wield_items = true`
-        -- (a maioria dos animais não tem).
+        -- ver combat.lua), controlada só por essa função.
+        --
+        -- can_wield_items É FORÇADO aqui mesmo em mobs que normalmente
+        -- não suportam segurar item (ex: animais). MAS isso sozinho não
+        -- basta: `display_wielditem()` (combat.lua:1111) também exige
+        -- `self.wielditem_info` -- uma tabela com o BONE (osso do
+        -- modelo) onde o item fica preso, que só existe de fábrica em
+        -- mobs humanoides. Pra quem não tem, criamos um fallback
+        -- genérico (flutuando acima do mob) só pra garantir que
+        -- ALGUMA coisa apareça -- pode ficar com posição estranha
+        -- dependendo do modelo.
         if args.hand then
             if type(args.hand) ~= "string" then
                 minetest.chat_send_player(name, "hand= precisa de um nome de item (ex: hand=diamond_sword). Ignorado.")
-            elseif not mob.can_wield_items then
-                minetest.chat_send_player(name, mobname .. " não consegue segurar itens (can_wield_items = false).")
             else
+                mob.can_wield_items = true
+                if not mob.wielditem_info then
+                    mob.wielditem_info = {
+                        bone = "",              -- sem osso próprio: prende na raiz do objeto
+                        position = { x = 0, y = 1.2, z = 0 },
+                        rotation = { x = 0, y = 0, z = 0 },
+                    }
+                end
+
                 local item, err = resolve_item_name(args.hand)
                 if item then
                     mob:set_wielditem(ItemStack(item))
