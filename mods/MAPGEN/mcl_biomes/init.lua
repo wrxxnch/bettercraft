@@ -2860,7 +2860,8 @@ local function register_dimension_biomes()
 	--[[ THE END ]]
 	core.register_biome({
 		name = "End",
-		node_stone = "air",
+		--trying to fixing stones on the end
+		node_stone = "mcl_end:end_stone",
 		node_filler = "air",
 		node_water = "air",
 		node_river_water = "air",
