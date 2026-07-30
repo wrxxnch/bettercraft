@@ -40,8 +40,91 @@ if mob_class then
         })
     end
 
+    -- =========================
+    -- SLOTS CUSTOMIZADOS DE ITEM (head=, chest=, legs=, feet=)
+    -- ----------------------------------------------------------------
+    -- Diferente de hand= (que usa a API oficial do mod), estes slots
+    -- não existem no mcl_mobs -- criamos nós, reaproveitando a mesma
+    -- entidade "mcl_mobs:wielditem" já registrada (em combat.lua),
+    -- só que anexada em outro osso/posição. Como o mod não sabe
+    -- desses slots, cuidamos da persistência sozinhos: item + offset
+    -- ficam em campos simples do mob (salvos automaticamente) e a
+    -- entidade anexada é recriada em toda reativação (via o wrap de
+    -- mob_activate, logo abaixo -- por isso este bloco precisa vir
+    -- ANTES dele: em Lua, uma função não enxerga um `local` declarado
+    -- depois dela no mesmo arquivo).
+    -- =========================
+    local CUSTOM_SLOTS = {
+        head  = { bone = "head", position = { x = 0, y = 0.35, z = 0 } }, -- bone sobrescrito dinamicamente, ver mcl_summon_update_slot
+        chest = { bone = "",     position = { x = 0, y = 0,     z = 0 } },
+        legs  = { bone = "",     position = { x = 0, y = -0.3,  z = 0 } },
+        feet  = { bone = "",     position = { x = 0, y = -0.6,  z = 0 } },
+    }
+    mcl_mobs._summon_custom_slots = CUSTOM_SLOTS
+
+    function mob_class:mcl_summon_update_slot(slot_key)
+        local def = CUSTOM_SLOTS[slot_key]
+        if not def then
+            return
+        end
+
+        local item_field = "_summon_" .. slot_key .. "_item"
+        local obj_field = "_summon_" .. slot_key .. "_obj"
+        local offset_field = "_summon_" .. slot_key .. "_offset"
+        local item = self[item_field]
+
+        if not item or item == "" then
+            local existing = self[obj_field]
+            if existing then
+                existing:remove()
+                self[obj_field] = nil
+            end
+            return
+        end
+
+        local existing = self[obj_field]
+        local valid = existing and pcall(function() return existing:get_pos() end)
+        if not valid then
+            local self_pos = self.object:get_pos()
+            existing = minetest.add_entity(self_pos, "mcl_mobs:wielditem")
+            self[obj_field] = existing
+        end
+
+        -- O bone "Head" (maiúsculo) só existe em JOGADORES
+        -- (mcl_armor/api.lua usa isso pra players). Em mobs, cada
+        -- tipo tem seu próprio campo `_head_armor_bone` (minúsculo,
+        -- ex: "head" -- ver skeleton+variants.lua, zombie.lua etc.).
+        -- Mobs sem cabeça humanoide (lula, galinha) não têm esse
+        -- campo -- nesse caso caímos pro bone "" (raiz do objeto).
+        local bone = def.bone
+        if slot_key == "head" then
+            bone = self._head_armor_bone or "head"
+        end
+
+        local offset = self[offset_field] or { x = 0, y = 0, z = 0 }
+        local pos = {
+            x = def.position.x + offset.x,
+            y = def.position.y + offset.y,
+            z = def.position.z + offset.z,
+        }
+
+        existing:set_attach(self.object, bone, pos, { x = 0, y = 0, z = 0 })
+        existing:set_properties({ wield_item = item, visual_size = { x = 0.4, y = 0.4 } })
+    end
+
     local original_mob_activate = mob_class.mob_activate
     function mob_class:mob_activate(staticdata, dtime)
+        -- Proteção defensiva: um mob já spawnado ANTES desta correção
+        -- pode ter `nametag` salvo como booleano (bug antigo do
+        -- parser de args). Isso crasha `original_mob_activate` (ele
+        -- mesmo chama update_tag() -- api.lua:435) ANTES do nosso
+        -- código abaixo rodar, então o mob nunca recupera as outras
+        -- propriedades (scale, itens etc.) enquanto isso não for
+        -- sanitizado aqui, no início, todo recarregamento.
+        if self.nametag ~= nil and type(self.nametag) ~= "string" then
+            self.nametag = nil
+        end
+
         local ret = original_mob_activate(self, staticdata, dtime)
         -- `ret == false` significa que a ativação abortou (mob removido);
         -- não faz sentido reaplicar nada nesse caso.
@@ -50,6 +133,11 @@ if mob_class then
         end
         if self._custom_scale and self._custom_scale ~= 1 then
             self:mcl_summon_apply_scale(self._custom_scale)
+        end
+        for slot_key in pairs(CUSTOM_SLOTS) do
+            if self["_summon_" .. slot_key .. "_item"] then
+                self:mcl_summon_update_slot(slot_key)
+            end
         end
         return ret
     end
@@ -69,6 +157,45 @@ if mob_class then
             return ""
         end
         return original_get_nametag(self)
+    end
+
+    -- =========================
+    -- OFFSET DA MÃO (hand_offset=x:y:z)
+    -- ----------------------------------------------------------------
+    -- `mob_class:display_wielditem` (combat.lua:1111) é a função
+    -- OFICIAL que posiciona o item da mão -- inclusive nossa
+    -- `wielditem_info` de fallback. Envolvemos ela pra, depois da
+    -- posição oficial calculada, somar um offset customizado por
+    -- cima (guardado em `_hand_offset`).
+    -- =========================
+    local original_display_wielditem = mob_class.display_wielditem
+    function mob_class:display_wielditem(offhand)
+        original_display_wielditem(self, offhand)
+        if offhand or not self._hand_offset then
+            return
+        end
+        local info = self.wielditem_info
+        local obj = self._wielditem_object
+        if not (info and obj) then
+            return
+        end
+        local ok = pcall(function() return obj:get_pos() end)
+        if not ok then
+            return -- objeto anexado inválido/removido
+        end
+        local stack = ItemStack(self._wielditem or "")
+        if stack:is_empty() then
+            return
+        end
+        local rot, pos = self:wielditem_transform(info, stack)
+        local off = self._hand_offset
+        local newpos = { x = pos.x + off.x, y = pos.y + off.y, z = pos.z + off.z }
+        if not info.rotate_bone then
+            obj:set_attach(self.object, info.bone, newpos, rot)
+        else
+            obj:set_attach(self.object, info.bone)
+            mcl_util.set_bone_position(self.object, info.bone, newpos, rot)
+        end
     end
 else
     minetest.log("warning", "[summon] mcl_mobs.mob_class não encontrado -- "
@@ -228,6 +355,38 @@ local function resolve_item_name(item)
     end
 end
 
+-- Faz o parse de um offset no formato "x:y:z" (DOIS-PONTOS, não
+-- vírgula -- a vírgula já separa os args entre si, ex:
+-- "hp=10,name=Bob", então "head_offset=1,2,3" quebraria o parser
+-- geral de args). Componentes vazios (ex: "0::0") viram 0.
+-- Retorna: {x=,y=,z=} ou nil, erro
+local function parse_xyz_offset(text)
+    local parts = {}
+    for part in (text .. ":"):gmatch("([^:]*):") do
+        table.insert(parts, part)
+    end
+
+    if #parts ~= 3 then
+        return nil, "formato inválido, use x:y:z (ex: 0:0.3:0)"
+    end
+
+    local coords = {}
+    for i, axis in ipairs({ "x", "y", "z" }) do
+        local text_part = parts[i]
+        if text_part == "" then
+            coords[axis] = 0
+        else
+            local num = tonumber(text_part)
+            if not num then
+                return nil, "formato inválido, use x:y:z (ex: 0:0.3:0)"
+            end
+            coords[axis] = num
+        end
+    end
+
+    return coords, nil
+end
+
 -- =========================
 -- COMANDO: /summon_search
 -- =========================
@@ -310,15 +469,18 @@ minetest.register_chatcommand("summon", {
         "Invoca um mob com coordenadas e parâmetros.",
         "Coordenadas: absolutas (10 20 30), relativas (~ ~5 ~) ou locais (^ ^ ^3) -- não misture estilos.",
         "Args (chave=valor, separados por espaço ou vírgula; use sempre '=' mesmo pra texto, ex: name=Bob):",
+        "  Offsets usam DOIS-PONTOS x:y:z, não vírgula (ex: head_offset=0:0.3:0), pra não confundir com a separação dos args.",
         "  Vida: hp, hp_max, breath, breath_max",
         "  Visual: name, name_visible (false esconde o texto sem remover o nome), glow, scale (persiste ao recarregar), child (true/false)",
-        "  Equipamento: hand (força can_wield_items; pode ficar em posição estranha em mobs sem 'mão'), helmet, chestplate, leggings, boots",
+        "  Item na mão: hand (força can_wield_items), hand_offset=x:y:z",
+        "  Item preso no corpo (qualquer item/bloco, não precisa ser armadura registrada): head, head_offset, chest, chest_offset, legs, legs_offset, feet, feet_offset (todos offset em x:y:z)",
+        "  Armadura de verdade (textura): helmet, chestplate, leggings, boots",
         "  Montaria: ride=<mob_proximo> (monta em cima de um mob já spawnado, no raio de 3 nodes)",
         "  Comportamento: passive, retaliates, docile_by_day (ou day_docile), persistent, persist_in_peaceful, owner, tamed, order",
         "  Combate: damage, reach, knock_back, armor",
         "  Movimento: walk_velocity, run_velocity, jump, jump_height, stepheight, fly, swims, floats, view_range",
         "  Ambiente: water_damage, lava_damage, fire_damage, light_damage, suffocation, fall_damage, fear_height, ignited_by_sunlight=false",
-        "Ex: /summon creeper ~ ~10 ~ hp=100,name=Bob",
+        "Ex: /summon creeper ~ ~10 ~ hp=100,name=Bob,head=mcl_core:pumpkin,head_offset=0:0.2:0",
     }, "\n"),
     privs = { server = true },
     func = function(name, param)
@@ -446,6 +608,23 @@ minetest.register_chatcommand("summon", {
             obj:set_properties({ glow = args.glow })
         end
 
+        -- hand_offset=x:y:z precisa ser processado ANTES de hand=,
+        -- pra já estar valendo quando set_wielditem() disparar
+        -- display_wielditem() (que é onde o offset é aplicado, ver o
+        -- wrap no topo do arquivo).
+        if args.hand_offset ~= nil then
+            if type(args.hand_offset) ~= "string" then
+                minetest.chat_send_player(name, "hand_offset= precisa ser x:y:z (ex: 0:0.3:0). Ignorado.")
+            else
+                local coords, err = parse_xyz_offset(args.hand_offset)
+                if coords then
+                    mob._hand_offset = coords
+                else
+                    minetest.chat_send_player(name, "hand_offset: " .. err)
+                end
+            end
+        end
+
         -- hand= precisa usar mob_class:set_wielditem(), não
         -- set_properties no objeto principal do mob. O item exibido
         -- na mão é uma ENTIDADE FILHA separada ("mcl_mobs:wielditem",
@@ -480,6 +659,53 @@ minetest.register_chatcommand("summon", {
                     minetest.chat_send_player(name, err)
                 end
             end
+        end
+
+        -- head=, chest=, legs=, feet=: slots customizados (ver o
+        -- sistema CUSTOM_SLOTS no topo do arquivo) pra prender
+        -- QUALQUER item/bloco no mob, cada um com seu próprio offset
+        -- em x:y:z. Diferente de helmet/chestplate/leggings/boots
+        -- (abaixo), que são a ARMADURA de verdade (textura aplicada
+        -- no modelo do mob), estes slots são um item/bloco FLUTUANDO
+        -- preso no mob -- útil pra "vestir" um bloco na cabeça, por
+        -- exemplo, que não é uma peça de armadura registrada.
+        if mob.mcl_summon_update_slot then
+            local function apply_custom_slot(slot_key, item_value, offset_value)
+                if offset_value ~= nil then
+                    if type(offset_value) ~= "string" then
+                        minetest.chat_send_player(name, slot_key .. "_offset= precisa ser x:y:z (ex: 0:0.3:0). Ignorado.")
+                    else
+                        local coords, err = parse_xyz_offset(offset_value)
+                        if coords then
+                            mob["_summon_" .. slot_key .. "_offset"] = coords
+                        else
+                            minetest.chat_send_player(name, slot_key .. "_offset: " .. err)
+                        end
+                    end
+                end
+
+                if item_value ~= nil then
+                    if type(item_value) ~= "string" then
+                        minetest.chat_send_player(name, slot_key .. "= precisa de um nome de item/bloco. Ignorado.")
+                    else
+                        local item, err = resolve_item_name(item_value)
+                        if item then
+                            mob["_summon_" .. slot_key .. "_item"] = item
+                        else
+                            minetest.chat_send_player(name, err)
+                        end
+                    end
+                end
+
+                if mob["_summon_" .. slot_key .. "_item"] then
+                    mob:mcl_summon_update_slot(slot_key)
+                end
+            end
+
+            apply_custom_slot("head", args.head, args.head_offset)
+            apply_custom_slot("chest", args.chest, args.chest_offset)
+            apply_custom_slot("legs", args.legs, args.legs_offset)
+            apply_custom_slot("feet", args.feet, args.feet_offset)
         end
 
         if args.helmet then mob.armor_head = args.helmet end
