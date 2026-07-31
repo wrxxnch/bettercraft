@@ -708,10 +708,50 @@ minetest.register_chatcommand("summon", {
             apply_custom_slot("feet", args.feet, args.feet_offset)
         end
 
-        if args.helmet then mob.armor_head = args.helmet end
-        if args.chestplate then mob.armor_torso = args.chestplate end
-        if args.leggings then mob.armor_legs = args.leggings end
-        if args.boots then mob.armor_feet = args.boots end
+        -- helmet/chestplate/leggings/boots usavam campos que NÃO
+        -- EXISTEM no mod real (`mob.armor_head`, `armor_torso` etc.
+        -- nunca são lidos em lugar nenhum). O sistema de verdade é
+        -- `mob.armor_list` (tabela com chaves head/torso/legs/feet,
+        -- cada uma guardando o ITEMSTRING completo, ex:
+        -- "mcl_armor:helmet_iron") + `mob:set_armor_texture()`
+        -- (items.lua:18) pra atualizar a textura visual depois.
+        -- Só funciona em mobs com `_armor_texture_slots` definido
+        -- (mobs humanoides -- zumbi, esqueleto, etc.); forçar em
+        -- quem não tem isso quebraria set_armor_texture (ele itera
+        -- essa tabela sem checar se existe).
+        local function equip_armor(item_key, slot_key)
+            local value = args[item_key]
+            if value == nil then
+                return
+            end
+            if type(value) ~= "string" then
+                minetest.chat_send_player(name, item_key .. "= precisa de um item de armadura (ex: "
+                    .. item_key .. "=helmet_iron). Ignorado.")
+                return
+            end
+            if not mob._armor_texture_slots then
+                minetest.chat_send_player(name, mobname .. " não suporta armadura visual (sem _armor_texture_slots).")
+                return
+            end
+
+            local item, err = resolve_item_name(value)
+            if not item then
+                minetest.chat_send_player(name, err)
+                return
+            end
+
+            mob.wears_armor = true
+            if not mob.armor_list then
+                mob.armor_list = { head = "", torso = "", legs = "", feet = "" }
+            end
+            mob.armor_list[slot_key] = item
+            mob:set_armor_texture()
+        end
+
+        equip_armor("helmet", "head")
+        equip_armor("chestplate", "torso")
+        equip_armor("leggings", "legs")
+        equip_armor("boots", "feet")
 
         if args.ride then
             if type(args.ride) ~= "string" then
