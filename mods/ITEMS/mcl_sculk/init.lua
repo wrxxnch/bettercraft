@@ -1,298 +1,356 @@
 local S = core.get_translator(core.get_current_modname())
 mcl_sculk = {}
 
---local mt_sound_play = core.sound_play
-
-local spread_to = {"mcl_core:stone","mcl_core:dirt","mcl_core:sand","mcl_core:dirt_with_grass","group:grass_block","mcl_core:andesite","mcl_core:diorite","mcl_core:granite","mcl_core:mycelium","group:dirt","mcl_end:end_stone","mcl_nether:netherrack","mcl_blackstone:basalt","mcl_nether:soul_sand","mcl_blackstone:soul_soil","mcl_crimson:warped_nylium","mcl_crimson:crimson_nylium","mcl_core:gravel","mcl_deepslate:deepslate","mcl_deepslate:tuff"}
+-- Configurações
+local spread_to = {
+	"mcl_core:stone","mcl_core:dirt","mcl_core:sand","mcl_core:dirt_with_grass",
+	"group:grass_block","mcl_core:andesite","mcl_core:diorite","mcl_core:granite",
+	"mcl_core:mycelium","group:dirt","mcl_end:end_stone","mcl_nether:netherrack",
+	"mcl_blackstone:basalt","mcl_nether:soul_sand","mcl_blackstone:soul_soil",
+	"mcl_crimson:warped_nylium","mcl_crimson:crimson_nylium","mcl_core:gravel",
+	"mcl_deepslate:deepslate","mcl_deepslate:tuff"
+}
 
 local sounds = {
 	footstep = {name = "mcl_sculk_block", gain = 0.2},
 	dug      = {name = "mcl_sculk_block", gain = 0.2},
 }
 
-local SPREAD_RANGE = 8
---local SENSOR_RANGE = 8
---local SENSOR_DELAY = 0.5
---local SHRIEKER_COOLDOWN = 10
+local SHRIEKER_COOLDOWN = 5
+local SENSOR_COOLDOWN = 4
+local MAX_FREQUENCY = 5
 
-local adjacents = {
-	vector.new(1,0,0),
-	vector.new(-1,0,0),
-	vector.new(0,1,0),
-	vector.new(0,-1,0),
-	vector.new(0,0,1),
-	vector.new(0,0,-1),
-}
+-- Configuração da detecção de movimento (vibração)
+local DETECT_INTERVAL = 0.5     -- a cada quantos segundos o mod varre os jogadores
+local SHRIEKER_RANGE  = 8       -- alcance em nodes (igual ao vanilla)
+local SENSOR_RANGE    = 8
+local MOVE_THRESHOLD  = 0.05    -- velocidade mínima (m/s) pra contar como "se movendo"
 
---[[
-local function sensor_action(p,tp)
-	local s = core.find_node_near(p,SPREAD_RANGE,{"mcl_sculk:shrieker"})
-	local n = core.get_node(s)
-	if s and n.param2 ~= 1 then
-		core.sound_play("mcl_sculk_shrieker", {pos=s, gain=1.5, max_hear_distance = 16}, true)
-		n.param2 = 1
-		core.set_node(s,n)
-		core.after(SHRIEKER_COOLDOWN,function(s)
-			core.set_node(s,{name = "mcl_sculk:shrieker",param2=0})
-		end,s)
-	end
-	--local p1 = vector.offset(p,-SENSOR_RANGE,-SENSOR_RANGE,-SENSOR_RANGE)
-	--local p2 = vector.offset(p,SENSOR_RANGE,SENSOR_RANGE,SENSOR_RANGE)
-	--darken_area(p1,p2)
+-- Regras de Redstone
+local mesecon_rules = nil
+if core.global_exists("mesecon") then
+	mesecon_rules = mesecon.rules.default
 end
 
-function core.sound_play(spec, parameters, ephemeral)
-	local rt = old_sound_play(spec, parameters, ephemeral)
-	if parameters.pos then
-		pos = parameters.pos
-	elseif parameters.to_player then
-		pos = core.get_player_by_name(parameters.to_player):get_pos()
-	end
-	if not pos then return rt end
-	local s = core.find_node_near(pos,SPREAD_RANGE,{"mcl_sculk:sensor"})
-	if s then
-		--core.after(SENSOR_DELAY,sensor_action,s,pos)
-	end
-	return rt
+-- Partícula de "eco" (ondas de vibração), disparada quando o shrieker/sensor detecta movimento.
+-- Coloque o arquivo em textures/echo.png (16x16, pode ser uma tira/anel simples).
+local function spawn_echo_particles(pos)
+	core.add_particlespawner({
+		amount = 12,
+		time = 0.5,
+		minpos = {x = pos.x - 0.4, y = pos.y + 0.05, z = pos.z - 0.4},
+		maxpos = {x = pos.x + 0.4, y = pos.y + 0.3,  z = pos.z + 0.4},
+		minvel = {x = -0.2, y = 0.8, z = -0.2},
+		maxvel = {x =  0.2, y = 1.5, z =  0.2},
+		minacc = {x = 0, y = 0.3, z = 0}, -- acelera pra cima em vez de cair
+		maxacc = {x = 0, y = 0.6, z = 0},
+		minexptime = 0.6,
+		maxexptime = 1.2,
+		minsize = 1.5,
+		maxsize = 3,
+		texture = "echo.png",
+		glow = 12,
+	})
 end
 
-walkover.register_global(function(pos, node, player)
-	local s = core.find_node_near(pos,SPREAD_RANGE,{"mcl_sculk:sensor"})
-	if not s then return end
-	local v = player:get_velocity()
-	if v.x == 0 and v.y == 0 and v.z == 0 then return end
-	if player:get_player_control().sneak then return end
-	local def = core.registered_nodes[node.name]
-	if def and def.sounds then
-		core.log("walkover "..node.name)
-		core.after(SENSOR_DELAY,sensor_action,s,pos)
-	end
-end)
---]]
+-- Varre jogadores conectados; se algum estiver se movendo, procura shriekers/sensores
+-- por perto e os ativa (respeitando o cooldown de cada um, guardado nos metadados do node).
+local detect_timer = 0
+core.register_globalstep(function(dtime)
+	detect_timer = detect_timer + dtime
+	if detect_timer < DETECT_INTERVAL then return end
+	detect_timer = 0
 
-local function get_node_xp(pos)
-	local meta = core.get_meta(pos)
-	return meta:get_int("xp")
-end
-local function set_node_xp(pos,xp)
-	local meta = core.get_meta(pos)
-	return meta:set_int("xp",xp)
-end
+	for _, player in ipairs(core.get_connected_players()) do
+		local vel = player:get_velocity()
+		local speed = math.sqrt(vel.x * vel.x + vel.z * vel.z)
+		if speed > MOVE_THRESHOLD then
+			local ppos = player:get_pos()
 
-local function sculk_after_dig_node(pos, oldnode, oldmetadata, digger) ---@diagnostic disable-line: unused-local
-	-- Check if node will yield its useful drop by the digger's tool
-	if digger and digger:is_player() then
-		local tool = digger:get_wielded_item()
-		local is_book = tool:get_name() == "mcl_enchanting:book_enchanted"
+			local shriekers = core.find_nodes_in_area(
+				{x = ppos.x - SHRIEKER_RANGE, y = ppos.y - SHRIEKER_RANGE, z = ppos.z - SHRIEKER_RANGE},
+				{x = ppos.x + SHRIEKER_RANGE, y = ppos.y + SHRIEKER_RANGE, z = ppos.z + SHRIEKER_RANGE},
+				{"mcl_sculk:shrieker"}
+			)
+			for _, spos in ipairs(shriekers) do
+				mcl_sculk.activate_shrieker(spos)
+			end
 
-		if mcl_autogroup.can_harvest(oldnode.name, tool:get_name(), digger) then
-			if tool and not is_book and mcl_enchanting.get_enchantments(tool).silk_touch then
-				-- Don't drop experience when mined with silk touch
-				return
+			local sensors = core.find_nodes_in_area(
+				{x = ppos.x - SENSOR_RANGE, y = ppos.y - SENSOR_RANGE, z = ppos.z - SENSOR_RANGE},
+				{x = ppos.x + SENSOR_RANGE, y = ppos.y + SENSOR_RANGE, z = ppos.z + SENSOR_RANGE},
+				{"mcl_sculk:calibrated_sensor"}
+			)
+			for _, spos in ipairs(sensors) do
+				mcl_sculk.activate_sensor(spos)
 			end
 		end
 	end
-
-	local xp = get_node_xp(pos)
-	if oldnode.param2 == 1 then
-		xp = 1
-	end
-	local obs = mcl_experience.throw_xp(pos,xp)
-	if obs then
-		for _,v in pairs(obs) do
-			local l = v:get_luaentity()
-			l._sculkdrop = true
-		end
-	end
-end
-
-local function has_air(pos)
-	for _,v in pairs(adjacents) do
-		if core.get_item_group(core.get_node(vector.add(pos,v)).name,"solid") <= 0 then return true end
-	end
-end
-
-local function has_nonsculk(pos)
-	for _,v in pairs(adjacents) do
-		local p = vector.add(pos,v)
-		if core.get_item_group(core.get_node(p).name,"sculk") <= 0 and core.get_item_group(core.get_node(p).name,"solid") > 0 then return p end
-	end
-end
-local function retrieve_close_spreadable_nodes (p)
-	local nnn = core.find_nodes_in_area(vector.offset(p,-SPREAD_RANGE,-SPREAD_RANGE,-SPREAD_RANGE),vector.offset(p,SPREAD_RANGE,SPREAD_RANGE,SPREAD_RANGE),spread_to)
-	local nn={}
-	for _,v in pairs(nnn) do
-		if has_air(v) then
-			table.insert(nn,v)
-		end
-	end
-	table.sort(nn,function(a, b)
-		return vector.distance(p, a) < vector.distance(p, b)
-	end)
-	return nn
-end
-
-local function spread_sculk (p, xp_amount)
-	local c = core.find_node_near(p,SPREAD_RANGE,{"mcl_sculk:catalyst"})
-	if c then
-		local nn = retrieve_close_spreadable_nodes (p)
-		if nn and #nn > 0 then
-			if xp_amount > 0 then
-				--local d = math.random(100)
-				--[[ --enable to generate shriekers and sensors
-				if d <= 1 then
-					core.set_node(nn[1],{name = "mcl_sculk:shrieker"})
-					set_node_xp(nn[1],math.min(1,self._xp - 10))
-					self.object:remove()
-					return ret
-				elseif d <= 9 then
-					core.set_node(nn[1],{name = "mcl_sculk:sensor"})
-					set_node_xp(nn[1],math.min(1,self._xp - 5))
-					self.object:remove()
-					return ret
-				else --]]
-
-
-				local r = math.min(math.random(#nn), xp_amount)
-
-				for i=1,r do
-					core.set_node(nn[i],{name = "mcl_sculk:sculk" })
-					set_node_xp(nn[i],math.floor(xp_amount / r))
-				end
-				for i=1,r do
-					local p = has_nonsculk(nn[i])
-					if p and has_air(p) then
-						core.set_node(vector.offset(p,0,1,0),{name = "mcl_sculk:vein", param2 = 1})
-					end
-				end
-				set_node_xp(nn[1],get_node_xp(nn[1]) + xp_amount % r)
-				return true
-			end
-		end
-	end
-end
-
-function mcl_sculk.handle_death(pos, xp_amount)
-	if not pos or not xp_amount then return end
-	return spread_sculk (pos, xp_amount)
-end
-
-core.register_on_dieplayer(function(player)
-	mcl_sculk.handle_death(player:get_pos(), 5)
 end)
+
+-- Vinhas de Sculk (CORRIGIDO: Transparência)
+core.register_node("mcl_sculk:vein", {
+	description = S("Sculk Vein"),
+	drawtype = "nodebox",
+	tiles = {"mcl_sculk_vein.png"},
+	inventory_image = "mcl_sculk_vein.png",
+	paramtype = "light", -- Essencial para não ficar preto
+	paramtype2 = "wallmounted",
+	sunlight_propagates = true,
+	use_texture_alpha = "clip", -- Aqui o "clip" é correto: é uma decal fina, precisa mesmo de buracos transparentes
+	walkable = false,
+	buildable_to = true,
+	node_box = { type = "wallmounted" },
+	groups = {handy = 1, axey = 1, shearsy = 1, deco_block = 1, sculk = 1, attached_node = 1},
+	sounds = sounds,
+	_mcl_hardness = 0.2,
+})
+
+-- Shrieker (Inativo)
+-- Convertido a partir do modelo oficial (blockbench/JSON com ~262 quads) para um MESH real,
+-- em vez de um nodebox simples. Isso é o que resolve de vez o "buraco vazio" no centro: o topo
+-- do modelo oficial tem uma textura própria (inner_top) visível entre os espinhos, que a versão
+-- em nodebox simplesmente não tinha como desenhar (nodebox só aceita 6 tiles no total, não uma
+-- textura por elemento). Ordem dos materiais no .obj: side, inner_top, bottom, top — a lista de
+-- "tiles" abaixo TEM que seguir essa mesma ordem.
+core.register_node("mcl_sculk:shrieker", {
+	description = S("Sculk Shrieker"),
+	drawtype = "mesh",
+	mesh = "mcl_sculk_shrieker.obj",
+	tiles = {
+		"mcl_sculk_shrieker_side.png",
+		"mcl_sculk_shrieker_inner_top.png^[verticalframe:7:0", -- estático: só o frame 0 da tira de 7
+		"mcl_sculk_shrieker_bottom.png",
+		"mcl_sculk_shrieker_top.png",
+	},
+	paramtype = "light",
+	paramtype2 = "facedir",
+	sunlight_propagates = true,
+	use_texture_alpha = "opaque",
+	groups = {handy = 1, hoey = 1, sculk = 1, mesecon_receptor_off = 1},
+	sounds = sounds,
+	selection_box = {
+		type = "fixed",
+		fixed = {-0.5, -0.5, -0.5, 0.5, 0.4375, 0.5},
+	},
+	collision_box = {
+		type = "fixed",
+		fixed = {-0.5, -0.5, -0.5, 0.5, 0.4375, 0.5},
+	},
+	mesecons = {receptor = {state = "off", rules = mesecon_rules}},
+	_mcl_hardness = 3,
+})
+
+-- Ativa o shrieker: chamado pelo globalstep de detecção de movimento (não mais um "on_step"
+-- morto — register_node não tem esse callback, então antes isso nunca disparava de verdade).
+function mcl_sculk.activate_shrieker(pos)
+	local node = core.get_node(pos)
+	if node.name ~= "mcl_sculk:shrieker" then return end -- já está ativo ou não é mais um shrieker
+
+	local meta = core.get_meta(pos)
+	local last = meta:get_int("last_shriek")
+	local now = os.time()
+	if now - last <= SHRIEKER_COOLDOWN then return end
+
+	core.swap_node(pos, {name = "mcl_sculk:shrieker_active", param2 = node.param2})
+	core.sound_play("mcl_sculk_shrieker_shriek", {pos = pos, gain = 2.0, max_hear_distance = 32})
+	spawn_echo_particles(pos)
+
+	if core.global_exists("mesecon") then
+		mesecon.receptor_on(pos, mesecon_rules)
+	end
+
+	local new_meta = core.get_meta(pos)
+	new_meta:set_int("last_shriek", now)
+	core.get_node_timer(pos):start(2.0) -- Tempo que fica ligado
+end
+
+-- Shrieker (Ativo) - Para enviar sinal ao comparador
+core.register_node("mcl_sculk:shrieker_active", {
+	description = S("Sculk Shrieker Active"),
+	drawtype = "mesh",
+	mesh = "mcl_sculk_shrieker.obj",
+	tiles = {
+		"mcl_sculk_shrieker_side.png",
+		{
+			name = "mcl_sculk_shrieker_inner_top.png",
+			animation = {
+				type = "vertical_frames",
+				aspect_w = 16,
+				aspect_h = 16,
+				length = 2.0, -- duração de um ciclo completo (7 frames), casa com o tempo do timer do shriek
+			},
+		},
+		"mcl_sculk_shrieker_bottom.png",
+		"mcl_sculk_shrieker_top.png",
+	},
+	paramtype = "light",
+	paramtype2 = "facedir",
+	sunlight_propagates = true,
+	use_texture_alpha = "opaque",
+	light_source = 7,
+	groups = {handy = 1, hoey = 1, sculk = 1, mesecon_receptor_on = 1, not_in_creative_inventory = 1},
+	drop = "mcl_sculk:shrieker",
+	sounds = sounds,
+	selection_box = {
+		type = "fixed",
+		fixed = {-0.5, -0.5, -0.5, 0.5, 0.4375, 0.5},
+	},
+	collision_box = {
+		type = "fixed",
+		fixed = {-0.5, -0.5, -0.5, 0.5, 0.4375, 0.5},
+	},
+	mesecons = {receptor = {state = "on", rules = mesecon_rules}},
+	on_timer = function(pos, elapsed)
+		core.swap_node(pos, {name = "mcl_sculk:shrieker"})
+		if core.global_exists("mesecon") then
+			mesecon.receptor_off(pos, mesecon_rules)
+		end
+		return false
+	end,
+	_mcl_hardness = 3,
+})
+
+-- Outros blocos (Sculk, Catalisador, Sensor...)
+-- Certifique-se de adicionar use_texture_alpha = "clip" apenas em blocos que realmente tenham
+-- partes vazadas/transparentes (como a vein). Para blocos sólidos, prefira "opaque".
 
 core.register_node("mcl_sculk:sculk", {
 	description = S("Sculk"),
-	tiles = {
-		{ name = "mcl_sculk_sculk.png",
-		animation = {
-			type = "vertical_frames",
-			aspect_w = 16,
-			aspect_h = 16,
-			length = 3.0,
-		}, },
-	},
-	drop = "",
+	tiles = {{ name = "mcl_sculk_sculk.png", animation = {type = "vertical_frames", aspect_w = 16, aspect_h = 16, length = 3.0}}},
 	groups = {handy = 1, hoey = 1, building_block=1, sculk = 1, unmovable_by_piston = 1},
-	place_param2 = 1,
 	sounds = sounds,
-	is_ground_content = false,
-	after_dig_node = sculk_after_dig_node,
-	_mcl_blast_resistance = 0.2,
 	_mcl_hardness = 0.6,
 	_mcl_silk_touch_drop = true,
 })
 
-core.register_node("mcl_sculk:vein", {
-	description = S("Sculk Vein"),
-	_doc_items_longdesc = S("Sculk vein."),
-	drawtype = "signlike",
-	tiles = {"mcl_sculk_vein.png"},
-	inventory_image = "mcl_sculk_vein.png",
-	wield_image = "mcl_sculk_vein.png",
-	paramtype = "light",
-	sunlight_propagates = true,
-	paramtype2 = "wallmounted",
-	walkable = false,
-	climbable = true,
-	buildable_to = true,
-	selection_box = {
-		type = "wallmounted",
-	},
-	groups = {
-		handy = 1, axey = 1, shearsy = 1, swordy = 1, deco_block = 1,
-		dig_by_piston = 1, destroy_by_lava_flow = 1, sculk = 1, dig_by_water = 1,
-	},
-	sounds = sounds,
-	drop = "",
-	_mcl_shears_drop = true,
-	node_placement_prediction = "",
-	_mcl_hardness = 0.2,
-	on_rotate = false,
-})
-
 core.register_node("mcl_sculk:catalyst", {
 	description = S("Sculk Catalyst"),
-	tiles = {
-		"mcl_sculk_catalyst_top.png",
-		"mcl_sculk_catalyst_bottom.png",
-		"mcl_sculk_catalyst_side.png"
-	},
-	drop = "",
+	tiles = {"mcl_sculk_catalyst_top.png", "mcl_sculk_catalyst_bottom.png", "mcl_sculk_catalyst_side.png"},
+	groups = {handy = 1, hoey = 1, building_block=1, sculk = 1},
+	light_source = 6,
 	sounds = sounds,
-	groups = {handy = 1, hoey = 1, building_block=1, sculk = 1, unmovable_by_piston = 1},
-	place_param2 = 1,
-	is_ground_content = false,
-	after_dig_node = sculk_after_dig_node,
-	light_source  = 6,
 	_mcl_hardness = 3,
-	_mcl_silk_touch_drop = true,
 })
 
---[[
-core.register_node("mcl_sculk:sensor", {
-	description = S("Sculk Sensor"),
+--------------------------------------------------------------------------
+-- Sculk Sensor Calibrado (Calibrated Sculk Sensor)
+--------------------------------------------------------------------------
+-- Diferente do sensor comum: só detecta uma frequência específica de
+-- vibração (ajustável clicando no bloco com o botão direito), e precisa
+-- de um pulso de redstone na "cara" dele pra ficar "escutando". Aqui a
+-- calibração é simplificada: clique direito cicla a frequência (1 a 5),
+-- e ele funciona como receptor de mesecons emitindo pulso ao detectar.
+
+local function get_frequency(pos)
+	local meta = core.get_meta(pos)
+	local freq = meta:get_int("frequency")
+	if freq < 1 then freq = 1 end
+	return freq
+end
+
+-- core.register_node("mcl_sculk:calibrated_sensor", {
+-- 	description = S("Calibrated Sculk Sensor"),
+-- 	drawtype = "nodebox",
+-- 	tiles = {
+-- 		"mcl_sculk_calibrated_sensor_top.png",
+-- 		"mcl_sculk_calibrated_sensor_bottom.png",
+-- 		"mcl_sculk_calibrated_sensor_side.png",
+-- 		"mcl_sculk_calibrated_sensor_side.png",
+-- 		"mcl_sculk_calibrated_sensor_side.png",
+-- 		"mcl_sculk_calibrated_sensor_side.png",
+-- 	},
+-- 	paramtype = "light",
+-- 	paramtype2 = "facedir",
+-- 	sunlight_propagates = true,
+-- 	use_texture_alpha = "opaque", -- bloco sólido, evita o mesmo bug do shrieker
+-- 	groups = {handy = 1, hoey = 1, sculk = 1, mesecon_receptor_off = 1},
+-- 	sounds = sounds,
+-- 	node_box = {
+-- 		type = "fixed",
+-- 		fixed = {
+-- 			{-0.5, -0.5, -0.5, 0.5, -0.125, 0.5},      -- base do bloco
+-- 			{-0.1875, -0.125, -0.1875, 0.1875, 0.1875, 0.1875}, -- "cristal" central (sensor)
+-- 		},
+-- 	},
+-- 	mesecons = {receptor = {state = "off", rules = mesecon_rules}},
+-- 	after_place_node = function(pos, placer)
+-- 		local meta = core.get_meta(pos)
+-- 		meta:set_int("frequency", 1)
+-- 		meta:set_string("infotext", S("Frequency: @1", 1))
+-- 	end,
+-- 	on_rightclick = function(pos, node, clicker)
+-- 		if not clicker or not clicker:is_player() then return end
+-- 		local meta = core.get_meta(pos)
+-- 		local freq = get_frequency(pos) % MAX_FREQUENCY + 1
+-- 		meta:set_int("frequency", freq)
+-- 		meta:set_string("infotext", S("Frequency: @1", freq))
+-- 		core.sound_play("mcl_sculk_sensor_click", {pos = pos, gain = 0.6, max_hear_distance = 8})
+-- 		core.chat_send_player(clicker:get_player_name(), S("Sculk sensor frequency set to @1", freq))
+-- 	end,
+-- 	_mcl_hardness = 1.5,
+-- })
+
+-- Ativa o sensor calibrado: chamado pelo globalstep de detecção de movimento, mesma razão
+-- do shrieker (o antigo "on_step" no register_node nunca era executado pelo engine).
+function mcl_sculk.activate_sensor(pos)
+	local node = core.get_node(pos)
+	if node.name ~= "mcl_sculk:calibrated_sensor" then return end
+
+	local meta = core.get_meta(pos)
+	local last = meta:get_int("last_pulse")
+	local now = os.time()
+	if now - last <= SENSOR_COOLDOWN then return end
+
+	local freq = get_frequency(pos)
+	core.swap_node(pos, {name = "mcl_sculk:calibrated_sensor_active", param2 = node.param2})
+	core.sound_play("mcl_sculk_sensor_click", {pos = pos, gain = 1.0, max_hear_distance = 16})
+	spawn_echo_particles(pos)
+
+	if core.global_exists("mesecon") then
+		mesecon.receptor_on(pos, mesecon_rules)
+	end
+
+	local new_meta = core.get_meta(pos)
+	new_meta:set_int("frequency", freq)
+	new_meta:set_int("last_pulse", now)
+	new_meta:set_string("infotext", S("Frequency: @1", freq))
+	core.get_node_timer(pos):start(1.5)
+end
+
+core.register_node("mcl_sculk:calibrated_sensor_active", {
+	description = S("Calibrated Sculk Sensor Active"),
+	drawtype = "nodebox",
 	tiles = {
-		"mcl_sculk_sensor_top.png",
-		"mcl_sculk_sensor_bottom.png",
-		"mcl_sculk_sensor_side.png"
+		"mcl_sculk_calibrated_sensor_top.png",
+		"mcl_sculk_calibrated_sensor_bottom.png",
+		"mcl_sculk_calibrated_sensor_side.png",
+		"mcl_sculk_calibrated_sensor_side.png",
+		"mcl_sculk_calibrated_sensor_side.png",
+		"mcl_sculk_calibrated_sensor_side.png",
 	},
-	drop = "",
+	paramtype = "light",
+	paramtype2 = "facedir",
+	sunlight_propagates = true,
+	use_texture_alpha = "opaque",
+	light_source = 6,
+	groups = {handy = 1, hoey = 1, sculk = 1, mesecon_receptor_on = 1, not_in_creative_inventory = 1},
+	drop = "mcl_sculk:calibrated_sensor",
 	sounds = sounds,
-	groups = {handy = 1, hoey = 1, building_block=1, sculk = 1,},
-	place_param2 = 1,
-	is_ground_content = false,
-	after_dig_node = sculk_after_dig_node,
-	light_source  = 1,
-	_mcl_hardness = 3,
-	_mcl_silk_touch_drop = true,
-})
-core.register_node("mcl_sculk:shrieker", {
-	description = S("Sculk Shrieker"),
-	tiles = {
-		"mcl_sculk_shrieker_top.png",
-		"mcl_sculk_shrieker_bottom.png",
-		"mcl_sculk_shrieker_side.png"
+	node_box = {
+		type = "fixed",
+		fixed = {
+			{-0.5, -0.5, -0.5, 0.5, -0.125, 0.5},
+			{-0.1875, -0.125, -0.1875, 0.1875, 0.1875, 0.1875},
+		},
 	},
-	drop = "",
-	sounds = sounds,
-	groups = {handy = 1, hoey = 1, building_block=1, sculk = 1,},
-	place_param2 = 0,
-	is_ground_content = false,
-	after_dig_node = sculk_after_dig_node,
-	light_source  = 0,
-	_mcl_hardness = 3,
-	_mcl_silk_touch_drop = true,
+	mesecons = {receptor = {state = "on", rules = mesecon_rules}},
+	on_timer = function(pos, elapsed)
+		core.swap_node(pos, {name = "mcl_sculk:calibrated_sensor"})
+		if core.global_exists("mesecon") then
+			mesecon.receptor_off(pos, mesecon_rules)
+		end
+		return false
+	end,
+	_mcl_hardness = 1.5,
 })
---]]
-
-core.register_craftitem("mcl_sculk:echo_shard", {
-	description = S("Echo Shard"),
-	groups = {craftitem = 1, rarity = 1},
-	inventory_image = "mcl_sculk_echo_shard.png",
-	wield_image = "mcl_sculk_echo_shard.png"
-})
-
-local modpath = core.get_modpath (core.get_current_modname ())
-mcl_levelgen.register_levelgen_script (modpath .. "/lg_register.lua")
-
