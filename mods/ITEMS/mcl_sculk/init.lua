@@ -36,7 +36,7 @@ end
 -- Coloque o arquivo em textures/echo.png (16x16, pode ser uma tira/anel simples).
 local function spawn_echo_particles(pos)
 	core.add_particlespawner({
-		amount = 12,
+		amount = 1,
 		time = 0.5,
 		minpos = {x = pos.x - 0.4, y = pos.y + 0.05, z = pos.z - 0.4},
 		maxpos = {x = pos.x + 0.4, y = pos.y + 0.3,  z = pos.z + 0.4},
@@ -46,8 +46,8 @@ local function spawn_echo_particles(pos)
 		maxacc = {x = 0, y = 0.6, z = 0},
 		minexptime = 0.6,
 		maxexptime = 1.2,
-		minsize = 1.5,
-		maxsize = 3,
+		minsize = 5,
+		maxsize = 5,
 		texture = "echo.png",
 		glow = 12,
 	})
@@ -119,7 +119,6 @@ core.register_node("mcl_sculk:shrieker", {
 	mesh = "mcl_sculk_shrieker.obj",
 	tiles = {
 		"mcl_sculk_shrieker_side.png",
-		"mcl_sculk_shrieker_inner_top.png^[verticalframe:7:0", -- estático: só o frame 0 da tira de 7
 		"mcl_sculk_shrieker_bottom.png",
 		"mcl_sculk_shrieker_top.png",
 	},
@@ -172,15 +171,6 @@ core.register_node("mcl_sculk:shrieker_active", {
 	mesh = "mcl_sculk_shrieker.obj",
 	tiles = {
 		"mcl_sculk_shrieker_side.png",
-		{
-			name = "mcl_sculk_shrieker_inner_top.png",
-			animation = {
-				type = "vertical_frames",
-				aspect_w = 16,
-				aspect_h = 16,
-				length = 2.0, -- duração de um ciclo completo (7 frames), casa com o tempo do timer do shriek
-			},
-		},
 		"mcl_sculk_shrieker_bottom.png",
 		"mcl_sculk_shrieker_top.png",
 	},
@@ -318,39 +308,39 @@ function mcl_sculk.activate_sensor(pos)
 	core.get_node_timer(pos):start(1.5)
 end
 
-core.register_node("mcl_sculk:calibrated_sensor_active", {
-	description = S("Calibrated Sculk Sensor Active"),
-	drawtype = "nodebox",
-	tiles = {
-		"mcl_sculk_calibrated_sensor_top.png",
-		"mcl_sculk_calibrated_sensor_bottom.png",
-		"mcl_sculk_calibrated_sensor_side.png",
-		"mcl_sculk_calibrated_sensor_side.png",
-		"mcl_sculk_calibrated_sensor_side.png",
-		"mcl_sculk_calibrated_sensor_side.png",
-	},
-	paramtype = "light",
-	paramtype2 = "facedir",
-	sunlight_propagates = true,
-	use_texture_alpha = "opaque",
-	light_source = 6,
-	groups = {handy = 1, hoey = 1, sculk = 1, mesecon_receptor_on = 1, not_in_creative_inventory = 1},
-	drop = "mcl_sculk:calibrated_sensor",
-	sounds = sounds,
-	node_box = {
-		type = "fixed",
-		fixed = {
-			{-0.5, -0.5, -0.5, 0.5, -0.125, 0.5},
-			{-0.1875, -0.125, -0.1875, 0.1875, 0.1875, 0.1875},
-		},
-	},
-	mesecons = {receptor = {state = "on", rules = mesecon_rules}},
-	on_timer = function(pos, elapsed)
-		core.swap_node(pos, {name = "mcl_sculk:calibrated_sensor"})
-		if core.global_exists("mesecon") then
-			mesecon.receptor_off(pos, mesecon_rules)
-		end
-		return false
-	end,
-	_mcl_hardness = 1.5,
-})
+-- core.register_node("mcl_sculk:calibrated_sensor_active", {
+-- 	description = S("Calibrated Sculk Sensor Active"),
+-- 	drawtype = "nodebox",
+-- 	tiles = {
+-- 		"mcl_sculk_calibrated_sensor_top.png",
+-- 		"mcl_sculk_calibrated_sensor_bottom.png",
+-- 		"mcl_sculk_calibrated_sensor_side.png",
+-- 		"mcl_sculk_calibrated_sensor_side.png",
+-- 		"mcl_sculk_calibrated_sensor_side.png",
+-- 		"mcl_sculk_calibrated_sensor_side.png",
+-- 	},
+-- 	paramtype = "light",
+-- 	paramtype2 = "facedir",
+-- 	sunlight_propagates = true,
+-- 	use_texture_alpha = "opaque",
+-- 	light_source = 6,
+-- 	groups = {handy = 1, hoey = 1, sculk = 1, mesecon_receptor_on = 1, not_in_creative_inventory = 1},
+-- 	drop = "mcl_sculk:calibrated_sensor",
+-- 	sounds = sounds,
+-- 	node_box = {
+-- 		type = "fixed",
+-- 		fixed = {
+-- 			{-0.5, -0.5, -0.5, 0.5, -0.125, 0.5},
+-- 			{-0.1875, -0.125, -0.1875, 0.1875, 0.1875, 0.1875},
+-- 		},
+-- 	},
+-- 	mesecons = {receptor = {state = "on", rules = mesecon_rules}},
+-- 	on_timer = function(pos, elapsed)
+-- 		core.swap_node(pos, {name = "mcl_sculk:calibrated_sensor"})
+-- 		if core.global_exists("mesecon") then
+-- 			mesecon.receptor_off(pos, mesecon_rules)
+-- 		end
+-- 		return false
+-- 	end,
+-- 	_mcl_hardness = 1.5,
+-- })
