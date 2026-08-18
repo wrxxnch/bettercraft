@@ -20,7 +20,7 @@ local sounds = {
 	dug      = {name = "mcl_sculk_block", gain = 0.2},
 }
 
-local SHRIEKER_COOLDOWN = 5
+local SHRIEKER_COOLDOWN = 1
 local SENSOR_COOLDOWN = 1
 local MAX_FREQUENCY = 5
 
