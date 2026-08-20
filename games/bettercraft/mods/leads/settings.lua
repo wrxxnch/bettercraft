@@ -42,8 +42,8 @@ end;
 --- Mod settings.
 leads.settings =
 {
-    lead_length             = get_n('leads.lead_length',                8);
-    lead_strength           = get_n('leads.lead_strength',              4);
+    lead_length             = get_n('leads.lead_length',                3);
+    lead_strength           = get_n('leads.lead_strength',              16);
     chat_messages           = get_b('leads.chat_messages',              false);
     drop_mode               = get_s('leads.drop_mode',                  'auto');
     symmetrical             = get_b('leads.symmetrical',                false);
