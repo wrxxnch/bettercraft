@@ -31,6 +31,7 @@ local files = {
 	"enderman.lua",
 	"endermite.lua",
 	"frog.lua",
+	"fox.lua",
 	"ghast.lua",
 	"guardian.lua",
 	"guardian_elder.lua",
