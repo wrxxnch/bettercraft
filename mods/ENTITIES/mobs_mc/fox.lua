@@ -1,9 +1,7 @@
 -- License for code WTFPL and otherwise stated in readmes
 
 local S = core.get_translator("mobs_mc")
-
 local mob_class = mcl_mobs.mob_class
-local is_valid = mcl_util.is_valid_objectref
 
 ------------------------------------------------------------------------
 -- Fox.
@@ -13,20 +11,34 @@ local fox = {
 	description = S("Fox"),
 	type = "animal",
 	_spawn_category = "creature",
+
 	can_despawn = true,
 
 	hp_min = 10,
 	hp_max = 10,
+
 	xp_min = 1,
 	xp_max = 2,
 
 	passive = false,
 
-	collisionbox = {-0.35, 0.0, -0.35, 0.35, 0.5, 0.35},
-	visual_size = { x = 10, y = 10, },
+	------------------------------------------------------------------------
+	-- Physical properties.
+	------------------------------------------------------------------------
+
+	collisionbox = {
+		-0.35, 0.0, -0.35,
+		 0.35, 0.5,  0.35
+	},
 
 	visual = "mesh",
+
 	mesh = "fox.b3d",
+
+	visual_size = {
+		x = 10,
+		y = 10,
+	},
 
 	textures = {
 		"fox.png",
@@ -39,10 +51,21 @@ local fox = {
 
 	floats = 1,
 
+	------------------------------------------------------------------------
+	-- Movement.
+	------------------------------------------------------------------------
+
 	movement_speed = 4.0,
+
 	damage = 2,
+
 	reach = 1.5,
+
 	attack_type = "melee",
+
+	------------------------------------------------------------------------
+	-- Animation.
+	------------------------------------------------------------------------
 
 	animation = {
 		stand_start = 0,
@@ -57,28 +80,56 @@ local fox = {
 		run_speed = 45,
 	},
 
-	-- The fox hunts chickens and rabbits.
-	specific_attack = {
-		"mobs_mc:chicken",
-		"mobs_mc:rabbit",
-	},
+	------------------------------------------------------------------------
+	-- Follow.
+	------------------------------------------------------------------------
 
-	-- Food which the fox follows.
+	-- The fox follows players holding these items.
+	--
+	-- This uses the native mcl_mobs follow system, just like
+	-- mobs_mc:pig.
 	follow = {
 		"mcl_mobitems:chicken",
 		"mcl_mobitems:rabbit",
 		"mcl_mobitems:mutton",
 		"mcl_mobitems:beef",
 		"mcl_mobitems:porkchop",
+
+		"mcl_mobitems:cooked_chicken",
+		"mcl_mobitems:cooked_rabbit",
+		"mcl_mobitems:cooked_mutton",
+		"mcl_mobitems:cooked_beef",
+		"mcl_mobitems:cooked_porkchop",
 	},
 
-	-- Foxes run away when punched.
+	------------------------------------------------------------------------
+	-- Combat.
+	------------------------------------------------------------------------
+
+	-- Fox attacks chickens and rabbits.
+	specific_attack = {
+		"mobs_mc:chicken",
+		"mobs_mc:rabbit",
+	},
+
+	------------------------------------------------------------------------
+	-- Flee.
+	------------------------------------------------------------------------
+
+	-- Run away from players when punched.
 	runaway_from = {
 		"mobs_mc:player",
 	},
 
 	run_bonus = 1.5,
 
+	------------------------------------------------------------------------
+	-- Sounds.
+	------------------------------------------------------------------------
+
+	-- Sounds are disabled for now because the corresponding sound
+	-- files may not exist in the current setup.
+	--
 	-- sounds = {
 	-- 	attack = "mobs_mc_fox_bite",
 	-- 	war_cry = "mobs_mc_fox_screech",
@@ -99,36 +150,23 @@ local fox = {
 -- Fox AI.
 ------------------------------------------------------------------------
 
-function fox:ai_step(dtime)
-	local self_pos = self.object:get_pos()
-
-	if not self_pos then
-		return
-	end
-
-	mob_class.ai_step(self, dtime)
-end
-
-function fox:should_runaway_from_mob(entity)
-	return entity.name == "mobs_mc:player"
-end
-
-function fox:attack_custom(self_pos, dtime)
-	local attack = self:attack_default(self_pos, dtime, self.esp)
-
-	if attack then
-		self:do_attack(attack)
-		return true
-	end
-
-	return false
-end
-
 fox.ai_functions = {
+	-- Run away from danger.
 	mob_class.check_frightened,
-	mob_class.check_avoid,
+
+	-- Attack chickens and rabbits.
 	mob_class.check_attack,
+
+	-- Breeding.
 	mob_class.check_breeding,
+
+	-- Follow players holding food.
+	mob_class.check_following,
+
+	-- Follow other foxes.
+	mob_class.follow_herd,
+
+	-- Random wandering.
 	mob_class.check_pace,
 }
 
@@ -136,13 +174,19 @@ fox.ai_functions = {
 -- Register fox.
 ------------------------------------------------------------------------
 
-
+mcl_mobs.register_mob("mobs_mc:fox", fox)
 
 ------------------------------------------------------------------------
 -- Fox spawn egg.
 ------------------------------------------------------------------------
 
-
+mcl_mobs.register_egg(
+	"mobs_mc:fox",
+	S("Fox"),
+	"#d0602d",
+	"#c9c9c9",
+	0
+)
 
 ------------------------------------------------------------------------
 -- Fox spawning.
@@ -150,7 +194,9 @@ fox.ai_functions = {
 
 local fox_spawner = table.merge(mobs_mc.animal_spawner, {
 	name = "mobs_mc:fox",
+
 	weight = 8,
+
 	pack_min = 2,
 	pack_max = 4,
 
@@ -169,13 +215,4 @@ function fox_spawner:describe_supporting_nodes()
 	return S("on grass, snow blocks, or podzol")
 end
 
-
-mcl_mobs.register_egg(
-	"mobs_mc:fox",
-	S("Fox"),
-	"#d0602d",
-	"#c9c9c9",
-	0
-)
-
-mcl_mobs.register_mob("mobs_mc:fox", fox)
+mcl_mobs.register_spawner(fox_spawner)
