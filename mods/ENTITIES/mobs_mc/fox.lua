@@ -84,10 +84,6 @@ local fox = {
 	-- Follow.
 	------------------------------------------------------------------------
 
-	-- The fox follows players holding these items.
-	--
-	-- This uses the native mcl_mobs follow system, just like
-	-- mobs_mc:pig.
 	follow = {
 		"mcl_mobitems:chicken",
 		"mcl_mobitems:rabbit",
@@ -106,17 +102,15 @@ local fox = {
 	-- Combat.
 	------------------------------------------------------------------------
 
-	-- Fox attacks chickens and rabbits.
 	specific_attack = {
 		"mobs_mc:chicken",
 		"mobs_mc:rabbit",
 	},
 
 	------------------------------------------------------------------------
-	-- Flee.
+	-- Run away.
 	------------------------------------------------------------------------
 
-	-- Run away from players when punched.
 	runaway_from = {
 		"mobs_mc:player",
 	},
@@ -127,9 +121,6 @@ local fox = {
 	-- Sounds.
 	------------------------------------------------------------------------
 
-	-- Sounds are disabled for now because the corresponding sound
-	-- files may not exist in the current setup.
-	--
 	-- sounds = {
 	-- 	attack = "mobs_mc_fox_bite",
 	-- 	war_cry = "mobs_mc_fox_screech",
@@ -147,26 +138,36 @@ local fox = {
 }
 
 ------------------------------------------------------------------------
+-- Fox interaction / breeding.
+------------------------------------------------------------------------
+
+function fox:on_rightclick(clicker)
+	if not clicker or not clicker:is_player() then
+		return
+	end
+
+	-- Don't breed baby foxes.
+	if self.child then
+		return
+	end
+
+	-- Food used to breed the fox.
+	if self:follow_holding(clicker)
+		and self:feed_tame(clicker, 4, true, false) then
+		return
+	end
+end
+
+------------------------------------------------------------------------
 -- Fox AI.
 ------------------------------------------------------------------------
 
 fox.ai_functions = {
-	-- Run away from danger.
 	mob_class.check_frightened,
-
-	-- Attack chickens and rabbits.
 	mob_class.check_attack,
-
-	-- Breeding.
 	mob_class.check_breeding,
-
-	-- Follow players holding food.
 	mob_class.check_following,
-
-	-- Follow other foxes.
 	mob_class.follow_herd,
-
-	-- Random wandering.
 	mob_class.check_pace,
 }
 
