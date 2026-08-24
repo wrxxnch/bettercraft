@@ -42,6 +42,7 @@ local builtin_filter_ids = {
 	"misc",
 	"all",
 	"nici",
+	"mcl_cblocks",
 }
 
 for _, f in pairs(builtin_filter_ids) do
@@ -49,7 +50,6 @@ for _, f in pairs(builtin_filter_ids) do
 end
 
 -- Populate all the item tables. We only do this once.
--- Note this code must be executed after loading all the other mods in order to work.
 core.register_on_mods_loaded(function()
 
 	for name, def in pairs(core.registered_items) do
@@ -79,53 +79,64 @@ core.register_on_mods_loaded(function()
 
 			-- Is set to true if it was added in any category besides misc
 			local nonmisc = false
-			if core.get_item_group(name, "building_block") ~= 0 then
+
+			-- LOGICA DE SEPARAÇÃO: Se for do mod mcl_cblocks, vai pra aba dele e IGNORA as outras
+			if name:sub(1, 12) == "mcl_cblocks:" then
+				table.insert(inventory_lists["mcl_cblocks"], name)
+				nonmisc = true
+			-- Usamos ELSEIF aqui para que, se for mcl_cblocks, ele NÃO entre em "blocks"
+			elseif core.get_item_group(name, "building_block") ~= 0 then
 				table.insert(inventory_lists["blocks"], name)
 				nonmisc = true
 			end
-			if core.get_item_group(name, "deco_block") ~= 0 then
-				table.insert(inventory_lists["deco"], name)
-				nonmisc = true
-			end
-			if is_redstone(def) then
-				table.insert(inventory_lists["redstone"], name)
-				nonmisc = true
-			end
-			if core.get_item_group(name, "transport") ~= 0 then
-				table.insert(inventory_lists["rail"], name)
-				nonmisc = true
-			end
-			if (core.get_item_group(name, "food") ~= 0 and core.get_item_group(name, "brewitem") == 0 ) or core.get_item_group(name, "eatable") ~= 0 then
-				table.insert(inventory_lists["food"], name)
-				nonmisc = true
-			end
-			if is_tool(def) then
-				table.insert(inventory_lists["tools"], name)
-				nonmisc = true
-			end
-			if is_weapon_or_armor(def) then
-				table.insert(inventory_lists["combat"], name)
-				nonmisc = true
-			end
-			if core.get_item_group(name, "spawn_egg") ~= 0 then
-				table.insert(inventory_lists["mobs"], name)
-				nonmisc = true
-			end
-			if core.get_item_group(name, "brewitem") ~= 0 then
-				local str = name
-				if def.groups._mcl_potion == 1 then
-					local stack = ItemStack(name)
-					tt.reload_itemstack_description(stack)
-					str = stack:to_string()
+
+			-- Continuação dos outros grupos (sempre checando se já não foi adicionado)
+			if not nonmisc then
+				if core.get_item_group(name, "deco_block") ~= 0 then
+					table.insert(inventory_lists["deco"], name)
+					nonmisc = true
 				end
-				table.insert(inventory_lists["brew"], str)
-				nonmisc = true
+				if is_redstone(def) then
+					table.insert(inventory_lists["redstone"], name)
+					nonmisc = true
+				end
+				if core.get_item_group(name, "transport") ~= 0 then
+					table.insert(inventory_lists["rail"], name)
+					nonmisc = true
+				end
+				if (core.get_item_group(name, "food") ~= 0 and core.get_item_group(name, "brewitem") == 0 ) or core.get_item_group(name, "eatable") ~= 0 then
+					table.insert(inventory_lists["food"], name)
+					nonmisc = true
+				end
+				if is_tool(def) then
+					table.insert(inventory_lists["tools"], name)
+					nonmisc = true
+				end
+				if is_weapon_or_armor(def) then
+					table.insert(inventory_lists["combat"], name)
+					nonmisc = true
+				end
+				if core.get_item_group(name, "spawn_egg") ~= 0 then
+					table.insert(inventory_lists["mobs"], name)
+					nonmisc = true
+				end
+				if core.get_item_group(name, "brewitem") ~= 0 then
+					local str = name
+					if def.groups._mcl_potion == 1 then
+						local stack = ItemStack(name)
+						tt.reload_itemstack_description(stack)
+						str = stack:to_string()
+					end
+					table.insert(inventory_lists["brew"], str)
+					nonmisc = true
+				end
+				if core.get_item_group(name, "craftitem") ~= 0 then
+					table.insert(inventory_lists["matr"], name)
+					nonmisc = true
+				end
 			end
-			if core.get_item_group(name, "craftitem") ~= 0 then
-				table.insert(inventory_lists["matr"], name)
-				nonmisc = true
-			end
-			-- Misc. category is for everything which is not in any other category
+
+			-- Misc. category
 			if not nonmisc then
 				table.insert(inventory_lists["misc"], name)
 			end
@@ -258,19 +269,10 @@ trash:set_size("main", 1)
 -- Formspec Precalculations --
 ------------------------------
 
--- Numeric position of tab background image, indexed by tab name
 local noffset = {}
-
--- String position of tab button background image, indexed by tab name
 local offset = {}
-
--- String position of tab button, indexed by tab name
 local boffset = {}
-
--- Used to determine the tab button background image
 local button_bg_postfix = {}
-
--- Tab caption/tooltip translated string, indexed by tab name
 local filtername = {}
 
 local noffset_x_start = 0.2
@@ -305,6 +307,7 @@ next_noffset("combat")
 next_noffset("mobs")
 next_noffset("matr")
 next_noffset("nici")
+next_noffset("mcl_cblocks")
 next_noffset("inv", true)
 
 for k, v in pairs(noffset) do
@@ -327,6 +330,7 @@ button_bg_postfix["mobs"] = "_down"
 button_bg_postfix["matr"] = "_down"
 button_bg_postfix["inv"] = "_down"
 button_bg_postfix["nici"] = "_down"
+button_bg_postfix["mcl_cblocks"] = "_down"
 
 filtername["blocks"] = S("Building Blocks")
 filtername["deco"] = S("Decoration Blocks")
@@ -342,25 +346,7 @@ filtername["brew"] = S("Brewing")
 filtername["matr"] = S("Materials")
 filtername["inv"] = S("Survival Inventory")
 filtername["nici"] = S("Not in Creative Inventory")
-
---local dark_bg = "crafting_creative_bg_dark.png"
-
---[[local function reset_menu_item_bg()
-	bg["blocks"] = dark_bg
-	bg["deco"] = dark_bg
-	bg["redstone"] = dark_bg
-	bg["rail"] = dark_bg
-	bg["misc"] = dark_bg
-	bg["nix"] = dark_bg
-	bg["food"] = dark_bg
-	bg["tools"] = dark_bg
-	bg["combat"] = dark_bg
-	bg["mobs"] = dark_bg
-	bg["brew"] = dark_bg
-	bg["matr"] = dark_bg
-	bg["inv"] = dark_bg
-	bg["default"] = dark_bg
-end]]
+filtername["mcl_cblocks"] = "CBlocks" -- ESSA LINHA CORRIGE O ERRO DE NIL
 
 -- Item name representing a tab, indexed by tab name
 local tab_icon = {
@@ -378,6 +364,7 @@ local tab_icon = {
 	matr = "mcl_core:stick",
 	inv = "mcl_chests:chest",
 	nici = "mcl_core:barrier",
+	mcl_cblocks = "mcl_cblocks:cobble_light_blue",
 }
 
 -- Get the player configured stack size when taking items from creative inventory
@@ -397,13 +384,8 @@ core.register_on_joinplayer(function(player)
 end)
 
 local function is_touch_enabled(playername)
-	-- Minetest < 5.7.0 support
-	if not core.get_player_window_information then
-		return false
-	end
+	if not core.get_player_window_information then return false end
 	local window = core.get_player_window_information(playername)
-	-- Always return a boolean (not nil) to avoid false-negatives when
-	-- comparing to a boolean later.
 	return window and window.touch_controls or false
 end
 
@@ -444,34 +426,19 @@ function mcl_inventory.set_creative_formspec(player)
 	end
 
 	if name == "inv" then
-		-- Background images for armor slots (hide if occupied)
 		local armor_slot_imgs = ""
 		local inv = player:get_inventory()
-		if inv:get_stack("armor", 2):is_empty() then
-			armor_slot_imgs = armor_slot_imgs .. "image[3.5,0.375;1,1;mcl_inventory_empty_armor_slot_helmet.png]"
-		end
-		if inv:get_stack("armor", 3):is_empty() then
-			armor_slot_imgs = armor_slot_imgs .. "image[3.5,2.125;1,1;mcl_inventory_empty_armor_slot_chestplate.png]"
-		end
-		if inv:get_stack("armor", 4):is_empty() then
-			armor_slot_imgs = armor_slot_imgs .. "image[7.25,0.375;1,1;mcl_inventory_empty_armor_slot_leggings.png]"
-		end
-		if inv:get_stack("armor", 5):is_empty() then
-			armor_slot_imgs = armor_slot_imgs .. "image[7.25,2.125;1,1;mcl_inventory_empty_armor_slot_boots.png]"
-		end
-
-		if inv:get_stack("offhand", 1):is_empty() then
-			armor_slot_imgs = armor_slot_imgs .. "image[2.25,1.25;1,1;mcl_inventory_empty_armor_slot_shield.png]"
-		end
+		if inv:get_stack("armor", 2):is_empty() then armor_slot_imgs = armor_slot_imgs .. "image[3.5,0.375;1,1;mcl_inventory_empty_armor_slot_helmet.png]" end
+		if inv:get_stack("armor", 3):is_empty() then armor_slot_imgs = armor_slot_imgs .. "image[3.5,2.125;1,1;mcl_inventory_empty_armor_slot_chestplate.png]" end
+		if inv:get_stack("armor", 4):is_empty() then armor_slot_imgs = armor_slot_imgs .. "image[7.25,0.375;1,1;mcl_inventory_empty_armor_slot_leggings.png]" end
+		if inv:get_stack("armor", 5):is_empty() then armor_slot_imgs = armor_slot_imgs .. "image[7.25,2.125;1,1;mcl_inventory_empty_armor_slot_boots.png]" end
+		if inv:get_stack("offhand", 1):is_empty() then armor_slot_imgs = armor_slot_imgs .. "image[2.25,1.25;1,1;mcl_inventory_empty_armor_slot_shield.png]" end
 
 		local stack_size = get_stack_size(player)
 
-		-- Survival inventory slots
 		main_list = table.concat({
 			mcl_formspec.get_itemslot_bg_v4(0.375, 3.375, 9, 3),
 			"list[current_player;main;0.375,3.375;9,3;9]",
-
-			-- Armor
 			mcl_formspec.get_itemslot_bg_v4(3.5, 0.375, 1, 1),
 			mcl_formspec.get_itemslot_bg_v4(3.5, 2.125, 1, 1),
 			mcl_formspec.get_itemslot_bg_v4(7.25, 0.375, 1, 1),
@@ -480,59 +447,29 @@ function mcl_inventory.set_creative_formspec(player)
 			"list[current_player;armor;3.5,2.125;1,1;2]",
 			"list[current_player;armor;7.25,0.375;1,1;3]",
 			"list[current_player;armor;7.25,2.125;1,1;4]",
-
-			-- Offhand
 			mcl_formspec.get_itemslot_bg_v4(2.25, 1.25, 1, 1),
 			"list[current_player;offhand;2.25,1.25;1,1]",
-
 			armor_slot_imgs,
-
-			-- Player preview
 			"image[4.75,0.33;2.25,2.83;mcl_inventory_background9.png;2]",
 			mcl_player.get_player_formspec_model(player, 4.75, 0.45, 2.25, 2.75, ""),
-
-			-- Crafting guide button
 			"image_button[11.575,0.825;1.1,1.1;craftguide_book.png;__mcl_craftguide;]",
 			"tooltip[__mcl_craftguide;" .. F(S("Recipe book")) .. "]",
-
-			-- Help button
 			"image_button[11.575,2.075;1.1,1.1;doc_button_icon_lores.png;__mcl_doc;]",
 			"tooltip[__mcl_doc;" .. F(S("Help")) .. "]",
-
-			-- Advancements button
 			"image_button[11.575,3.325;1.1,1.1;mcl_achievements_button.png;__mcl_achievements;]",
-			--"style_type[image_button;border=;bgimg=;bgimg_pressed=]",
 			"tooltip[__mcl_achievements;" .. F(S("Advancements")) .. "]",
-
-			-- Switch stack size button
 			"image_button[11.575,4.575;1.1,1.1;mcl_stacksize_button.png;__switch_stack;]",
 			"label[12.275,5.35;" .. F(C("#FFFFFF", tostring(stack_size ~= 1 and stack_size or ""))) .. "]",
 			"tooltip[__switch_stack;" .. F(S("Switch stack size")) .. "]",
-
-			-- Skins button
 			"image_button[11.575,5.825;1.1,1.1;mcl_player_settings.png;__mcl_player_settings;]",
 			"tooltip[__mcl_player_settings;" .. F(S("Player settings")) .. "]",
 		})
 
-		-- For shortcuts
-		listrings = listrings ..
-			"listring[current_player;armor]"..
-			"listring[current_player;main]"..
-			"listring[current_player;offhand]"..
-			"listring[current_player;main]"
+		listrings = listrings .. "listring[current_player;armor]listring[current_player;main]listring[current_player;offhand]listring[current_player;main]"
 	else
 		local scroll_setting = mcl_player.get_player_setting(player, "mcl_inventory:scroll_on_creative_inventory", "auto")
 		local scroll = scroll_setting == "true"
 		if scroll_setting == "auto" then
-			--[[
-				Luanti version <5.11 has serious performance
-				issues with scrollbars.  Luanti 5.13 also
-				introduced a regression which broke the
-				scrollbar completely.  When Luanti 5.11+ is
-				required for Mineclonia servers then the
-				hardcoded 47 and 48 can be replaced by
-				core.protocol_versions[<version>].
-			]]
 			local protocol_version = core.get_player_information(playername).protocol_version
 			scroll = 47 <= protocol_version and protocol_version < 49
 		end
@@ -558,103 +495,54 @@ function mcl_inventory.set_creative_formspec(player)
 	end
 
 	local function tab(current_tab, this_tab)
-		local bg_img
-		if current_tab == this_tab then
-			bg_img = "crafting_creative_active" .. button_bg_postfix[this_tab] .. ".png"
-		else
-			bg_img = "crafting_creative_inactive" .. button_bg_postfix[this_tab] .. ".png"
-		end
+		local bg_img = (current_tab == this_tab) and ("crafting_creative_active" .. button_bg_postfix[this_tab] .. ".png") or ("crafting_creative_inactive" .. button_bg_postfix[this_tab] .. ".png")
 		return table.concat({
-			"style[" .. this_tab ..       ";border=false;bgimg=;bgimg_pressed=]",
-			"style[" .. this_tab .. "_outer;border=false;bgimg=" .. bg_img ..
-				";bgimg_pressed=" .. bg_img .. "]",
+			"style[" .. this_tab .. ";border=false;bgimg=;bgimg_pressed=]",
+			"style[" .. this_tab .. "_outer;border=false;bgimg=" .. bg_img .. ";bgimg_pressed=" .. bg_img .. "]",
 			"button[" .. offset[this_tab] .. ";1.5,1.44;" .. this_tab .. "_outer;]",
 			"item_image_button[" .. boffset[this_tab] .. ";1,1;" .. tab_icon[this_tab] .. ";" .. this_tab .. ";]",
 		})
 	end
 
-	local caption = ""
-	if name ~= "inv" and filtername[name] then
-		caption = "label[0.375,0.375;" .. F(C(mcl_formspec.label_color, filtername[name])) .. "]"
-	end
-
-	local nici = ""
-	if show_nici then
-		nici = tab(name, "nici") ..
-		"tooltip[nici;"..F(filtername["nici"]).."]"
-	end
-
+	local caption = (name ~= "inv" and filtername[name]) and ("label[0.375,0.375;" .. F(C(mcl_formspec.label_color, filtername[name])) .. "]") or ""
+	local nici = show_nici and (tab(name, "nici") .. "tooltip[nici;"..F(filtername["nici"]).."]") or ""
 	local touch_enabled = is_touch_enabled(playername)
 	players[playername].last_touch_enabled = touch_enabled
 
 	local formspec = table.concat({
 		"formspec_version[6]",
-		-- Original formspec height was 8.75, increased to include tab buttons.
-		-- This avoids tab buttons going off-screen with high scaling values.
 		"size[13,11.43]",
-		-- Use as much space as possible on mobile - the tab buttons are a lot
-		-- of padding already.
 		touch_enabled and "padding[-0.015,-0.015]" or "",
-
 		"no_prepend[]", mcl_vars.gui_nonbg, mcl_vars.gui_bg_color,
 		"background9[0,1.34;13,8.75;mcl_base_textures_background9.png;;7]",
 		"container[0,1.34]",
-
-		-- Hotbar
 		mcl_formspec.get_itemslot_bg_v4(0.375, 7.375, 9, 1),
 		"list[current_player;main;0.375,7.375;9,1;]",
-
-		-- Trash
 		mcl_formspec.get_itemslot_bg_v4(11.625, 7.375, 1, 1, nil, "crafting_creative_trash.png"),
 		"list[detached:trash;main;11.625,7.375;1,1;]",
-
 		main_list,
-
 		caption,
-
 		listrings,
-
-		tab(name, "blocks") ..
-		"tooltip[blocks;"..F(filtername["blocks"]).."]"..
-		tab(name, "deco") ..
-		"tooltip[deco;"..F(filtername["deco"]).."]"..
-		tab(name, "redstone") ..
-		"tooltip[redstone;"..F(filtername["redstone"]).."]"..
-		tab(name, "rail") ..
-		"tooltip[rail;"..F(filtername["rail"]).."]"..
-		tab(name, "misc") ..
-		"tooltip[misc;"..F(filtername["misc"]).."]"..
-		tab(name, "nix") ..
-		"tooltip[nix;"..F(filtername["nix"]).."]"..
-
-		tab(name, "food") ..
-		"tooltip[food;"..F(filtername["food"]).."]"..
-		tab(name, "tools") ..
-		"tooltip[tools;"..F(filtername["tools"]).."]"..
-		tab(name, "combat") ..
-		"tooltip[combat;"..F(filtername["combat"]).."]"..
-		tab(name, "mobs") ..
-		"tooltip[mobs;"..F(filtername["mobs"]).."]"..
-		tab(name, "brew") ..
-		"tooltip[brew;"..F(filtername["brew"]).."]"..
-		tab(name, "matr") ..
-		"tooltip[matr;"..F(filtername["matr"]).."]",
+		tab(name, "blocks") .. "tooltip[blocks;"..F(filtername["blocks"]).."]"..
+		tab(name, "deco") .. "tooltip[deco;"..F(filtername["deco"]).."]"..
+		tab(name, "redstone") .. "tooltip[redstone;"..F(filtername["redstone"]).."]"..
+		tab(name, "rail") .. "tooltip[rail;"..F(filtername["rail"]).."]"..
+		tab(name, "misc") .. "tooltip[misc;"..F(filtername["misc"]).."]"..
+		tab(name, "nix") .. "tooltip[nix;"..F(filtername["nix"]).."]"..
+		tab(name, "food") .. "tooltip[food;"..F(filtername["food"]).."]"..
+		tab(name, "tools") .. "tooltip[tools;"..F(filtername["tools"]).."]"..
+		tab(name, "combat") .. "tooltip[combat;"..F(filtername["combat"]).."]"..
+		tab(name, "mobs") .. "tooltip[mobs;"..F(filtername["mobs"]).."]"..
+		tab(name, "brew") .. "tooltip[brew;"..F(filtername["brew"]).."]"..
+		tab(name, "matr") .. "tooltip[matr;"..F(filtername["matr"]).."]",
 		nici,
-		tab(name, "inv") ..
-		"tooltip[inv;"..F(filtername["inv"]).."]"
+		tab(name, "inv") .. "tooltip[inv;"..F(filtername["inv"]).."]",
+		tab(name, "mcl_cblocks") .. "tooltip[mcl_cblocks;"..F(filtername["mcl_cblocks"]).."]"
 	})
 
 	if name == "nix" then
-		if filter == nil then
-			filter = ""
-		end
-
-		formspec = formspec .. table.concat({
-			"field[5.325,0.15;6.1,0.6;search;;" .. core.formspec_escape(filter) .. "]",
-			"field_enter_after_edit[search;true]",
-			"field_close_on_enter[search;false]",
-			"set_focus[search;true]",
-		})
+		formspec = formspec .. "field[5.325,0.15;6.1,0.6;search;;" .. core.formspec_escape(filter or "") .. "]" ..
+			"field_enter_after_edit[search;true]field_close_on_enter[search;false]set_focus[search;true]"
 	end
 	formspec = formspec .. "container_end[]"
 	if pagenum then formspec = formspec .. "p" .. tostring(pagenum) end
@@ -663,166 +551,77 @@ end
 
 core.register_on_player_receive_fields(function(player, formname, fields)
 	local page = nil
-
-	if not core.is_creative_enabled(player:get_player_name()) then
-		return
-	end
-	if formname ~= "" or fields.quit == "true" then
-		-- No-op if formspec closed or not player inventory (formname == "")
-		return
-	end
-
-	-- Do not resend formspec when moving scrollbar
+	if not core.is_creative_enabled(player:get_player_name()) then return end
+	if formname ~= "" or fields.quit == "true" then return end
 	local scrollbar_event = core.explode_scrollbar_event(fields.scroll)
-	if scrollbar_event.type == "CHG" then
-		return
-	end
+	if scrollbar_event.type == "CHG" then return end
 
 	local name = player:get_player_name()
 
-	if fields.blocks or fields.blocks_outer then
-		if players[name].page == "blocks" then return end
-		set_inv_page("blocks", player)
-		page = "blocks"
-	elseif fields.deco or fields.deco_outer then
-		if players[name].page == "deco" then return end
-		set_inv_page("deco", player)
-		page = "deco"
-	elseif fields.redstone or fields.redstone_outer then
-		if players[name].page == "redstone" then return end
-		set_inv_page("redstone", player)
-		page = "redstone"
-	elseif fields.rail or fields.rail_outer then
-		if players[name].page == "rail" then return end
-		set_inv_page("rail", player)
-		page = "rail"
-	elseif fields.misc or fields.misc_outer then
-		if players[name].page == "misc" then return end
-		set_inv_page("misc", player)
-		page = "misc"
-	elseif fields.nix or fields.nix_outer then
-		set_inv_page("all", player)
-		page = "nix"
-	elseif fields.food or fields.food_outer then
-		if players[name].page == "food" then return end
-		set_inv_page("food", player)
-		page = "food"
-	elseif fields.tools or fields.tools_outer then
-		if players[name].page == "tools" then return end
-		set_inv_page("tools", player)
-		page = "tools"
-	elseif fields.combat or fields.combat_outer then
-		if players[name].page == "combat" then return end
-		set_inv_page("combat", player)
-		page = "combat"
-	elseif fields.mobs or fields.mobs_outer then
-		if players[name].page == "mobs" then return end
-		set_inv_page("mobs", player)
-		page = "mobs"
-	elseif fields.brew or fields.brew_outer then
-		if players[name].page == "brew" then return end
-		set_inv_page("brew", player)
-		page = "brew"
-	elseif fields.matr or fields.matr_outer  then
-		if players[name].page == "matr" then return end
-		set_inv_page("matr", player)
-		page = "matr"
-	elseif fields.nici or fields.nici_outer then
-		if players[name].page == "nici" then return end
-		set_inv_page("nici", player)
-		page = "nici"
-	elseif fields.inv or fields.inv_outer then
-		if players[name].page == "inv" then return end
-		page = "inv"
-	elseif fields.search == "" and not fields.creative_next and not fields.creative_prev then
-		set_inv_page("all", player)
-		page = "nix"
-	elseif fields.search and not fields.creative_next and not fields.creative_prev then
+	if fields.blocks or fields.blocks_outer then page = "blocks"
+	elseif fields.deco or fields.deco_outer then page = "deco"
+	elseif fields.redstone or fields.redstone_outer then page = "redstone"
+	elseif fields.rail or fields.rail_outer then page = "rail"
+	elseif fields.misc or fields.misc_outer then page = "misc"
+	elseif fields.nix or fields.nix_outer then page = "nix"
+	elseif fields.food or fields.food_outer then page = "food"
+	elseif fields.tools or fields.tools_outer then page = "tools"
+	elseif fields.combat or fields.combat_outer then page = "combat"
+	elseif fields.mobs or fields.mobs_outer then page = "mobs"
+	elseif fields.brew or fields.brew_outer then page = "brew"
+	elseif fields.matr or fields.matr_outer then page = "matr"
+	elseif fields.nici or fields.nici_outer then page = "nici"
+	elseif fields.mcl_cblocks or fields.mcl_cblocks_outer then page = "mcl_cblocks" -- RECEBER CLIQUE DA ABA
+	elseif fields.inv or fields.inv_outer then page = "inv"
+	elseif fields.search then
 		set_inv_search(fields.search, player)
 		page = "nix"
 	elseif fields.__switch_stack then
-		local switch = 1
-		if get_stack_size(player) == 1 then
-			switch = 64
-		end
-		set_stack_size(player, switch)
+		set_stack_size(player, get_stack_size(player) == 1 and 64 or 1)
 	end
 
 	if page then
+		if page ~= "inv" and page ~= "nix" then set_inv_page(page, player) end
 		players[name].page = page
 	else
 		page = players[name].page
 	end
 
-	local start_i = players[name].start_i
-	if fields.creative_prev then
-		start_i = start_i - 9 * 5
-	elseif fields.creative_next then
-		start_i = start_i + 9 * 5
-	else
-		-- Reset scroll bar if not scrolled
-		start_i = 0
-	end
-	if start_i < 0 then
-		start_i = start_i + 9 * 5
-	end
-
-	local inv_size
-	if page == "nix" then
-		local inv = core.get_inventory({ type = "detached", name = "creative_" .. name })
-		inv_size = inv:get_size("main")
-	elseif page and page ~= "inv" then
-		inv_size = #(inventory_lists[page])
-	else
-		inv_size = 0
-	end
+	local start_i = players[name].start_i or 0
+	if fields.creative_prev then start_i = start_i - 9 * 5
+	elseif fields.creative_next then start_i = start_i + 9 * 5
+	else start_i = 0 end
+	
+	local inv_size = 0
+	if page == "nix" then inv_size = core.get_inventory({ type = "detached", name = "creative_" .. name }):get_size("main")
+	elseif page and page ~= "inv" then inv_size = #(inventory_lists[page] or {}) end
+	
 	players[name].inv_size = inv_size
-
-	if start_i >= inv_size then
-		start_i = start_i - 9 * 5
-	end
-	if start_i < 0 or start_i >= inv_size then
-		start_i = 0
-	end
+	if start_i < 0 or start_i >= inv_size then start_i = 0 end
 	players[name].start_i = start_i
-
-	if not fields.nix and fields.search then
-		players[name].filter = fields.search
-	else
-		players[name].filter = ""
-	end
+	players[name].filter = (not fields.nix and fields.search) and fields.search or ""
 
 	mcl_inventory.set_creative_formspec(player)
 	mcl_inventory.show_inventory(player)
 end)
 
-
-
 core.register_on_placenode(function(_, _, placer, _, itemstack)
 	if placer and core.is_creative_enabled(placer:get_player_name()) then
-		-- Place infinite nodes, except for shulker boxes
 		local group = core.get_item_group(itemstack:get_name(), "shulker_box")
 		return group == 0 or group == nil
 	end
 end)
 
 local old_mt_handle_node_drops = core.handle_node_drops
-
----@diagnostic disable-next-line: duplicate-set-field
 function core.handle_node_drops(pos, drops, digger)
 	if digger and core.is_creative_enabled(digger:get_player_name()) then
-		if not digger or not digger:is_player() then
-			for _, item in ipairs(drops) do
-				core.add_item(pos, item)
-			end
+		if not digger:is_player() then
+			for _, item in ipairs(drops) do core.add_item(pos, item) end
 		else
-			-- If there is a player
 			local inv = digger:get_inventory()
 			if inv then
 				for _, item in ipairs(drops) do
-					if not inv:contains_item("main", item, true) then
-						inv:add_item("main", item)
-					end
+					if not inv:contains_item("main", item, true) then inv:add_item("main", item) end
 				end
 			end
 		end
@@ -832,34 +631,24 @@ function core.handle_node_drops(pos, drops, digger)
 end
 
 core.register_on_joinplayer(function(player)
-	-- Initialize variables and inventory
 	local name = player:get_player_name()
 	if not players[name] then
-		players[name] = {}
-		players[name].page = "nix"
-		players[name].filter = ""
-		players[name].start_i = 0
+		players[name] = { page = "nix", filter = "", start_i = 0 }
 	end
 	init(player)
-	-- Setup initial creative inventory to the "nix" page.
 	mcl_inventory.set_creative_formspec(player)
 end)
 
 core.register_on_player_inventory_action(function(player, action, _, inventory_info)
-	if core.is_creative_enabled(player:get_player_name()) and get_stack_size(player) == 64 and action == "put" and
-		inventory_info.listname == "main" then
+	if core.is_creative_enabled(player:get_player_name()) and get_stack_size(player) == 64 and action == "put" and inventory_info.listname == "main" then
 		local stack = inventory_info.stack
 		stack:set_count(stack:get_stack_max())
 		player:get_inventory():set_stack("main", inventory_info.index, stack)
 	end
 end)
 
--- This is necessary because get_player_window_information may return nil in
--- on_joinplayer.
--- (Also, Minetest plans to add support for toggling touchscreen mode in-game.)
 mcl_player.register_globalstep_slow(function(player)
 	local name = player:get_player_name()
-
 	if core.is_creative_enabled(name) then
 		local touch_enabled = is_touch_enabled(name)
 		if touch_enabled ~= players[name].last_touch_enabled then
