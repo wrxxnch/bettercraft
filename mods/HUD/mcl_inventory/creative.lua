@@ -537,6 +537,8 @@ function mcl_inventory.set_creative_formspec(player)
 		tab(name, "matr") .. "tooltip[matr;"..F(filtername["matr"]).."]",
 		nici,
 		tab(name, "inv") .. "tooltip[inv;"..F(filtername["inv"]).."]",
+		--mcl_cblocks and mcl_colorblocks
+		
 		tab(name, "mcl_cblocks") .. "tooltip[mcl_cblocks;"..F(filtername["mcl_cblocks"]).."]"
 	})
 
@@ -571,7 +573,7 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 	elseif fields.brew or fields.brew_outer then page = "brew"
 	elseif fields.matr or fields.matr_outer then page = "matr"
 	elseif fields.nici or fields.nici_outer then page = "nici"
-	elseif fields.mcl_cblocks or fields.mcl_cblocks_outer then page = "mcl_cblocks" -- RECEBER CLIQUE DA ABA
+	elseif fields.mcl_cblocks or fields.mcl_cblocks_outer then page = "mcl_cblocks" 
 	elseif fields.inv or fields.inv_outer then page = "inv"
 	elseif fields.search then
 		set_inv_search(fields.search, player)
