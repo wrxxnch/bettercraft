@@ -153,7 +153,15 @@ core.register_abm({
 	chance = 1,
 	action = function(pos)
 		local node = core.get_node(pos)
+
+		-- Primeiro atualiza/transforma a coluna
 		mcl_bubble_column.check_water(pos)
+
+		-- Verifica o nó atual novamente, pois check_water()
+		-- pode ter alterado o nó acima, mas não o nó atual.
+		node = core.get_node(pos)
+
+		-- Coluna de bolhas: partículas subindo
 		if core.get_item_group(node.name, "bubbly") == 1 then
 			core.add_particlespawner({
 				amount = 10,
@@ -170,7 +178,9 @@ core.register_abm({
 				maxsize = 2.4,
 				texture = "mcl_particles_bubble.png"
 			})
-		else
+
+		-- Whirlpool: partículas descendo
+		elseif core.get_item_group(node.name, "whirly") == 1 then
 			core.add_particlespawner({
 				amount = 10,
 				time = 1,
@@ -186,6 +196,34 @@ core.register_abm({
 				maxsize = 2.4,
 				texture = "mcl_particles_bubble.png"
 			})
+
+		-- Magma / Soul Sand:
+		-- só permitir partículas se houver água acima.
+		elseif node.name == "mcl_nether:magma"
+			or node.name == "mcl_nether:soul_sand" then
+
+			local node_above = core.get_node(vector.offset(pos, 0, 1, 0))
+			local above_is_water =
+				core.get_item_group(node_above.name, "water") == 3
+
+			if above_is_water then
+				-- Partículas somente quando existe água acima
+				core.add_particlespawner({
+					amount = 10,
+					time = 1,
+					minpos = {x=pos.x-0.5, y=pos.y+0.5, z=pos.z-0.5},
+					maxpos = {x=pos.x+0.5, y=pos.y+1.0, z=pos.z+0.5},
+					minvel = {x=0, y=0.5, z=0},
+					maxvel = {x=0, y=1.0, z=0},
+					minacc = {x=0, y=0, z=0},
+					maxacc = {x=0, y=0.5, z=0},
+					minexptime = 1,
+					maxexptime = 1,
+					minsize = 0.5,
+					maxsize = 2.4,
+					texture = "mcl_particles_bubble.png"
+				})
+			end
 		end
 	end,
 })
