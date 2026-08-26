@@ -119,6 +119,36 @@ local function get_water_column_height(pos)
 	return height
 end
 
+-- ABM: Fumaça amarela passiva (Água em cima, SEM magma embaixo)
+core.register_abm({
+	label = "Sulphur Passive Bubbles",
+	nodenames = { modname .. ":potent_sulfur" },
+	interval = 3,
+	chance = 2,
+	action = function(pos)
+		local above = core.get_node(vector.offset(pos, 0, 1, 0)).name
+		local below = core.get_node(vector.offset(pos, 0, -1, 0)).name
+		
+		-- Verifica se tem água em cima e NÃO tem magma embaixo
+		if core.get_item_group(above, "water") ~= 0 and below ~= "mcl_nether:magma" then
+			core.add_particlespawner({
+				amount = 5,
+				time = 1,
+				minpos = vector.offset(pos, -0.2, 0.5, -0.2),
+				maxpos = vector.offset(pos, 0.2, 0.8, 0.2),
+				minvel = {x = -0.1, y = 1, z = -0.1},
+				maxvel = {x = 0.1, y = 2, z = 0.1},
+				minexptime = 1,
+				maxexptime = 2,
+				minsize = 1,
+				maxsize = 3,
+				texture = "sulphur_smoke_particle.png",
+				glow = 5
+			})
+		end
+	end
+})
+
 -- ABM 1: O Pulso do Geyser (Ejeção a cada 10-15 segundos)
 core.register_abm({
 	label = "Sulphur Geyser Pulse",
