@@ -27,18 +27,18 @@ end
 local stone_groups = { pickaxey = 1, building_block = 1 }
 
 -- Official Sulfur/Cinnabar family names from the Minecraft Wiki.
-register_full_block("cinnabar", "Cinábrio", "cinnabar", { pickaxey = 1, building_block = 1, material_rock = 1 })
-register_full_block("chiseled_cinnabar", "Cinábrio talhado", "chiseled_cinnabar", stone_groups)
-register_full_block("polished_cinnabar", "Cinábrio polido", "polished_cinnabar", stone_groups)
-register_full_block("cinnabar_bricks", "Tijolos de cinábrio", "cinnabar_bricks", stone_groups)
-register_full_block("potent_sulfur", "Enxofre potente", "potent_sulfur",
+register_full_block("cinnabar", "Cinnabar", "cinnabar", { pickaxey = 1, building_block = 1, material_rock = 1 })
+register_full_block("chiseled_cinnabar", "Chiseled Cinnabar", "chiseled_cinnabar", stone_groups)
+register_full_block("polished_cinnabar", "Polished Cinnabar", "polished_cinnabar", stone_groups)
+register_full_block("cinnabar_bricks", "Cinnabar Bricks", "cinnabar_bricks", stone_groups)
+register_full_block("potent_sulfur", "Potent Sulfur", "potent_sulfur",
 	{ pickaxey = 1, building_block = 1, material_sulphur = 1 })
-register_full_block("sulfur", "Enxofre", "sulfur", { pickaxey = 1, building_block = 1, material_sulphur = 1 })
-register_full_block("chiseled_sulfur", "Enxofre talhado", "chiseled_sulfur",
+register_full_block("sulfur", "Sulfur", "sulfur", { pickaxey = 1, building_block = 1, material_sulphur = 1 })
+register_full_block("chiseled_sulfur", "Chiseled Sulfur", "chiseled_sulfur",
 	{ pickaxey = 1, building_block = 1, material_sulphur = 1 })
-register_full_block("polished_sulfur", "Enxofre polido", "polished_sulfur",
+register_full_block("polished_sulfur", "Polished Sulfur", "polished_sulfur",
 	{ pickaxey = 1, building_block = 1, material_sulphur = 1 })
-register_full_block("sulfur_bricks", "Tijolos de enxofre", "sulfur_bricks",
+register_full_block("sulfur_bricks", "Sulfur Bricks", "sulfur_bricks",
 	{ pickaxey = 1, building_block = 1, material_sulphur = 1 })
 
 local spike_groups = { pickaxey = 1, attached_node = 1, material_sulphur = 1 }
@@ -64,7 +64,7 @@ core.register_alias(modname .. ":cinnabar_block_wiki", modname .. ":cinnabar")
 core.register_alias(modname .. ":sulfur_block_wiki", modname .. ":sulfur")
 core.register_alias(modname .. ":sulphur_block_wiki", modname .. ":sulphur")
 
--- Espeleotemas: cinco estágios, duas direções e os mesmos nomes usados pelo dripstone.
+-- Stalagmites/stalactites: five stages, two directions, and the same names used by dripstone.
 local sulfur_spike_directions = { [-1] = "down", [1] = "up" }
 local sulfur_spike_stages = { "tip_merge", "tip", "frustum", "middle", "base" }
 
@@ -140,9 +140,9 @@ local function place_sulfur_spike(itemstack, player, pointed_thing)
 	if pointed_thing.above.x ~= pointed_thing.under.x or pointed_thing.above.z ~= pointed_thing.under.z then
 		return itemstack
 	end
-	-- CORREÇÃO: o sinal estava invertido. "above" é onde o novo nó vai ser colocado;
-	-- se "above" fica ACIMA de "under" (chão), o espeleotema deve crescer para CIMA (stalagmite = "up").
-	-- se "above" fica ABAIXO de "under" (teto), o espeleotema deve crescer para BAIXO (stalactite = "down").
+	-- FIX: the sign was inverted. "above" is where the new node will be placed;
+	-- if "above" is ABOVE "under" (ground), the speleothem should grow UPWARD (stalagmite = "up").
+	-- if "above" is BELOW "under" (ceiling), the speleothem should grow DOWNWARD (stalactite = "down").
 	local direction = pointed_thing.above.y - pointed_thing.under.y
 	if direction == 0 then return itemstack end
 	if not core.is_creative_enabled(player:get_player_name()) then itemstack:take_item() end
@@ -183,7 +183,7 @@ for i, stage in ipairs(sulfur_spike_stages) do
 	} }
 	for direction, label in pairs(sulfur_spike_directions) do
 		core.register_node(sulfur_spike_node(i, direction), {
-			description = S("Espeleotema de enxofre (@1/@2)", i, #sulfur_spike_stages),
+			description = S("Sulfur speleothem (@1/@2)", i, #sulfur_spike_stages),
 			_doc_items_hidden = true,
 			drawtype = "plantlike",
 			tiles = { "sulfur_spike_" .. label .. "_" .. stage .. ".png" },
@@ -191,7 +191,7 @@ for i, stage in ipairs(sulfur_spike_stages) do
 			use_texture_alpha = true,
 			sunlight_propagates = true,
 			is_ground_content = false,
-			walkable = false,
+			walkable = true,
 			climbable = false,
 			selection_box = box,
 			collision_box = box,
@@ -207,14 +207,14 @@ for i, stage in ipairs(sulfur_spike_stages) do
 end
 
 core.register_craftitem(modname .. ":sulphur_stalactite", {
-	description = S("Espeleotema de enxofre"),
+	description = S("Sulfur speleothem"),
 	inventory_image = tex("sulfur_spike_up_tip"),
 	on_place = place_sulfur_spike,
 	on_secondary_use = place_sulfur_spike,
 })
 
 core.register_lbm({
-	label = "Preservar espeleotemas de enxofre",
+	label = "Preserve sulfur speleothems",
 	name = modname .. ":keep_sulfur_spikes",
 	nodenames = {
 		modname .. ":sulfur_spike_up_tip_merge", modname .. ":sulfur_spike_up_tip",
@@ -226,10 +226,10 @@ core.register_lbm({
 	action = function(pos) end,
 	})
 
--- Crescimento simples baseado no ABM do mcl_dripstone. Os nós permanecem no mapa
--- porque são nós normais, e não entidades temporárias.
+-- Simple growth based on the mcl_dripstone ABM. Nodes remain in the map
+-- because they are regular nodes, not temporary entities.
 core.register_abm({
-	label = "Crescimento dos espeleotemas de enxofre",
+	label = "Sulfur speleothem growth",
 	nodenames = { modname .. ":sulfur_spike_up_tip" },
 	interval = 69,
 	chance = 88,
@@ -266,7 +266,7 @@ core.register_abm({
 })
 
 core.register_craftitem(modname .. ":bucket_of_sulfur_cube", {
-	description = S("Balde com cubo de enxofre"),
+	description = S("Bucket with sulfur cube"),
 	inventory_image = tex("bucket_of_sulfur_cube"),
 	stack_max = 1,
 	on_place = function(itemstack, placer, pointed_thing)
@@ -302,7 +302,7 @@ end
 
 
 core.register_node(modname .. ":sulphur_smoke", {
-	description = S("Fumaça de enxofre na água"),
+	description = S("Sulfur smoke in water"),
 	drawtype = "plantlike",
 	tiles = { tex("sulphur_smoke") },
 	paramtype = "light",
@@ -342,10 +342,10 @@ local function item_is_block(name)
 end
 
 local material_rules = {
-	wood = { speed = 0.78, gravity = 0.92, jump = 1.0, label = "madeira" },
-	stone = { speed = 0.52, gravity = 1.55, jump = 0.72, label = "rocha" },
-	ice = { speed = 1.65, gravity = 0.88, jump = 1.10, label = "gelo" },
-	default = { speed = 1.0, gravity = 1.0, jump = 1.0, label = "enxofre" },
+	wood = { speed = 0.78, gravity = 0.92, jump = 1.0, label = "wood" },
+	stone = { speed = 0.52, gravity = 1.55, jump = 0.72, label = "stone" },
+	ice = { speed = 1.65, gravity = 0.88, jump = 1.10, label = "ice" },
+	default = { speed = 1.0, gravity = 1.0, jump = 1.0, label = "sulfur" },
 }
 
 local function classify_material(name)
@@ -514,7 +514,7 @@ end
 
 local function compose_face_texture(base_texture, itemname)
 	local block_texture = get_block_texture(itemname) .. "^[resize:32x32"
-	-- O bloco ocupa 32x32 no atlas 128x64 e fica centralizado, menor que o slime.
+	-- The block occupies 32x32 in the 128x64 atlas and sits centered, smaller than the slime.
 	return base_texture .. "^[combine:128x64:48,16=" .. block_texture
 end
 
@@ -572,7 +572,7 @@ local function remove_absorbed_block(self, clicker, toolstack)
 	self.sulphur_rule = nil
 	remove_contents_visual(self)
 	make_slime_vulnerable(self)
-	self.object:set_properties({ textures = { slime_texture_list() }, nametag = S("Cubo de enxofre") })
+	self.object:set_properties({ textures = { slime_texture_list() }, nametag = S("Sulfur cube") })
 	if toolstack and toolstack:get_name() == "mcl_tools:shears" and not core.is_creative_enabled(clicker:get_player_name()) then
 		toolstack:add_wear(6553)
 		clicker:set_wielded_item(toolstack)
@@ -584,7 +584,7 @@ end
 if mcl_mobs and mcl_mobs.register_mob then
 
 	local slime_def = {
-		description = S("Slime de enxofre"),
+		description = S("Sulfur slime"),
 		type = "animal", 
 		spawn_class = "passive",
 		hp_min = 16,
@@ -632,14 +632,14 @@ if mcl_mobs and mcl_mobs.register_mob then
 			local stack = clicker:get_wielded_item()
 			local name = stack:get_name()
 
-			-- Um bloco absorvido só pode ser removido com tesoura.
+			-- An absorbed block can only be removed with shears.
 			if self.sulphur_block then
 				if name ~= "mcl_tools:shears" then return end
 				remove_absorbed_block(self, clicker, stack)
 				return
 			end
 
-			-- Coleta no balde somente quando o cubo está vazio.
+			-- Collect only when the bucket is empty and the cube is empty.
 			if name == "mcl_buckets:bucket_empty" then
 				if not core.is_creative_enabled(clicker:get_player_name()) then
 					clicker:set_wielded_item(ItemStack(modname .. ":bucket_of_sulfur_cube"))
@@ -662,7 +662,7 @@ if mcl_mobs and mcl_mobs.register_mob then
 				self.object:set_acceleration({ x = 0, y = -9.8 * rule.gravity, z = 0 })
 				self.object:set_properties({
 					textures = { slime_texture_list(name) },
-					nametag = S("Cubo de enxofre: @1", rule.label),
+					nametag = S("Sulfur cube: @1", rule.label),
 					nametag_color = "#f4d35e"
 				})
 			if not core.is_creative_enabled(clicker:get_player_name()) then
@@ -673,7 +673,7 @@ if mcl_mobs and mcl_mobs.register_mob then
 		end,
 
 		do_custom = function(self, dtime, moveresult)
-			-- Salto extra se for madeira
+			-- Extra jump if it is wood
 			if self.sulphur_rule and self.sulphur_rule.label == "madeira" and moveresult and moveresult.touching_ground then
 				local v = self.object:get_velocity()
 				if math.abs(v.y) < 0.2 then 
@@ -685,5 +685,5 @@ if mcl_mobs and mcl_mobs.register_mob then
 
 	-- Registro do Mob e do Ovo (APENAS AQUI DENTRO)
 	mcl_mobs.register_mob(modname .. ":sulfur_slime", slime_def)
-	mcl_mobs.register_egg(modname .. ":sulfur_slime", S("Slime de enxofre"), "#f4d35e", "#7a6a2f", true)
+	mcl_mobs.register_egg(modname .. ":sulfur_slime", S("Sulfur slime"), "#f4d35e", "#7a6a2f", true)
 end
