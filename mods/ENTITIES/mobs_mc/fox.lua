@@ -32,7 +32,6 @@ local fox = {
 	},
 
 	visual = "mesh",
-
 	mesh = "fox.b3d",
 
 	visual_size = {
@@ -50,6 +49,44 @@ local fox = {
 	head_eye_height = 0.45,
 
 	floats = 1,
+	fall_damage = 0,
+
+	------------------------------------------------------------------------
+	-- Skin Logic (Snow Fox)
+	------------------------------------------------------------------------
+
+	-- Variável interna para salvar o tipo de skin
+	_skin_type = "orange",
+
+	on_spawn = function(self)
+		local pos = self.object:get_pos()
+		if not pos then return true end
+
+		-- Verifica o bloco nos pés e o bloco logo abaixo
+		local node_at = core.get_node(pos).name
+		local node_below = core.get_node({x = pos.x, y = pos.y - 1, z = pos.z}).name
+
+		-- Se houver neve, muda para a skin branca
+		if node_at:find("snow") or node_below:find("snow") then
+			self._skin_type = "white"
+			self.textures = {"whitefox.png"}
+			self.object:set_properties({textures = self.textures})
+		end
+		return true
+	end,
+
+	on_activate = function(self, staticdata, dtime_s)
+		-- Executa a ativação padrão da API de mobs
+		if mcl_mobs.mob_class.on_activate then
+			mcl_mobs.mob_class.on_activate(self, staticdata, dtime_s)
+		end
+
+		-- Se o staticdata ou a variável interna indicar que é branca, mantém a skin
+		if self._skin_type == "white" then
+			self.textures = {"whitefox.png"}
+			self.object:set_properties({textures = self.textures})
+		end
+	end,
 
 	------------------------------------------------------------------------
 	-- Movement.
@@ -58,10 +95,23 @@ local fox = {
 	movement_speed = 4.0,
 
 	damage = 2,
-
 	reach = 1.5,
 
 	attack_type = "melee",
+
+	------------------------------------------------------------------------
+	-- Ocelot-like fleeing.
+	------------------------------------------------------------------------
+
+	runaway_from = {
+		"players",
+	},
+
+	-- Run much faster when the player is close.
+	runaway_bonus_near = 1.33,
+	runaway_bonus_far = 0.8,
+
+	run_bonus = 1.5,
 
 	------------------------------------------------------------------------
 	-- Animation.
@@ -81,7 +131,7 @@ local fox = {
 	},
 
 	------------------------------------------------------------------------
-	-- Follow.
+	-- Food follow.
 	------------------------------------------------------------------------
 
 	follow = {
@@ -99,42 +149,13 @@ local fox = {
 	},
 
 	------------------------------------------------------------------------
-	-- Combat.
+	-- Hunting.
 	------------------------------------------------------------------------
 
 	specific_attack = {
 		"mobs_mc:chicken",
 		"mobs_mc:rabbit",
 	},
-
-	------------------------------------------------------------------------
-	-- Run away.
-	------------------------------------------------------------------------
-
-	runaway_from = {
-		"mobs_mc:player",
-	},
-
-	run_bonus = 1.5,
-
-	------------------------------------------------------------------------
-	-- Sounds.
-	------------------------------------------------------------------------
-
-	-- sounds = {
-	-- 	attack = "mobs_mc_fox_bite",
-	-- 	war_cry = "mobs_mc_fox_screech",
-	-- 	damage = {
-	-- 		name = "mobs_mc_fox_hurt",
-	-- 		gain = 0.7,
-	-- 	},
-	-- 	death = {
-	-- 		name = "mobs_mc_fox_death",
-	-- 		gain = 0.7,
-	-- 	},
-	-- 	eat = "mobs_mc_animal_eat_generic",
-	-- 	distance = 16,
-	-- },
 }
 
 ------------------------------------------------------------------------
@@ -146,16 +167,30 @@ function fox:on_rightclick(clicker)
 		return
 	end
 
-	-- Don't breed baby foxes.
 	if self.child then
 		return
 	end
 
-	-- Food used to breed the fox.
+	-- Feed / breed.
 	if self:follow_holding(clicker)
 		and self:feed_tame(clicker, 4, true, false) then
 		return
 	end
+end
+
+------------------------------------------------------------------------
+-- Fox attack.
+------------------------------------------------------------------------
+
+function fox:attack_custom(self_pos, dtime, esp)
+	local attack = self:attack_default(self_pos, dtime, esp)
+
+	if attack then
+		self:do_attack(attack)
+		return true
+	end
+
+	return false
 end
 
 ------------------------------------------------------------------------
@@ -164,30 +199,39 @@ end
 
 fox.ai_functions = {
 	mob_class.check_frightened,
+	mob_class.check_following,
 	mob_class.check_attack,
 	mob_class.check_breeding,
-	mob_class.check_following,
 	mob_class.follow_herd,
 	mob_class.check_pace,
 }
 
 ------------------------------------------------------------------------
--- Register fox.
+-- Fox breeding (Modified to inherit skin).
 ------------------------------------------------------------------------
 
-mcl_mobs.register_mob("mobs_mc:fox", fox)
+function fox:on_breed(parent1, parent2)
+	local pos = parent1.object:get_pos()
 
-------------------------------------------------------------------------
--- Fox spawn egg.
-------------------------------------------------------------------------
+	local child = mcl_mobs.spawn_child(
+		pos,
+		parent1.name
+	)
 
-mcl_mobs.register_egg(
-	"mobs_mc:fox",
-	S("Fox"),
-	"#d0602d",
-	"#c9c9c9",
-	0
-)
+	if child then
+		local ent_c = child:get_luaentity()
+		ent_c.persistent = true
+
+		-- Genética: Se um dos pais for branco, o filho nasce branco
+		if parent1._skin_type == "white" or parent2._skin_type == "white" then
+			ent_c._skin_type = "white"
+			ent_c.textures = {"whitefox.png"}
+			ent_c.object:set_properties({textures = ent_c.textures})
+		end
+
+		return false
+	end
+end
 
 ------------------------------------------------------------------------
 -- Fox spawning.
@@ -203,12 +247,14 @@ local fox_spawner = table.merge(mobs_mc.animal_spawner, {
 
 	biomes = {
 		"#is_taiga",
+		"#is_snowy", -- Adicionado biomas de neve explicitamente no spawner
 	},
 })
 
 function fox_spawner:test_supporting_node(node)
 	return core.get_item_group(node.name, "grass_block") > 0
 		or node.name == "mcl_core:snowblock"
+		or node.name == "mcl_core:snow"
 		or node.name == "mcl_core:podzol"
 end
 
@@ -216,4 +262,23 @@ function fox_spawner:describe_supporting_nodes()
 	return S("on grass, snow blocks, or podzol")
 end
 
-mcl_mobs.register_spawner(fox_spawner)
+------------------------------------------------------------------------
+-- Register.
+------------------------------------------------------------------------
+
+mcl_mobs.register_mob(
+	"mobs_mc:fox",
+	fox
+)
+
+mcl_mobs.register_egg(
+	"mobs_mc:fox",
+	S("Fox"),
+	"#d0602d",
+	"#c9c9c9",
+	0
+)
+
+mcl_mobs.register_spawner(
+	fox_spawner
+)
