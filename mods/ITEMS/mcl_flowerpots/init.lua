@@ -1,5 +1,4 @@
 local S = core.get_translator(core.get_current_modname())
-local has_doc = core.get_modpath("doc")
 
 mcl_flowerpots = {}
 
@@ -15,7 +14,6 @@ local pot_box = {
 local tpl_pots = {
 	drawtype = "mesh",
 	use_texture_alpha = "clip",
-	visual_scale = 0.5,
 	paramtype = "light",
 	sunlight_propagates = true,
 	selection_box = pot_box,
@@ -45,27 +43,41 @@ local function validate_pot(itemstack)
 	return false, nil
 end
 
+local function get_item_palette(itemdefs)
+	local palette = itemdefs.palette
+	local param2 = itemdefs.paramtype2
+	if palette and palette ~= "" then
+		if param2 == "color" then
+			return palette, "color"
+		end
+	end
+end
+
 core.register_node("mcl_flowerpots:flower_pot", table.merge(tpl_pots, {
 	description = S("Flower Pot"),
 	_tt_help = S("Can hold a small flower or plant"),
 	_doc_items_longdesc = S("Flower pots are decorative blocks in which flowers and other small plants can be placed."),
 	_doc_items_usagehelp = S("Just place a plant on the flower pot. Flower pots can hold small flowers (not higher than 1 block), saplings, ferns, dead bushes, mushrooms and cacti. Rightclick a potted plant to retrieve the plant."),
-	mesh = "flowerpot.obj",
-	tiles = {
-		"mcl_flowerpots_flowerpot.png",
-	},
+	mesh = "flower_pot.obj",
+	tiles = {"mcl_flowerpots_flowerpot.png"},
 	wield_image = "mcl_flowerpots_flowerpot_inventory.png",
 	inventory_image = "mcl_flowerpots_flowerpot_inventory.png",
-	groups = { dig_immediate = 3, deco_block = 1, attached_node = 1, dig_by_piston = 1, flower_pot = 1, unsticky = 1, pathfinder_partial = 2, },
+	groups = { dig_immediate = 3, deco_block = 1, attached_node = 1, dig_by_piston = 1, flower_pot = 1, unsticky = 1, pathfinder_partial = 2, not_breaking_cactus = 1, },
 	on_rightclick = function(pos, _, clicker, itemstack)
-		local name = check_player_protection(pos, clicker)
-		if name then
-			local valid_pot, pot = validate_pot(itemstack)
-			if valid_pot then
-				core.swap_node(pos, {name = "mcl_flowerpots:flower_pot_" .. pot})
-				if not core.is_creative_enabled(name) then
-					itemstack:take_item()
-				end
+		local player_name = check_player_protection(pos, clicker)
+		if not player_name then
+			return itemstack
+		end
+		local valid_pot, pot = validate_pot(itemstack)
+		if valid_pot then
+			local new_param2
+			local palette, _ = get_item_palette(itemstack:get_definition())
+			if palette then
+				new_param2 = mcl_util.get_pos_p2(pos)
+			end
+			core.swap_node(pos, {name = "mcl_flowerpots:flower_pot_" .. pot, param2 = new_param2})
+			if not core.is_creative_enabled(player_name) then
+				itemstack:take_item()
 			end
 		end
 		return itemstack
@@ -82,33 +94,36 @@ core.register_craft({
 
 function mcl_flowerpots.register_potted_flower(name, def)
 	mcl_flowerpots.registered_pots[name] = def.name
+	local palette, param2 = get_item_palette(core.registered_items[name])
 	core.register_node(":mcl_flowerpots:flower_pot_" .. def.name, table.merge(tpl_pots, {
 		description = def.desc .. " " .. S("Flower Pot"),
 		_doc_items_create_entry = false,
-		mesh = "flowerpot.obj",
+		mesh = "flower_pot_plant.obj",
 		tiles = {
-			"[combine:32x32:0,0=mcl_flowerpots_flowerpot.png:0,0=" .. def.image,
+			{name = "mcl_flowerpots_flowerpot.png", color = "white"}, def.image
 		},
-		groups = { dig_immediate = 3, attached_node = 1, dig_by_piston = 1, not_in_creative_inventory = 1, flower_pot = 2, unsticky = 1},
+		groups = { dig_immediate = 3, attached_node = 1, dig_by_piston = 1, not_in_creative_inventory = 1, flower_pot = 2, unsticky = 1, not_breaking_cactus = 1, },
 		on_rightclick = function(pos, node, clicker, itemstack)
-			local name = check_player_protection(pos, clicker)
-			if name then
-				local creative = core.is_creative_enabled(name)
-				local _, pot = validate_pot(itemstack)
-				local same_pot = pot and node.name == "mcl_flowerpots:flower_pot_" .. pot
-				if not same_pot or creative then
-					core.swap_node(pos, {name = "mcl_flowerpots:flower_pot"})
-					if not creative then
-						local stack = ItemStack(name)
-						local inventory = clicker:get_inventory()
-						if inventory:room_for_item("main", stack) then
-							inventory:add_item("main", stack)
-						elseif not itemstack:is_empty() then
-							core.add_item(pos, stack)
-						else
-							return stack
-						end
+			local player_name = check_player_protection(pos, clicker)
+			if not player_name then
+				return itemstack
+			end
+			local creative = core.is_creative_enabled(player_name)
+			local _, pot = validate_pot(itemstack)
+			local same_pot = pot and node.name == "mcl_flowerpots:flower_pot_" .. pot
+			if not same_pot or creative then
+				core.swap_node(pos, {name = "mcl_flowerpots:flower_pot"})
+				if not creative then
+					local stack = ItemStack(name)
+					local inventory = clicker:get_inventory()
+					if inventory:room_for_item("main", stack) then
+						inventory:add_item("main", stack)
+					elseif not itemstack:is_empty() then
+						core.add_item(pos, stack)
+					else
+						return stack
 					end
+					return inventory:get_stack("main", clicker:get_wield_index())
 				end
 			end
 			return itemstack
@@ -119,11 +134,10 @@ function mcl_flowerpots.register_potted_flower(name, def)
 			},
 		},
 		_mcl_baseitem = name,
+		palette = palette,
+		paramtype2 = param2
 	}))
-	-- Add entry alias for the Help
-	if has_doc then
-		doc.add_entry_alias("nodes", "mcl_flowerpots:flower_pot", "nodes", "mcl_flowerpots:flower_pot_" .. def.name)
-	end
+	doc.add_entry_alias("nodes", "mcl_flowerpots:flower_pot", "nodes", "mcl_flowerpots:flower_pot_" .. def.name)
 end
 
 function mcl_flowerpots.register_potted_cube(name, def)
@@ -137,24 +151,26 @@ function mcl_flowerpots.register_potted_cube(name, def)
 		},
 		groups = { dig_immediate = 3, attached_node = 1, dig_by_piston = 1, not_in_creative_inventory = 1, flower_pot = 2, unsticky = 1},
 		on_rightclick = function(pos, node, clicker, itemstack)
-			local name = check_player_protection(pos, clicker)
-			if name then
-				local creative = core.is_creative_enabled(name)
-				local _, pot = validate_pot(itemstack)
-				local same_pot = pot and node.name == "mcl_flowerpots:flower_pot_" .. pot
-				if not same_pot or creative then
-					core.swap_node(pos, {name = "mcl_flowerpots:flower_pot"})
-					if not creative then
-						local stack = ItemStack(name)
-						local inventory = clicker:get_inventory()
-						if inventory:room_for_item("main", stack) then
-							inventory:add_item("main", stack)
-						elseif not itemstack:is_empty() then
-							core.add_item(pos, stack)
-						else
-							return stack
-						end
+			local player_name = check_player_protection(pos, clicker)
+			if not player_name then
+				return itemstack
+			end
+			local creative = core.is_creative_enabled(player_name)
+			local _, pot = validate_pot(itemstack)
+			local same_pot = pot and node.name == "mcl_flowerpots:flower_pot_" .. pot
+			if not same_pot or creative then
+				core.swap_node(pos, {name = "mcl_flowerpots:flower_pot"})
+				if not creative then
+					local stack = ItemStack(name)
+					local inventory = clicker:get_inventory()
+					if inventory:room_for_item("main", stack) then
+						inventory:add_item("main", stack)
+					elseif not itemstack:is_empty() then
+						core.add_item(pos, stack)
+					else
+						return stack
 					end
+					return inventory:get_stack("main", clicker:get_wield_index())
 				end
 			end
 			return itemstack
@@ -166,8 +182,5 @@ function mcl_flowerpots.register_potted_cube(name, def)
 		},
 		_mcl_baseitem = name,
 	}))
-	-- Add entry alias for the Help
-	if has_doc then
-		doc.add_entry_alias("nodes", "mcl_flowerpots:flower_pot", "nodes", "mcl_flowerpots:flower_pot_" .. def.name)
-	end
+	doc.add_entry_alias("nodes", "mcl_flowerpots:flower_pot", "nodes", "mcl_flowerpots:flower_pot_" .. def.name)
 end
