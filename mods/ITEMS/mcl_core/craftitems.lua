@@ -164,36 +164,126 @@ core.register_craftitem("mcl_core:apple", {
 	_mcl_saturation = 2.4,
 })
 
+core.register_craftitem("mcl_core:apple", {
+	description = S("Apple"),
+	_doc_items_longdesc = S("Apples are food items which can be eaten."),
+	inventory_image = "default_apple.png",
+	wield_image = "default_apple.png",
+
+	on_place = core.item_eat(6),
+	on_secondary_use = core.item_eat(6),
+
+	groups = {
+		food = 2,
+		eatable = 4,
+		can_eat_when_full = 0,
+		compostability = 65
+	},
+
+	_mcl_saturation = 2.4,
+})
+
 
 core.register_craftitem("mcl_core:apple_gold", {
 	-- TODO: Add special highlight color
 	description = S("Golden Apple"),
 	_doc_items_longdesc = S("Golden apples are precious food items which can be eaten."),
+
 	wield_image = "mcl_core_apple_golden.png",
 	inventory_image = "mcl_core_apple_golden.png",
-	groups = { food = 2, eatable = 4, can_eat_when_full = 1 },
+
+	on_place = core.item_eat(6),
+	on_secondary_use = core.item_eat(6),
+
+	groups = {
+		food = 2,
+		eatable = 4,
+		can_eat_when_full = 1
+	},
+
 	_mcl_saturation = 9.6,
-	_mcl_eat_effect = function (_, placer)
-		mcl_potions.give_effect_by_level("absorption", placer, 1, 120)
-		mcl_potions.give_effect_by_level("regeneration", placer, 2, 5)
-	end,
+
 	_placement_def = {
 		["mobs_mc:villager_zombie"] = "default",
 		inherit = "magic_victuals",
 	},
 })
 
+
 core.register_craftitem("mcl_core:apple_gold_enchanted", {
 	description = S("Enchanted Golden Apple"),
 	_doc_items_longdesc = S("Golden apples are precious food items which can be eaten."),
+
 	wield_image = "mcl_core_apple_golden.png" .. mcl_enchanting.overlay,
 	inventory_image = "mcl_core_apple_golden.png" .. mcl_enchanting.overlay,
-	groups = { food = 2, eatable = 4, can_eat_when_full = 1, rarity = 2 },
+
+	on_place = core.item_eat(6),
+	on_secondary_use = core.item_eat(6),
+
+	groups = {
+		food = 2,
+		eatable = 4,
+		can_eat_when_full = 1,
+		rarity = 2
+	},
+
 	_mcl_saturation = 9.6,
-	_mcl_eat_effect = function (_, placer)
-		mcl_potions.give_effect("fire_resistance", placer, 1, 300)
-		mcl_potions.give_effect_by_level("resistance", placer, 1, 300)
-		mcl_potions.give_effect_by_level("absorption", placer, 4, 120)
-		mcl_potions.give_effect_by_level("regeneration", placer, 2, 20)
-	end
 })
+
+
+-- Efeitos da Golden Apple e Enchanted Golden Apple
+core.register_on_item_eat(function(_, _, itemstack, user, _)
+
+	local item_name = itemstack:get_name()
+
+	-- Golden Apple
+	if item_name == "mcl_core:apple_gold" then
+
+		mcl_potions.give_effect_by_level(
+			"absorption",
+			user,
+			1,
+			120
+		)
+
+		mcl_potions.give_effect_by_level(
+			"regeneration",
+			user,
+			2,
+			5
+		)
+
+	-- Enchanted Golden Apple
+	elseif item_name == "mcl_core:apple_gold_enchanted" then
+
+		mcl_potions.give_effect(
+			"fire_resistance",
+			user,
+			1,
+			300
+		)
+
+		mcl_potions.give_effect_by_level(
+			"resistance",
+			user,
+			1,
+			300
+		)
+
+		mcl_potions.give_effect_by_level(
+			"absorption",
+			user,
+			4,
+			120
+		)
+
+		mcl_potions.give_effect_by_level(
+			"regeneration",
+			user,
+			2,
+			20
+		)
+	end
+
+end)
+
