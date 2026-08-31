@@ -4,6 +4,16 @@ local EF = {}
 mcl_potions.registered_effects = {}
 local registered_effects = mcl_potions.registered_effects -- shorthand ref
 
+-- Compatibility with older mcl_mobs versions.
+-- Some versions do not provide make_physics_factor_persistent.
+-- In that case, use a no-op fallback so potion effects can still load.
+local make_physics_factor_persistent = mcl_mobs.make_physics_factor_persistent
+if not make_physics_factor_persistent then
+	make_physics_factor_persistent = function(_)
+		return nil
+	end
+end
+
 -- effects affecting item speed utilize numerous hacks, so they have to be counted separately
 local item_speed_effects = {}
 
@@ -391,7 +401,7 @@ mcl_potions.register_effect({
 	hit_timer_step = 1,
 })
 
-mcl_mobs.make_physics_factor_persistent ("mcl_potions:dolphin")
+make_physics_factor_persistent ("mcl_potions:dolphin")
 
 mcl_potions.register_effect({
 	name = "leaping",
@@ -425,7 +435,7 @@ mcl_potions.register_effect({
 	lvl2_factor = 1,
 })
 
-mcl_mobs.make_physics_factor_persistent ("mcl_potions:leaping")
+make_physics_factor_persistent ("mcl_potions:leaping")
 
 mcl_potions.register_effect({
 	name = "slow_falling",
@@ -457,7 +467,7 @@ mcl_potions.register_effect({
 	particle_color = "#F3CFB9",
 })
 
-mcl_mobs.make_physics_factor_persistent ("mcl_potions:slow_falling")
+make_physics_factor_persistent ("mcl_potions:slow_falling")
 
 mcl_player.register_player_setting("mcl_potions:fov_effect_strength", {
         type = "slider",
@@ -516,7 +526,7 @@ mcl_potions.register_effect({
 	lvl2_factor = 0.4,
 })
 
-mcl_mobs.make_physics_factor_persistent ("mcl_potions:swiftness")
+make_physics_factor_persistent ("mcl_potions:swiftness")
 
 mcl_potions.register_effect({
 	name = "slowness",
@@ -597,7 +607,7 @@ mcl_potions.register_effect({
 	lvl2_factor = 1.8,
 })
 
-mcl_mobs.make_physics_factor_persistent ("mcl_potions:levitation")
+make_physics_factor_persistent ("mcl_potions:levitation")
 
 mcl_potions.register_effect({
 	name = "night_vision",
