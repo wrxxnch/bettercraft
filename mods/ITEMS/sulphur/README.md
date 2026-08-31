@@ -1,62 +1,64 @@
 # Sulphur Update
 
-Mod para **BetterCraft**, o jogo baseado em Mineclonia para Luanti. Ele adiciona uma camada vulcânica e química ao subsolo, com enxofre, cinábrio, gêiseres, fumaça sulfurosa e um slime cujo comportamento muda conforme o bloco colocado dentro dele.
+Mod for **BetterCraft**, the Mineclonia-based game for Luanti. It adds a volcanic and chemical layer to the underground, with sulfur, cinnabar, geysers, sulfurous smoke, and a slime whose behavior changes depending on the block placed inside it.
 
-## Instalação
+Author: wrxxnch instagram:jeanpseven
 
-Copie a pasta `sulphur_update` para `games/bettercraft/mods/` dentro da instalação do BetterCraft. Como este mod usa as APIs de `mcl_core`, `mcl_mobs` e `mcl_potions`, ele deve ser ativado em um mundo BetterCraft, não em um mundo criado com o Minetest Game padrão.
+## Installation
 
-## Conteúdo
+Copy the `sulphur_update` folder to `games/bettercraft/mods/` inside the BetterCraft installation. Since this mod uses the `mcl_core`, `mcl_mobs`, and `mcl_potions` APIs, it should be enabled in a BetterCraft world, not in a world created with the default Minetest Game.
 
-Esta versão usa como referência os sprites de [Sulfur](https://minecraft.wiki/w/Sulfur), [Cinnabar](https://minecraft.wiki/w/Cinnabar), [Sulfur Cube](https://minecraft.wiki/w/Sulfur_Cube), [Bucket of Sulfur Cube](https://minecraft.wiki/w/Bucket_of_Sulfur_Cube) e [Music Disc Bounce](https://minecraft.wiki/w/Music_Disc_Bounce). Os arquivos de textura dos assets solicitados foram incluídos no pacote. **Slabs, stairs e walls foram deliberadamente ignorados nesta etapa e serão adicionados depois.**
+## Content
 
-## Modelos OBJ/MTL do Sulfur Spike
+This version uses as reference the sprites from [Sulfur](https://minecraft.wiki/w/Sulfur), [Cinnabar](https://minecraft.wiki/w/Cinnabar), [Sulfur Cube](https://minecraft.wiki/w/Sulfur_Cube), [Bucket of Sulfur Cube](https://minecraft.wiki/w/Bucket_of_Sulfur_Cube), and [Music Disc Bounce](https://minecraft.wiki/w/Music_Disc_Bounce). The texture files for the requested assets were included in the package. **Slabs, stairs, and walls were deliberately ignored at this stage and will be added later.**
 
-Os nós usam os nomes exatos dos modelos fornecidos. Coloque os pares OBJ/MTL na pasta `models/` do mod, sem renomear os arquivos. Os modelos registrados são `sulfur_spike.obj`/`.mtl`, `sulfur_spike_down_base.obj`/`.mtl`, `sulfur_spike_down_frustum.obj`/`.mtl`, `sulfur_spike_down_middle.obj`/`.mtl`, `sulfur_spike_down_tip_merge.obj`/`.mtl`, `sulfur_spike_down_tip.obj`/`.mtl`, `sulfur_spike_up_base.obj`/`.mtl`, `sulfur_spike_up_frustum.obj`/`.mtl`, `sulfur_spike_up_middle.obj`/`.mtl`, `sulfur_spike_up_tip_merge.obj`/`.mtl` e `sulfur_spike_up_tip.obj`/`.mtl`. Cada arquivo OBJ deve manter sua referência `mtllib` para o MTL correspondente.
+## OBJ/MTL Models for the Sulfur Spike
 
-| Conteúdo | Comportamento |
+The nodes use the exact names of the provided models. Place the OBJ/MTL pairs in the mod's `models/` folder without renaming the files. The registered models are `sulfur_spike.obj`/`.mtl`, `sulfur_spike_down_base.obj`/`.mtl`, `sulfur_spike_down_frustum.obj`/`.mtl`, `sulfur_spike_down_middle.obj`/`.mtl`, `sulfur_spike_down_tip_merge.obj`/`.mtl`, `sulfur_spike_down_tip.obj`/`.mtl`, `sulfur_spike_up_base.obj`/`.mtl`, `sulfur_spike_up_frustum.obj`/`.mtl`, `sulfur_spike_up_middle.obj`/`.mtl`, `sulfur_spike_up_tip_merge.obj`/`.mtl`, and `sulfur_spike_up_tip.obj`/`.mtl`. Each OBJ file must keep its `mtllib` reference to the corresponding MTL.
+
+| Content | Behavior |
 |---|---|
-| Bloco de enxofre | Bloco amarelo, material de construção e ingrediente para tijolos. |
-| Minério de enxofre | Geração subterrânea em pedra e deepslate; dropa pó de enxofre. |
-| Estalactite de enxofre | Nó decorativo não caminhável, apropriado para cavernas. |
-| Cinábrio | Bloco vermelho de construção, com textura baseada na wiki. |
-| Cinábrio talhado | Variante talhada do cinábrio. |
-| Cinábrio polido | Variante polida do cinábrio. |
-| Tijolos de cinábrio | Variante decorativa do cinábrio. |
-| Enxofre potente | Variante concentrada do enxofre. |
-| Enxofre | Bloco amarelo de construção, com textura baseada na wiki. |
-| Enxofre talhado | Variante talhada do enxofre. |
-| Enxofre polido | Variante polida do enxofre. |
-| Tijolos de enxofre | Variante decorativa do enxofre. |
-| Espinho de enxofre | Nó decorativo pontiagudo. |
-| Gêiser de enxofre | Emite partículas quentes, luz fraca e pulsos sonoros periodicamente. |
-| Fumaça de enxofre na água | Deve ficar sobre uma fonte de água; a área causa náusea periodicamente. |
-| Cubo de enxofre | Pode ser invocado pelo Spawn Egg, receber blocos com clique direito e ser coletado em um bucket. |
-| Bucket of Sulfur Cube | Guarda e reposiciona um cubo de enxofre grande. |
-| Music Disc Bounce | Disco integrado à jukebox; usa o registro sonoro disponível na base quando o áudio original não está presente. |
-| Sulfur Cube Spawn Egg | Ovo de spawn com sprite da wiki. |
+| Sulfur block | Yellow building block, construction material, and ingredient for bricks. |
+| Sulfur ore | Underground generation in stone and deepslate; drops sulfur powder. |
+| Sulfur stalactite | Decorative non-walkable node, suitable for caves. |
+| Cinnabar | Red building block with wiki-based texture. |
+| Cut cinnabar | Cut variant of cinnabar. |
+| Polished cinnabar | Polished variant of cinnabar. |
+| Cinnabar bricks | Decorative cinnabar variant. |
+| Potent sulfur | Concentrated sulfur variant. |
+| Sulfur | Yellow building block with wiki-based texture. |
+| Cut sulfur | Cut variant of sulfur. |
+| Polished sulfur | Polished variant of sulfur. |
+| Sulfur bricks | Decorative sulfur variant. |
+| Sulfur spike | Decorative pointed node. |
+| Sulfur geyser | Emits hot particles, weak light, and periodic sound pulses. |
+| Sulfur smoke in water | Must be placed above a water source; the area causes nausea periodically. |
+| Sulfur cube | Can be summoned by the Spawn Egg, receive blocks via right-click, and be collected in a bucket. |
+| Bucket of Sulfur Cube | Stores and relocates a large sulfur cube. |
+| Music Disc Bounce | Disc integrated into the jukebox; uses the sound registry available in the base when the original audio is not present. |
+| Sulfur Cube Spawn Egg | Spawn egg with a wiki sprite. |
 
-## Slime mutável
+## Mutable slime
 
-Segure um bloco e clique com o botão direito no **Slime de enxofre**. O bloco é consumido, exceto no modo criativo, e o slime passa a exibir o nome do material armazenado.
+Hold a block and right-click the **sulfur slime**. The block is consumed, except in creative mode, and the slime starts displaying the name of the stored material.
 
-| Material inserido | Efeito aplicado |
+| Inserted material | Applied effect |
 |---|---|
-| Madeira | Menor velocidade, menor gravidade e saltos mais elásticos, como uma bola de plástico. |
-| Rocha ou bloco com grupo de picareta | Maior gravidade, menor velocidade e salto reduzido; o slime fica pesado. |
-| Gelo ou bloco com grupo `ice` | Velocidade muito maior e movimento escorregadio/rápido. |
-| Enxofre | Comportamento padrão, mantendo o perfil equilibrado. |
+| Wood | Lower speed, lower gravity, and bouncier jumps, like a plastic ball. |
+| Stone or block with a pickaxe group | Higher gravity, lower speed, and reduced jump; the slime becomes heavy. |
+| Ice or block with the `ice` group | Much higher speed and slippery/fast movement. |
+| Sulfur | Default behavior, keeping the balanced profile. |
 
-A classificação usa grupos de nós, então madeiras, rochas e gelos compatíveis com Mineclonia também funcionam, não apenas os blocos adicionados por este mod.
+The sorting uses node groups, so compatible Mineclonia woods, rocks, and ices also work, not just the blocks added by this mod.
 
-## Teste rápido
+## Quick test
 
-Depois de ativar o mod, use o inventário criativo ou os comandos de concessão da base para obter os itens. Para testar o slime, obtenha o ovo de spawn `sulphur_update:sulphur_slime_spawn_egg`, coloque um gêiser e observe os pulsos de partículas. Para testar a fumaça, coloque `sulphur_update:sulphur_smoke` diretamente acima de uma fonte de água e permaneça próximo por alguns segundos.
+After enabling the mod, use the creative inventory or the base grant commands to obtain the items. To test the slime, obtain the spawn egg `sulphur_update:sulphur_slime_spawn_egg`, place a geyser, and observe the particle pulses. To test the smoke, place `sulphur_update:sulphur_smoke` directly above a water source and stay nearby for a few seconds.
 
-## Compatibilidade
+## Compatibility
 
-A implementação foi escrita para a árvore `wrxxnch/luanti-bettercraft` e usa a nomenclatura de nós e as APIs de Mineclonia presentes nessa base. A sintaxe Lua foi validada antes do empacotamento; a validação dentro do jogo deve ser feita em uma cópia de teste do mundo.
+The implementation was written for the `wrxxnch/luanti-bettercraft` tree and uses the node naming conventions and Mineclonia APIs present in that base. The Lua syntax was validated before packaging; in-game validation should be done in a test copy of the world.
 
-## Licença
+## License
 
-O código novo deste mod é distribuído sob MIT. A base BetterCraft/Mineclonia e seus assets continuam sujeitos às licenças próprias dos respectivos projetos.
+The new code in this mod is distributed under MIT. The BetterCraft/Mineclonia base and its assets remain subject to their own licenses.
