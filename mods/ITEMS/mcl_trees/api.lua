@@ -3,6 +3,30 @@ local S = core.get_translator(core.get_current_modname())
 local D = mcl_util.get_dynamic_translator()
 local bark_stairs = core.settings:get_bool("mcl_extra_nodes",true)
 
+local wood_slabs = {
+    "mcl_trees:slab_wood_spruce",
+    "mcl_trees:slab_wood_oak",
+    "mcl_trees:slab_wood_pale_oak",
+    "mcl_trees:slab_wood_warped",
+    "mcl_trees:slab_wood_cherry_blossom",
+    "mcl_trees:slab_wood_mangrove",
+    "mcl_trees:slab_wood_crimson",
+    "mcl_trees:slab_wood_bamboo",
+    "mcl_trees:slab_wood_acacia",
+	"mcl_trees:slab_wood_dark_oak"
+}
+
+for _, name in ipairs(wood_slabs) do
+    local def = core.registered_nodes[name]
+
+    if def then
+        def.groups = def.groups or {}
+        def.groups.wood_slab = 1
+    else
+        core.log("warning", "Slab não encontrado: " .. name)
+    end
+end
+
 local wood_groups = {
 	handy = 1, axey = 1, material_wood = 1,
 	flammable = 3, fire_encouragement = 5, fire_flammability = 20

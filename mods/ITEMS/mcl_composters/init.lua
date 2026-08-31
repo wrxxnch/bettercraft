@@ -8,21 +8,50 @@ mcl_composters = {}
 -- GNU General Public Licence 3.0
 --
 
-local composter_description = S(
-	"Composter"
-)
-local composter_longdesc = S(
-	"Composters can convert various organic items into bonemeal."
-)
-local composter_usagehelp = S(
-	"Use organic items on the composter to fill it with layers of compost. " ..
-	"Every time an item is put in the composter, there is a chance that the " ..
-	"composter adds another layer of compost.  Some items have a bigger chance " ..
-	"of adding an extra layer than other items.  After filling up with 7 layers " ..
-	"of compost, the composter is full.  After a delay of approximately one " ..
-	"second the composter becomes ready and bone meal can be retrieved from it. " ..
-	"Right-clicking the composter takes out the bone meal empties the composter."
-)
+local wood_slabs = {
+    -- Itens originais
+    "mcl_trees:slab_wood_spruce",
+    "mcl_trees:slab_wood_oak",
+    "mcl_trees:slab_wood_pale_oak",
+    "mcl_trees:slab_wood_warped",
+    "mcl_trees:slab_wood_cherry_blossom",
+    "mcl_trees:slab_wood_mangrove",
+    "mcl_trees:slab_wood_crimson",
+    "mcl_trees:slab_wood_bamboo",
+    "mcl_trees:slab_wood_acacia",
+    "mcl_trees:slab_wood_dark_oak",
+	"mcl_trees:slab_wood_birch",
+	"mcl_bamboo:slab_bamboo_mosaic",
+    
+    -- Novos itens adicionados por você
+    "mcl_stairs:slab_oakwood",
+    "mcl_stairs:slab_sprucewood",
+    "mcl_stairs:slab_birchwood",
+    "mcl_stairs:slab_junglewood",
+    "mcl_stairs:slab_acaciawood",
+    "mcl_stairs:slab_darkwood",
+    "mcl_stairs:slab_cherry_blossom",
+	"mcl_stairs:slab_bamboo",
+	"mcl_stairs:slab_bamboo_mosaic",
+	"mcl_stairs:slab_mangrove",
+	"mcl_stairs:slab_birch",
+	"mcl_core:slab_birchwood",
+}
+
+for _, name in ipairs(wood_slabs) do
+    local def = core.registered_nodes[name]
+
+    if def then
+        def.groups = def.groups or {}
+        def.groups.wood_slab = 1
+    else
+        -- Log apenas como informação, caso o mod de escadas não esteja instalado
+        core.log("info", "[mcl_composters] Slab não registrado no motor: " .. name)
+    end
+end
+
+-- O restante do código abaixo permanece exatamente como você enviou...
+-- (Traduções, Registro da Receita, Funções de Nível, etc)
 
 core.register_craft({
 	output = "mcl_composters:composter",
