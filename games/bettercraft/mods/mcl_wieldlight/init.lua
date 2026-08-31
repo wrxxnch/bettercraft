@@ -3,7 +3,7 @@
 -- License GPL3
 -- cora, 2023
 
-local UPDATE_INTERVAL = 1
+local UPDATE_INTERVAL = 0.2
 local placed_lights = {}
 local next_update = 0
 
