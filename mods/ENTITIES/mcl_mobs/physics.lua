@@ -263,10 +263,18 @@ function mob_class:check_for_death (mcl_reason, damage)
 			if ((not self.child) or self.type ~= "animal") then
 				local pos = self.object:get_pos()
 				local xp_amount = math.random(self.xp_min, self.xp_max)
-				if not core.is_creative_enabled(self.last_player_hit_name)
-					and not mcl_sculk.handle_death(pos, xp_amount) then
-					mcl_experience.throw_xp(pos, xp_amount)
-				end
+			if not core.is_creative_enabled(self.last_player_hit_name) then
+    local sculk_handled = false
+    -- Verifica se o mod de sculk existe e se a função handle_death existe
+    if mcl_sculk and mcl_sculk.handle_death then
+        sculk_handled = mcl_sculk.handle_death(pos, xp_amount)
+    end
+
+    -- Se o sculk não lidou com o XP (ou não existe), joga o XP no chão
+    if not sculk_handled then
+        mcl_experience.throw_xp(pos, xp_amount)
+    end
+end
 			end
 		end
 	end
@@ -353,6 +361,330 @@ function mob_class:get_weather_with_light (self_pos, time_of_day)
 	local has_rain = mcl_weather.is_exposed_to_rain (self_pos)
 	if local_light > 10 then
 		local direct_light = core.get_natural_light (self_pos) or 0
+
+		-- See: https://minecraft.wiki/w/Light#Internal_light_level
+		local weather = mcl_weather.get_weather ()
+		local light = direct_light
+		if weather == "thunder" then
+			light = math.max (0, 10 - (15 - light))
+		elseif weather == "rain" or weather == "snow" then
+			light = math.max (0, 12 - (15 - light))
+		end
+		return light, direct_light, has_rain
+	else
+		return local_light, local_light, has_rain
+	end
+end
+
+-- environmental damage (water, lava, fire, light etc.)
+function mob_class:do_env_damage()
+	-- feed/tame text timer (so mob 'full' messages dont spam chat)
+	if self.htimer > 0 then
+		self.htimer = self.htimer - 1
+	end
+
+	local pos = self.object:get_pos()
+	if not pos then return end
+
+	self.time_of_day = core.get_timeofday()
+	-- remove mob if beyond map limits
+	if not within_limits(pos, 0) then
+		self:safe_remove()
+		return true
+	end
+	local _, dim = mcl_worlds.y_to_layer(pos.y)
+
+	-- Only ignite when this mob is directly beneath sunlight, as
+	-- measured by the light level at noon.
+	if self.ignited_by_sunlight then
+		local head
+			= vector.offset (pos, 0, self.head_eye_height, 0)
+		local sunlight, direct_sunlight, has_rain
+			= self:get_weather_with_light (head, self.time_of_day)
+		self._direct_sunlight = direct_sunlight
+
+		if direct_sunlight >= 15 and sunlight >= 12
+			and not has_rain and dim == "overworld" then
+			if self.armor_list then
+				local stack = ItemStack (self.armor_list.head)
+				if stack:is_empty () then
+					mcl_burning.set_on_fire (self.object, 10)
+				else
+					-- Damage armor while on fire.
+					mcl_util.use_item_durability (stack, 5 * math.random ())
+					-- Apply wear to head armor.
+					self.armor_list.head = stack:to_string ()
+					if stack:is_empty () then
+						self:set_armor_texture ()
+					end
+				end
+			else
+				-- Unconditionally combust if no armor is equipped.
+				mcl_burning.set_on_fire (self.object, 10)
+			end
+		end
+	end
+
+	-- don't fall when on ignore, just stand still
+	if self.standing_in == "ignore" then
+		self.object:set_velocity({x = 0, y = 0, z = 0})
+		self.acc_dir = vector.zero ()
+	-- wither rose effect
+	elseif self.standing_in == "mcl_flowers:wither_rose" then
+		mcl_potions.give_effect_by_level("withering", self.object, 2, 2)
+	end
+
+	local nodef = core.registered_nodes[self.standing_in]
+	local nodef2 = core.registered_nodes[self.standing_on]
+	local head_nodedef = core.registered_nodes[self.head_in]
+
+	-- rain
+	if self.rain_damage > 0 then
+		if mcl_weather.is_exposed_to_rain (pos) then
+			if self:damage_mob ("environment", self.rain_damage) then
+				return true
+			end
+		end
+	end
+
+	local frozen = false
+	-- water damage
+	if self.water_damage > 0 and nodef.groups.water and nodef.groups.water > 0 then
+		local fatal = self:damage_mob ("environment", self.water_damage)
+		pos.y = pos.y + 1
+		mcl_mobs.effect(pos, 5, "mcl_particles_smoke.png", nil, nil, 1, nil)
+		pos.y = pos.y - 1
+		if fatal then
+			return true
+		end
+	-- magma damage
+	elseif self.fire_damage > 0 and nodef2.groups.fire and nodef2.groups.fire > 0 then
+		if self.fire_damage ~= 0 then
+			if self:damage_mob ("hot_floor", self.fire_damage) then
+				return true
+			end
+		end
+	-- lava damage
+	elseif self.lava_damage > 0 and self:is_in_node (pos, "group:lava") then
+		if self.lava_damage ~= 0 then
+			local fatal = self:damage_mob ("lava", self.lava_damage)
+			pos.y = pos.y + 1
+			mcl_mobs.effect(pos, 5, "fire_basic_flame.png", nil, nil, 1, nil)
+			mcl_burning.set_on_fire(self.object, 10)
+			pos.y = pos.y - 1
+
+			if fatal then
+				return true
+			end
+		end
+	-- fire damage
+	elseif self.fire_damage > 0 and self:is_in_node (pos, "group:fire") then
+		if self.fire_damage ~= 0 then
+			local fatal = self:damage_mob ("in_fire", self.fire_damage)
+
+			pos.y = pos.y + 1
+			mcl_mobs.effect(pos, 5, "fire_basic_flame.png", nil, nil, 1, nil)
+			pos.y = pos.y - 1
+			mcl_burning.set_on_fire(self.object, 5)
+
+			if fatal then
+				return true
+			end
+		end
+	elseif self._mcl_freeze_damage > 0 and self:is_in_node (pos, "mcl_powder_snow:powder_snow") then
+		frozen = true
+		self._frozen_for = self._frozen_for + 1
+		if self._frozen_for >= 8 and self._frozen_for % 2 == 0 then
+			local fatal = self:damage_mob("freeze", self._mcl_freeze_damage)
+
+			if fatal then
+				return true
+			end
+		end
+	-- damage_per_second node check
+	elseif nodef.damage_per_second ~= 0 and ( not nodef.groups.lava or nodef.groups.lava == 0 ) and ( not nodef.groups.fire or nodef.groups.fire == 0 ) then
+		local fatal = self:damage_mob ("environment", nodef.damage_per_second)
+		pos.y = pos.y + 1
+		mcl_mobs.effect(pos, 5, "mcl_particles_smoke.png")
+		pos.y = pos.y - 1
+		if fatal then
+			return true
+		end
+	end
+	-- Drowning damage
+	if self.initial_properties.breath_max ~= -1 then
+		local drowning = false
+		if self.breathes_in_water then
+			if core.get_item_group(self.standing_in, "water") == 0 then
+				drowning = true
+			end
+		elseif head_nodedef.drowning > 0 then
+			if self._immersion_depth > self.head_eye_height then
+				drowning = true
+			end
+		end
+		if drowning then
+			self.breath = math.max(0, self.breath - 1)
+			-- Only show bubbles if getting close to drowning
+			-- Mainly because of dolphins
+			if self.breath <= 20 then
+				pos.y = pos.y + 1
+				mcl_mobs.effect(pos, 2, "bubble.png", nil, nil, 1, nil)
+				pos.y = pos.y - 1
+			end
+
+			if self.breath <= 0 then
+				local dmg
+				if head_nodedef.drowning > 0 then
+					dmg = head_nodedef.drowning
+				else
+					dmg = 4
+				end
+				self:damage_effect(dmg)
+				if self:damage_mob ("drown", dmg) then
+					return true
+				end
+			end
+		else
+			self:respire ()
+		end
+	end
+	if not frozen and self._frozen_for > 0 then
+		-- Mobs thaw twice as quickly as they freeze.
+		self._frozen_for
+			= math.max (0, math.min (self._frozen_for, 7) - 2)
+	end
+	--- suffocation inside solid node
+	if (self.suffocation == true)
+	and (head_nodedef.walkable == nil or head_nodedef.walkable == true)
+	and (head_nodedef.collision_box == nil or head_nodedef.collision_box.type == "regular")
+	and (head_nodedef.node_box == nil or head_nodedef.node_box.type == "regular")
+	and (head_nodedef.groups.disable_suffocation ~= 1)
+	and (head_nodedef.groups.opaque == 1) then
+		-- Short grace period before starting to take suffocation damage.
+		-- This is different from players, who take damage instantly.
+		-- This has been done because mobs might briefly be inside solid nodes
+		-- when e.g. climbing up stairs.
+		-- This is a bit hacky because it assumes that do_env_damage
+		-- is called roughly every second only.
+		if self:check_timer("suffocation", 1) then
+			-- 2 damage per second
+			-- TODO: Deal this damage once every 1/2 second
+
+			if self:damage_mob ("in_wall", 2) then
+				return true
+			end
+		end
+	else
+		self._timers["suffocation"] = 1
+	end
+	return false
+end
+
+function mob_class:env_damage (pos)
+	-- environmental damage timer (every 1 second)
+	if not self:check_timer("env_damage", 1) then return end
+	self:check_entity_cramming()
+	-- check for environmental damage (water, fire, lava etc.)
+	if self:do_env_damage() then
+		return true
+	end
+end
+
+function mob_class:damage_mob(reason, damage)
+	if not self.health then return end
+	damage = math.floor(damage)
+	if damage > 0 then
+		local mcl_reason = { type = reason }
+		mcl_damage.finish_reason(mcl_reason)
+		mcl_util.deal_damage(self.object, damage, mcl_reason)
+		mcl_mobs.effect(self.object:get_pos(), 5, "mcl_particles_smoke.png", 1, 2, 2, nil)
+	end
+	return self.dead
+end
+
+function mob_class:check_entity_cramming()
+	local p = self.object:get_pos()
+	if not p then return end
+	local mobs = {}
+	for o in core.objects_inside_radius(p, 0.5) do
+		local l = o:get_luaentity()
+		if l and l.is_mob and l.health > 0 then table.insert(mobs,l) end
+	end
+	local clear = #mobs < ENTITY_CRAMMING_MAX
+	local ncram = {}
+	for _,l in pairs(mobs) do
+		if l then
+			if clear then
+				l.cram = nil
+			elseif l.cram == nil and not self.child then
+				table.insert(ncram,l)
+			elseif l.cram then
+				l:damage_mob("cramming",CRAMMING_DAMAGE)
+			end
+		end
+	end
+	for i,l in pairs(ncram) do
+		if i > ENTITY_CRAMMING_MAX then
+			l.cram = true
+		else
+			l.cram = nil
+		end
+	end
+end
+
+-- falling and fall damage
+-- returns true if mob died
+function mob_class:falling(pos)
+	if (self.fly or self.swims) and self.dead then
+		return
+	end
+
+	if self._just_portaled then
+		self.reset_fall_damage = 1
+		return false -- mob has teleported through portal - it's 99% not falling
+	end
+
+	local node = mcl_mobs.node_ok (pos, "air")
+	if node.name == "mcl_powder_snow:powder_snow" then
+		self.reset_fall_damage = 1
+	elseif core.registered_nodes[node.name].groups.water and core.registered_nodes[node.name].groups.water > 0 then
+		-- Reset fall damage when falling into water first.
+		self.reset_fall_damage = 1
+	else
+		-- fall damage onto solid ground
+		if self.fall_damage == 1
+			and self.object:get_velocity().y == 0 then
+			local n = mcl_mobs.node_ok(vector.offset(pos,0,-1,0)).name
+			-- init old_y to current height if not set.
+			local self_pos = self.object:get_pos ()
+			local d = (self.old_y or self_pos.y) - self_pos.y
+
+			if d > 5 and n ~= "air" and n ~= "ignore" and self.reset_fall_damage ~= 1 then
+				local add = core.get_item_group(self.standing_on, "fall_damage_add_percent")
+				local damage = d - 5
+				if add ~= 0 then
+					damage = damage + damage * (add/100)
+				end
+				self:damage_mob ("fall", damage * self.fall_damage_multiplier)
+				self.reset_fall_damage = 0
+			end
+			self.old_y = self_pos.y
+		end
+		self.reset_fall_damage = 0
+	end
+end
+
+function mob_class:check_water_flow (self_pos)
+	return self._water_current
+end
+
+function mob_class:check_dying (dtime)
+	if self.dead and not self.animation.die_end then
+		if self.object then
+			local rot = self.object:get_rotation()
+			rot.z = ((math.pi/2-rot.z)*.2)+rot.z
+			self.objec) or 0
 
 		-- See: https://minecraft.wiki/w/Light#Internal_light_level
 		local weather = mcl_weather.get_weather ()
