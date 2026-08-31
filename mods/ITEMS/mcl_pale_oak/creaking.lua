@@ -160,31 +160,9 @@ end,
 
 -------------------------------------------------
 -- SPAWN NOTURNO
+-- Desabilitado para reduzir o pico de lag do bioma ao anoitecer.
+-- O coração do Pale Oak passa a ser a fonte principal de spawn.
 -------------------------------------------------
-minetest.register_abm({
-    label = "Creaking Spawn",
-    nodenames = {"mcl_pale_oak:pale_moss_block"},
-    interval = 60,
-    chance = 100,
-
-    action = function(pos)
-        local time = minetest.get_timeofday()
-        if time < 0.2 or time > 0.8 then return end
-
-        local objs = minetest.get_objects_inside_radius(pos, 32)
-        for _, obj in ipairs(objs) do
-            local ent = obj:get_luaentity()
-            if ent and ent.name == "mcl_pale_oak:creaking" then
-                return
-            end
-        end
-
-        local spawn_pos = {x = pos.x, y = pos.y + 1, z = pos.z}
-        if minetest.get_node(spawn_pos).name == "air" then
-            minetest.add_entity(spawn_pos, "mcl_pale_oak:creaking")
-        end
-    end,
-})
 
 -------------------------------------------------
 -- OVO DE SPAWN (MCL)

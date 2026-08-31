@@ -100,48 +100,40 @@ minetest.register_node("mcl_pale_oak:creaking_heart_active", {
 minetest.register_abm({
     label = "Creaking Heart Activation",
     nodenames = {"mcl_pale_oak:creaking_heart"},
-    interval = 10,
-    chance = 1,
+    interval = 30,
+    chance = 2,
     action = function(pos, node)
         local time_of_day = minetest.get_timeofday()
-        
+
         -- À noite (18:00 - 06:00)
         if time_of_day > 0.75 or time_of_day < 0.25 then
             -- Ativa o bloco
             minetest.swap_node(pos, {name="mcl_pale_oak:creaking_heart_active", param2=node.param2})
-            
-            -- Spawna um Creaking próximo se não existir
-            local objs = minetest.get_objects_inside_radius(pos, 32)
-            local has_creaking = false
-            
+
+            -- Limita a checagem a um raio pequeno para evitar pico de lag
+            local objs = minetest.get_objects_inside_radius(pos, 8)
             for _, obj in ipairs(objs) do
                 local entity = obj:get_luaentity()
                 if entity and entity.name == "mcl_pale_oak:creaking" then
-                    has_creaking = true
-                    break
+                    return
                 end
             end
-            
-            if not has_creaking then
-                -- Procura posição válida para spawn
-                for i = 1, 10 do
-                    local spawn_pos = {
-                        x = pos.x + math.random(-8, 8),
-                        y = pos.y,
-                        z = pos.z + math.random(-8, 8)
-                    }
-                    
-                    -- Encontra o chão
-                    for dy = -5, 5 do
-                        local check_pos = {x=spawn_pos.x, y=spawn_pos.y+dy, z=spawn_pos.z}
-                        local node_below = minetest.get_node({x=check_pos.x, y=check_pos.y-1, z=check_pos.z})
-                        local node_at = minetest.get_node(check_pos)
-                        
-                        if node_below.name ~= "air" and node_at.name == "air" then
-                            minetest.add_entity(check_pos, "mcl_pale_oak:creaking")
-                            break
-                        end
-                    end
+
+            -- Spawna um Creaking próximo para este bloco ativo
+            local spawn_pos = {
+                x = pos.x + math.random(-3, 3),
+                y = pos.y,
+                z = pos.z + math.random(-3, 3)
+            }
+
+            for dy = -2, 3 do
+                local check_pos = {x = spawn_pos.x, y = spawn_pos.y + dy, z = spawn_pos.z}
+                local node_below = minetest.get_node({x = check_pos.x, y = check_pos.y - 1, z = check_pos.z})
+                local node_at = minetest.get_node(check_pos)
+
+                if node_below.name ~= "air" and node_at.name == "air" then
+                    minetest.add_entity(check_pos, "mcl_pale_oak:creaking")
+                    break
                 end
             end
         end
@@ -152,18 +144,18 @@ minetest.register_abm({
 minetest.register_abm({
     label = "Creaking Heart Deactivation",
     nodenames = {"mcl_pale_oak:creaking_heart_active"},
-    interval = 10,
-    chance = 1,
+    interval = 30,
+    chance = 2,
     action = function(pos, node)
         local time_of_day = minetest.get_timeofday()
-        
+
         -- De dia (06:00 - 18:00)
         if time_of_day >= 0.25 and time_of_day <= 0.75 then
             -- Desativa o bloco
             minetest.swap_node(pos, {name="mcl_pale_oak:creaking_heart", param2=node.param2})
-            
+
             -- Remove Creakings próximos
-            local objs = minetest.get_objects_inside_radius(pos, 32)
+            local objs = minetest.get_objects_inside_radius(pos, 8)
             for _, obj in ipairs(objs) do
                 local entity = obj:get_luaentity()
                 if entity and entity.name == "mcl_pale_oak:creaking" then
