@@ -7,6 +7,29 @@ Licensed under the zlib license. See LICENSE.md for more information.
 
 -- Node will be called <modname>:slab_<subname>
 
+local wood_slabs = {
+    "mcl_trees:slab_wood_spruce",
+    "mcl_trees:slab_wood_oak",
+    "mcl_trees:slab_wood_pale_oak",
+    "mcl_trees:slab_wood_warped",
+    "mcl_trees:slab_wood_cherry_blossom",
+    "mcl_trees:slab_wood_mangrove",
+    "mcl_trees:slab_wood_crimson",
+    "mcl_trees:slab_wood_bamboo",
+    "mcl_trees:slab_wood_acacia",
+}
+
+for _, name in ipairs(wood_slabs) do
+    local def = core.registered_nodes[name]
+
+    if def then
+        def.groups = def.groups or {}
+        def.groups.wood_slab = 1
+    else
+        core.log("warning", "Slab não encontrado: " .. name)
+    end
+end
+
 -- luacheck: no unused
 local function register_slab(modname, subname, recipeitem, groups, images, description, drop, light)
 	stairsplus:register_slab(modname, subname, recipeitem, {

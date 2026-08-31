@@ -1,55 +1,77 @@
--- Creaking Mob - O Rangedor do Pale Garden
--- Versão corrigida com GRAVIDADE FUNCIONAL
-
 -------------------------------------------------
--- ENTIDADE
+-- ENTIDADE: CREAKING (O RANGEDOR)
 -------------------------------------------------
 minetest.register_entity("mcl_pale_oak:creaking", {
 
-   initial_properties = {
-    hp_max = 1,
-    physical = true,
-    collide_with_objects = true,
+    initial_properties = {
+        hp_max = 1,
+        physical = true,
+        collide_with_objects = true,
+        collisionbox = {-0.7, 0.0, -0.7, 0.7, 2.7, 0.7},
+        visual = "mesh",
+        mesh = "creaking.x",
+        textures = {"creaking.png"},
+        visual_size = {x = 10, y = 10},
+        makes_footstep_sound = true,
+        stepheight = 1.1,
+        automatic_rotate = 0,
+    },
 
-    collisionbox = {-0.7, 0.0, -0.7, 0.7, 2.7, 0.7},
-
-    visual = "mesh",
-    mesh = "creaking.x",
-    textures = {"creaking.png"},
-    visual_size = {x = 10, y = 10},
-
-    makes_footstep_sound = true,
-    stepheight = 1.1,
-    automatic_rotate = 0,
-},
-
-
-    -------------------------------------------------
-    -- VARIÁVEIS
-    -------------------------------------------------
     timer = 0,
     attack_timer = 0,
     frozen = false,
 
-    -------------------------------------------------
-    -- ATIVAÇÃO
-    -------------------------------------------------
     on_activate = function(self)
-    self.object:set_armor_groups({immortal = 1})
-    self.timer = 0
-    self.attack_timer = 0
-
-    -- stub para mcl_mobs
-    self.set_nametag = function() end
-
-    -- gravidade
-    self.object:set_acceleration({x = 0, y = -9.8, z = 0})
-end,
-
+        self.object:set_armor_groups({immortal = 1})
+        self.object:set_acceleration({x = 0, y = -9.8, z = 0})
+    end,
 
     -------------------------------------------------
-    -- LOOP PRINCIPAL
+    -- FUNÇÃO DE RASTRO AO BATER (NOVO)
     -------------------------------------------------
+    on_punch = function(self, puncher)
+        local pos = self.object:get_pos()
+        if not pos then return true end
+
+        -- 1. Procura o coração mais próximo (raio de 32 blocos)
+        -- Nota: Ajuste o nome do nó abaixo para o nome real do seu nó de coração
+        local heart_pos = minetest.find_node_near(pos, 32, {"mcl_pale_oak:creaking_heart_active"})
+
+        if heart_pos then
+            -- Centraliza a posição da partícula no bloco do coração
+            heart_pos = vector.add(heart_pos, {x=0, y=0, z=0})
+            
+            -- 2. Calcula a distância e a direção
+            local dist = vector.distance(pos, heart_pos)
+            local dir = vector.direction(pos, heart_pos)
+            
+            -- 3. Cria o rastro de partículas
+            -- Spawna uma partícula a cada 0.5 blocos de distância
+            for i = 0, dist, 0.5 do
+                local particle_pos = vector.add(pos, vector.multiply(dir, i))
+                -- Eleva um pouco as partículas para saírem do peito do mob
+                particle_pos.y = particle_pos.y + 1.5 
+
+                minetest.add_particle({
+                    pos = particle_pos,
+                    velocity = {x = 0, y = 0.1, z = 0},
+                    acceleration = {x = 0, y = 0, z = 0},
+                    expirationtime = 1.5,
+                    size = 4,
+                    collisiondetection = false,
+                    vertical = false,
+                    texture = "default_resin_clump_node.png",
+                    glow = 10, -- Faz brilhar levemente
+                })
+            end
+            
+            -- Som opcional de "vibração" ou resina ao bater
+            minetest.sound_play("default_dig_snappy", {pos = pos, gain = 1.0}, true)
+        end
+
+        return true -- Impede que o mob morra por dano direto
+    end,
+
     on_step = function(self, dtime)
         self.timer = self.timer + dtime
         self.attack_timer = self.attack_timer + dtime
@@ -61,7 +83,7 @@ end,
         if not pos then return end
 
         -------------------------------------------------
-        -- PROCURA JOGADOR MAIS PRÓXIMO
+        -- LÓGICA DE PROCURA E MOVIMENTO
         -------------------------------------------------
         local closest_player
         local closest_dist = 16
@@ -69,28 +91,20 @@ end,
         for _, player in ipairs(minetest.get_connected_players()) do
             local ppos = player:get_pos()
             local dist = vector.distance(pos, ppos)
-
             if dist < closest_dist then
                 closest_dist = dist
                 closest_player = player
             end
         end
 
-        -------------------------------------------------
-        -- SEM ALVO → PARA (SEM MATAR GRAVIDADE)
-        -------------------------------------------------
         if not closest_player then
             local v = self.object:get_velocity()
             self.object:set_velocity({x = 0, y = v.y, z = 0})
             return
         end
 
-        -------------------------------------------------
-        -- VERIFICA SE O JOGADOR ESTÁ OLHANDO
-        -------------------------------------------------
         local player_pos = closest_player:get_pos()
         local look_dir = closest_player:get_look_dir()
-
         local to_creaking = vector.subtract(pos, player_pos)
         local dist = vector.length(to_creaking)
 
@@ -98,64 +112,45 @@ end,
             to_creaking = vector.normalize(to_creaking)
             local dot = vector.dot(look_dir, to_creaking)
 
-            -- 👁️ CONGELA SE ESTIVER SENDO OLHADO
+            -- 👁️ freezes while stare
             if dot > 0.4 then
                 self.frozen = true
-
                 local v = self.object:get_velocity()
                 self.object:set_velocity({x = 0, y = v.y, z = 0})
-
                 self.object:set_animation({x = 0, y = 40}, 0, 0, true)
                 return
             end
         end
 
         -------------------------------------------------
-        -- NÃO ESTÁ SENDO OLHADO → MOVE
+        -- MOVIMENTO (NÃO ESTÁ SENDO OLHADO)
         -------------------------------------------------
         self.frozen = false
 
         if dist > 1.5 then
             local dir = vector.direction(pos, player_pos)
-            local speed = 1.0
+            local speed = 1.5 -- Velocidade levemente aumentada
 
-            local vel = {
+            self.object:set_velocity({
                 x = dir.x * speed,
-                y = self.object:get_velocity().y, -- mantém gravidade
+                y = self.object:get_velocity().y,
                 z = dir.z * speed
-            }
+            })
 
-            self.object:set_velocity(vel)
-
-            -- Rotação correta
             local yaw = math.atan2(dir.z, dir.x) + math.pi / 2
             self.object:set_yaw(yaw)
-
             self.object:set_animation({x = 40, y = 60}, 30, 0, true)
-
         else
-            -------------------------------------------------
             -- ATAQUE
-            -------------------------------------------------
             if self.attack_timer > 1.0 then
                 self.attack_timer = 0
-
                 closest_player:set_hp(closest_player:get_hp() - 2)
                 self.object:set_animation({x = 90, y = 110}, 40, 0, false)
             end
         end
     end,
 
-    -------------------------------------------------
-    -- INVULNERÁVEL
-    -------------------------------------------------
-    on_punch = function()
-        return true
-    end,
-
-    get_staticdata = function()
-        return ""
-    end,
+    get_staticdata = function() return "" end,
 })
 
 -------------------------------------------------
