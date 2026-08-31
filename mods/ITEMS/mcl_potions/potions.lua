@@ -50,50 +50,6 @@ local function generate_get_all_virtual_items_func(itemname, pdef, nocreative)
 	end
 end
 
-local function generate_on_use(vanish, effects, _, on_use, custom_effect)
-	return function(itemstack, user, pointed_thing)
-		if pointed_thing.type == "node" then
-			if user and not user:get_player_control().sneak then
-				local node = core.get_node(pointed_thing.under)
-				if core.registered_nodes[node.name] and core.registered_nodes[node.name].on_rightclick then
-					return core.registered_nodes[node.name].on_rightclick(pointed_thing.under, node, user, itemstack) or itemstack
-				end
-			end
-		elseif pointed_thing.type == "object" then
-			return itemstack
-		end
-
-		local potency = itemstack:get_meta():get_int("mcl_potions:potion_potent")
-		local plus = itemstack:get_meta():get_int("mcl_potions:potion_plus")
-		local ef_level
-		local dur
-		for name, details in pairs(effects) do
-			ef_level = mcl_potions.level_from_details (details, potency)
-			dur = mcl_potions.duration_from_details (details, potency,
-								 plus)
-			mcl_potions.give_effect_by_level(name, user, ef_level, dur)
-		end
-
-		if on_use then on_use(user, potency+1) end
-		if custom_effect then custom_effect(user, potency+1, plus, user) end
-
-		-- Certain potions, e.g. ominous bottles, are meant to
-		-- vanish after consumption rather than to be replaced
-		-- by glass bottles.
-		local replacement
-		if vanish then
-			replacement = nil
-		else
-			replacement = "mcl_potions:glass_bottle"
-		end
-		itemstack = core.do_item_eat(0, replacement, itemstack,
-						 user, pointed_thing)
-		if vanish or itemstack then mcl_potions._use_potion(user) end
-
-		return itemstack
-	end
-end
-
 function mcl_potions.consume_potion (mob, id, potency, plus)
 	local def = registered_potions[id]
 	local ef_level, dur
@@ -184,7 +140,7 @@ function mcl_potions.register_potion(def)
 	local color = def.color or "#FF00FF"
 	pdef.inventory_image = def.image or potion_image(color)
 	pdef.wield_image = pdef.inventory_image
-	pdef.groups = def.groups or {brewitem=1, food=3, can_eat_when_full=1,
+	pdef.groups = def.groups or {brewitem=1, food=3, eatable=0, can_eat_when_full=1,
 					 _mcl_potion=1, potion = 1, }
 	if def.nocreative then pdef.groups.not_in_creative_inventory = 1 end
 
@@ -220,20 +176,34 @@ function mcl_potions.register_potion(def)
 	pdef._default_potent_level = def.default_potent_level or 2
 	pdef._default_extend_level = def.default_extend_level or 1
 	pdef.has_plus = has_plus
-	local on_use
 	if def.drinkable ~= false then
-		on_use = generate_on_use (def.vanishing, pdef._effect_list,
-					  color, def.custom_on_use, def.custom_effect)
+		pdef._mcl_eat_effect = function (itemstack, player)
+			local potency = itemstack:get_meta():get_int("mcl_potions:potion_potent")
+			local plus = itemstack:get_meta():get_int("mcl_potions:potion_plus")
+			local ef_level
+			local dur
+			for name, details in pairs(pdef._effect_list) do
+				ef_level = mcl_potions.level_from_details (details, potency)
+				dur = mcl_potions.duration_from_details (details, potency,
+									plus)
+				mcl_potions.give_effect_by_level(name, player, ef_level, dur)
+			end
+
+			local on_use = def.custom_on_use
+			if on_use then on_use(player, potency+1) end
+
+			local custom_effect = def.custom_effect
+			if custom_effect then custom_effect(player, potency+1, plus, player) end
+		end
+		pdef._mcl_eat_replace_with = def.vanishing and "" or "mcl_potions:glass_bottle"
 	end
-	pdef.on_place = on_use
-	pdef.on_secondary_use = on_use
 	pdef._mcl_filter_description = mcl_potions.filter_potion_description
 
 	local internal_def = table.copy(pdef)
 	local itemname = modname .. ":" .. name
 
 	pdef._get_all_virtual_items = generate_get_all_virtual_items_func(itemname, pdef, def.nocreative)
-	core.register_craftitem (itemname, pdef)
+	core.register_craftitem (":" .. itemname, pdef)
 
 	if def.has_splash or def.has_splash == nil then
 		local splash_desc = S("Splash @1", pdef.description)

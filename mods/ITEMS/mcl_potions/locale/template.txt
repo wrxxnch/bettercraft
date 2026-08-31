@@ -63,6 +63,7 @@ Luck=
 Bad Luck=
 Bad Omen=
 danger is imminent=
+Trial omen=
 Hero of the Village=
 Withering=
 -1 HP / @1 s, can kill=

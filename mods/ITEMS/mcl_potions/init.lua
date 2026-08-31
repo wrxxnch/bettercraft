@@ -56,7 +56,7 @@ core.register_craftitem("mcl_potions:glass_bottle", {
 			core.swap_node(droppos, {name = node_name:gsub("_5", ""), param2 = dropnode.param2})
 			new_stack = ItemStack("mcl_honey:honey_bottle")
 			droppos = vector.add(droppos, dropdir)
-		elseif core.get_item_group(node_name, "water") then
+		elseif core.get_item_group(node_name, "water") ~= 0 then
 			local water_type = "water"
 			local defs = core.registered_nodes[node_name]
 			local is_source = defs and defs.liquidtype == "source"
@@ -83,6 +83,9 @@ core.register_craftitem("mcl_potions:glass_bottle", {
 	pointabilities = {
 		nodes = {
 			["group:liquid_source"] = true,
+		},
+		objects = {
+			["mobs_mc:dragon_effect_cloud"] = true,
 		},
 	},
 	on_place = function(itemstack, placer, pointed_thing)
@@ -138,14 +141,12 @@ end
 -- used for water bottles and river water bottles
 local function dispense_water_bottle(stack, _, droppos)
 	local node = core.get_node(droppos)
-	if node.name == "mcl_core:dirt" or node.name == "mcl_core:coarse_dirt" then
-		-- convert dirt/coarse dirt to mud
+	if core.get_item_group(node.name, "converts_to_mud") ~= 0 then
 		core.set_node(droppos, {name = "mcl_mud:mud"})
 		core.sound_play("mcl_potions_bottle_pour", {pos=droppos, gain=0.5, max_hear_range=16}, true)
-		return ItemStack("mcl_potions:glass_bottle")
 
-	elseif node.name == "mcl_mud:mud" then
-		-- dont dispense into mud
+		return ItemStack("mcl_potions:glass_bottle")
+	else
 		return stack
 	end
 end
@@ -178,7 +179,7 @@ core.register_craftitem("mcl_potions:water", {
 	stack_max = 1,
 	inventory_image = potion_image("#8091ff"),
 	wield_image = potion_image("#8091ff"),
-	groups = {brewitem=1, food=3, can_eat_when_full=1, water_bottle=1},
+	groups = {brewitem=1, food=3, eatable=0, can_eat_when_full=1, water_bottle=1},
 	on_place = water_bottle_on_place,
 	_on_dispense = dispense_water_bottle,
 	_placement_def = {
@@ -192,7 +193,7 @@ core.register_craftitem("mcl_potions:water", {
 	},
 	_dispense_into_walkable = true,
 	_mcl_cauldrons_liquid = "water",
-	on_secondary_use = core.item_eat(0, "mcl_potions:glass_bottle"),
+	_mcl_eat_replace_with = "mcl_potions:glass_bottle"
 })
 
 
@@ -205,13 +206,12 @@ core.register_craftitem("mcl_potions:river_water", {
 	stack_max = 1,
 	inventory_image = potion_image("#80a3ff"),
 	wield_image = potion_image("#80a3ff"),
-	groups = {brewitem=1, food=3, can_eat_when_full=1, water_bottle=1},
+	groups = {brewitem=1, food=3, eatable=0, can_eat_when_full=1, water_bottle=1},
 	on_place = water_bottle_on_place,
 	_on_dispense = dispense_water_bottle,
 	_dispense_into_walkable = true,
 	_mcl_cauldrons_liquid = "river_water",
-	on_secondary_use = core.item_eat(0, "mcl_potions:glass_bottle"),
-
+	_mcl_eat_replace_with = "mcl_potions:glass_bottle"
 })
 
 mcl_potions.register_splash("water", S("Splash Water Bottle"), "#8091ff", {
@@ -359,14 +359,13 @@ local awkward_table = {
 	["mcl_core:stone"] = "mcl_potions:infestation",
 	["mcl_core:slimeblock"] = "mcl_potions:oozing",
 	["mcl_core:cobweb"] = "mcl_potions:weaving",
-	["mcl_mobitems:breeze_rod"] = "mcl_potions:wind_charged",
-	["mcl_mobitems:phantom_membrane"] = "mcl_potions:slow_falling",
+	["mcl_mobitems:breeze_rod"] = "mcl_potions:wind_charged"
 }
 
 -- API
 -- register a potion recipe brewed from awkward potion
 function mcl_potions.register_awkward_brew(ingr, potion)
-	assert (not water_table[ingr],
+	assert (not awkward_table[ingr],
 		"Attempt to register the same ingredient twice!")
 	assert (type(ingr) == "string", "ingr must be a string")
 	assert (type(potion) == "string", "potion must be a string")
@@ -394,7 +393,7 @@ local thick_table = {
 -- API
 -- register a potion recipe brewed from thick potion
 function mcl_potions.register_thick_brew(ingr, potion)
-	assert (not awkward_table[ingr],
+	assert (not thick_table[ingr],
 		"Attempt to register the same ingredient twice!")
 	assert (type(ingr) == "string", "ingr must be a string")
 	assert (type(potion) == "string", "potion must be a string")
@@ -556,19 +555,6 @@ function mcl_potions.get_alchemy(ingr, pot)
 
 	return false
 end
-
--- give withering to players in a wither rose
-local etime = 0
-core.register_globalstep(function(dtime)
-	etime = dtime + etime
-	if etime < 0.5 then return end
-	etime = 0
-	for pl in mcl_util.connected_players() do
-		local npos = vector.offset(pl:get_pos(), 0, 0.2, 0)
-		local n = core.get_node(npos)
-		if n.name == "mcl_flowers:wither_rose" then mcl_potions.withering_func(pl, 1, 2) end
-	end
-end)
 
 mcl_wip.register_wip_item("mcl_potions:night_vision")
 mcl_wip.register_wip_item("mcl_potions:night_vision_splash")
