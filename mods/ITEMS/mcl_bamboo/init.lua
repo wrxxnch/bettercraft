@@ -15,7 +15,7 @@ local block_doc = S("A Block made of Bamboo stalks. Can be crafted into Bamboo P
 
 local block_groups = {
 	handy = 1, axey = 1, material_wood = 1, building_block = 1,
-	flammable = 3, fire_encouragement = 5, fire_flammability = 20
+	flammable = 3, fire_encouragement = 5, fire_flammability = 20, wood = 1,
 }
 
 mcl_trees.register_wood("bamboo",{
