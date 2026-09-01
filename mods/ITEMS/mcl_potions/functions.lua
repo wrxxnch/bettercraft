@@ -4,6 +4,16 @@ local EF = {}
 mcl_potions.registered_effects = {}
 local registered_effects = mcl_potions.registered_effects -- shorthand ref
 
+-- Compatibility with older mcl_mobs versions.
+-- Some versions do not provide make_physics_factor_persistent.
+-- In that case, use a no-op fallback so potion effects can still load.
+local make_physics_factor_persistent = mcl_mobs.make_physics_factor_persistent
+if not make_physics_factor_persistent then
+	make_physics_factor_persistent = function(_)
+		return nil
+	end
+end
+
 -- effects affecting item speed utilize numerous hacks, so they have to be counted separately
 local item_speed_effects = {}
 
@@ -249,7 +259,8 @@ mcl_potions.register_effect({
 		if object:is_player() then
 			mcl_damage.heal_player (object, 1)
 		elseif entity and entity.is_mob then
-			entity:heal_mob (1)
+			local hp_max = object:get_properties ().hp_max
+			entity.health = math.min(hp_max, entity.health + 1)
 		end
 	end,
 	particle_color = "#CD5CAB",
@@ -390,7 +401,7 @@ mcl_potions.register_effect({
 	hit_timer_step = 1,
 })
 
-mcl_mobs.make_physics_factor_persistent ("mcl_potions:dolphin")
+make_physics_factor_persistent ("mcl_potions:dolphin")
 
 mcl_potions.register_effect({
 	name = "leaping",
@@ -403,12 +414,6 @@ mcl_potions.register_effect({
 		add_physics_factor (object, "jump", "jump_height",
 				"mcl_potions:leaping", 1 + factor)
 		if not object:is_player () then
-			local entity = object:get_luaentity ()
-			if entity and entity.is_mob then
-				entity:add_physics_factor ("_safe_fall_distance",
-							   "mcl_potions:leaping_fall_distance",
-							   2.0 * factor, "add")
-			end
 			return
 		end
 		mcl_serverplayer.add_physics_factor (object, "safe_fall_distance",
@@ -419,11 +424,6 @@ mcl_potions.register_effect({
 		remove_physics_factor (object, "jump", "jump_height",
 				   "mcl_potions:leaping")
 		if not object:is_player () then
-			local entity = object:get_luaentity ()
-			if entity and entity.is_mob then
-				entity:remove_physics_factor ("_safe_fall_distance",
-							      "mcl_potions:leaping_fall_distance")
-			end
 			return
 		end
 		mcl_serverplayer.remove_physics_factor (object, "safe_fall_distance",
@@ -435,8 +435,7 @@ mcl_potions.register_effect({
 	lvl2_factor = 1,
 })
 
-mcl_mobs.make_physics_factor_persistent ("mcl_potions:leaping")
-mcl_mobs.make_physics_factor_persistent ("mcl_potions:leaping_fall_distance")
+make_physics_factor_persistent ("mcl_potions:leaping")
 
 mcl_potions.register_effect({
 	name = "slow_falling",
@@ -468,7 +467,7 @@ mcl_potions.register_effect({
 	particle_color = "#F3CFB9",
 })
 
-mcl_mobs.make_physics_factor_persistent ("mcl_potions:slow_falling")
+make_physics_factor_persistent ("mcl_potions:slow_falling")
 
 mcl_player.register_player_setting("mcl_potions:fov_effect_strength", {
         type = "slider",
@@ -527,7 +526,7 @@ mcl_potions.register_effect({
 	lvl2_factor = 0.4,
 })
 
-mcl_mobs.make_physics_factor_persistent ("mcl_potions:swiftness")
+make_physics_factor_persistent ("mcl_potions:swiftness")
 
 mcl_potions.register_effect({
 	name = "slowness",
@@ -608,7 +607,7 @@ mcl_potions.register_effect({
 	lvl2_factor = 1.8,
 })
 
-mcl_mobs.make_physics_factor_persistent ("mcl_potions:levitation")
+make_physics_factor_persistent ("mcl_potions:levitation")
 
 mcl_potions.register_effect({
 	name = "night_vision",
@@ -894,17 +893,6 @@ mcl_potions.register_effect({
 })
 
 mcl_potions.register_effect({
-	name = "trial_omen",
-	description = S("Trial omen"),
-	get_tt = function()
-		return S("danger is imminent")
-	end,
-	particle_color = "#16A6A6",
-	uses_factor = false,
-})
-
-
-mcl_potions.register_effect({
 	name = "hero_of_village",
 	description = S("Hero of the Village"),
 	particle_color = "#44FF44",
@@ -981,22 +969,28 @@ mcl_potions.register_effect({
 	end,
 	on_start = function(object)
 		if object:is_player () and mcl_hunger.active then
-			hb.change_hudbar(object, "hunger", nil, nil, "mcl_hunger_icon_foodpoison.png", nil, "mcl_hunger_bar_foodpoison.png")
+		hb.change_hudbar(object, "hunger", nil, nil, "mcl_hunger_icon_foodpoison.png", nil, "mcl_hunger_bar_foodpoison.png")
+		if mcl_hunger.debug then
+			hb.change_hudbar(object, "exhaustion", nil, nil, nil, nil, "mcl_hunger_bar_foodpoison.png")
+		end
 		end
 	end,
 	on_load = function(object) -- TODO refactor and add hunger bar modifier API
 		if object:is_player () and mcl_hunger.active then
-			hb.change_hudbar(object, "hunger", nil, nil, "mcl_hunger_icon_foodpoison.png", nil, "mcl_hunger_bar_foodpoison.png")
+		hb.change_hudbar(object, "hunger", nil, nil, "mcl_hunger_icon_foodpoison.png", nil, "mcl_hunger_bar_foodpoison.png")
+		if mcl_hunger.debug then
+			hb.change_hudbar(object, "exhaustion", nil, nil, nil, nil, "mcl_hunger_bar_foodpoison.png")
+		end
 		end
 	end,
 	on_step = function(dtime, object, factor)
 		if object:is_player () and mcl_hunger.active then
-			mcl_hunger.exhaust(object:get_player_name(), dtime*factor)
+		mcl_hunger.exhaust(object:get_player_name(), dtime*factor)
 		end
 	end,
 	on_end = function(object)
 		if object:is_player () and mcl_hunger.active then
-			hb.change_hudbar(object, "hunger", nil, nil, "hbhunger_icon.png", nil, "hbhunger_bar.png")
+		mcl_hunger.reset_bars_poison_hunger(object)
 		end
 	end,
 	particle_color = "#587653",
@@ -1990,59 +1984,56 @@ function mcl_potions.detect_hit (obj, pos, moveresult, velocity)
 	local entity = obj:get_luaentity ()
 	local in_thrower_body = entity and not entity._exited_thrower
 	for _, item in ipairs (moveresult.collisions) do
-		if item.type == "node" then
-			-- Detect targets.
-			local node = core.get_node (item.node_pos)
-			if node and node.name == "mcl_target:target_off" then
-				val = { target = item.node_pos, }
-			elseif node then
-				-- Next, detect walkable nodes.
-				local def = core.registered_nodes[node.name]
-				if def.walkable then
-					val = val or {}
-				end
+	if item.type == "node" then
+		-- Detect targets.
+		local node = core.get_node (item.node_pos)
+		if node and node.name == "mcl_target:target_off" then
+		val = { target = item.node_pos, }
+		elseif node then
+		-- Next, detect walkable nodes.
+		local def = core.registered_nodes[node.name]
+		if def.walkable then
+			val = val or {}
+		end
+		end
+	end
+	end
+	-- Mobs and objects are currently non-colliding, so supplement the
+	-- move results with a raycast as in mcl_bows.
+	if not val or in_thrower_body then
+	local raycast = core.raycast (pos, vector.add (pos, velocity * 0.04),
+					  true, false)
+	local still_inside = false
+	local thrower = entity._thrower
+
+	-- If the thrower should be a string, try to look up the
+	-- player by that name.
+	if type (thrower) == "string" then
+		thrower = core.get_player_by_name (thrower)
+	end
+
+	for hitpoint in raycast do
+		if hitpoint.type == "object" and hitpoint.ref ~= obj then
+		if hitpoint.ref:is_player ()
+			or (hitpoint.ref:get_luaentity ()
+			and hitpoint.ref:get_luaentity ().is_mob) then
+			-- Don't return the thrower if the potion was
+			-- launched from within it and has not yet
+			-- exited.
+			if in_thrower_body and hitpoint.ref == thrower then
+			still_inside = true
+			else
+			val = {}
 			end
+		end
+		else
+		break
 		end
 	end
 
-	-- Mobs and objects are currently non-colliding, so supplement the
-	-- move results with a raycast as in mcl_bows.
-	-- SÓ EXECUTA SE O MOD mcl_attachments EXISTIR
-	if (not val or in_thrower_body) and mcl_attachments and mcl_attachments.raycast then
-		local raycast_dst = vector.add (pos, velocity * 0.04)
-		local raycast = mcl_attachments.raycast(pos, raycast_dst, true, false)
-		
-		local still_inside = false
-		local thrower = entity._thrower
-
-		if type (thrower) == "string" then
-			thrower = core.get_player_by_name (thrower)
-		end
-
-		-- O erro acontecia aqui porque tentava iterar sobre algo que não era função
-		for hitpoint in raycast do
-			if mcl_attachments.raycast_intercept then
-				mcl_attachments.raycast_intercept (pos, raycast_dst, hitpoint)
-			end
-			
-			if hitpoint.type == "object" and hitpoint.ref ~= obj then
-				if hitpoint.ref:is_player ()
-					or (hitpoint.ref:get_luaentity ()
-					    and hitpoint.ref:get_luaentity ().is_mob) then
-					if in_thrower_body and hitpoint.ref == thrower then
-						still_inside = true
-					else
-						val = {}
-					end
-				end
-			else
-				break
-			end
-		end
-
-		if entity then
-			entity._exited_thrower = not still_inside
-		end
+	if entity then
+		entity._exited_thrower = not still_inside
+	end
 	end
 	return val
 end
@@ -2074,6 +2065,12 @@ function mcl_potions.make_invisible(obj_ref, hide)
 			--obj_ref:set_properties ({show_on_minimap = show})
 		end
 	end
+end
+
+
+function mcl_potions._use_potion(obj)
+	local pos = obj:get_pos()
+	core.sound_play("mcl_potions_drinking", {pos = pos, max_hear_distance = 6, gain = 1})
 end
 
 
@@ -2135,7 +2132,7 @@ local function target_valid(object, name)
 	if not object or object:get_hp() <= 0 then return false end
 
 	local entity = object:get_luaentity()
-	if entity and (entity.is_boss or entity.is_item) then return false end
+	if entity and entity.is_boss then return false end
 
 	for i=1, #registered_res_predicates do
 		if registered_res_predicates[i](object, name) then return false end
@@ -2207,18 +2204,10 @@ end
 function mcl_potions.give_effect_by_level(name, object, level, duration, no_particles)
 	if name == "" or object == nil then return false end
 	if level == 0 then return false end
-	
-	-- VERIFICAÇÃO DE SEGURANÇA ADICIONADA AQUI:
-	local effect_def = registered_effects[name]
-	if not effect_def then
-		core.log("error", "[mcl_potions] Tentativa de dar efeito não registrado: " .. tostring(name))
-		return false
-	end
-
-	if not effect_def.uses_factor then
+	if not registered_effects[name].uses_factor then
 		return mcl_potions.give_effect(name, object, 0, duration, no_particles)
 	end
-	local factor = effect_def.level_to_factor(level)
+	local factor = registered_effects[name].level_to_factor(level)
 	return mcl_potions.give_effect(name, object, factor, duration, no_particles)
 end
 
@@ -2246,8 +2235,9 @@ function mcl_potions.healing_func (object, hp, source)
 			hp = 1
 		end
 
+		local hp_max = object:get_properties ().hp_max
 		if ent and ent.is_mob then
-			ent:heal_mob (hp)
+			ent.health = math.min (ent.health + hp, hp_max)
 		elseif object:is_player() then
 			mcl_damage.heal_player (object, hp)
 		end
@@ -2315,7 +2305,7 @@ function mcl_potions._water_effect(pos, radius)
 	if core.get_item_group(dnode.name, "fire") ~= 0 or
 	core.get_item_group(dnode.name, "lit_campfire") ~= 0 or
 	core.get_item_group(dnode.name, "lit_candles") ~= 0 or
-	core.get_item_group(dnode.name, "lit_cake") ~= 0 then
+	core.get_item_group(dnode.name, "lit_cake") then
 		epos.y = pos.y - 0.5
 	end
 	local exting = false
@@ -2368,7 +2358,7 @@ function mcl_potions._water_effect(pos, radius)
 			elseif candle_group ~= 0 then
 				core.sound_play("fire_extinguish_flame", {pos = nodes[n], gain = 0.1, max_hear_distance = 16}, true)
 				core.set_node(nodes[n], {name = "mcl_candles:candle_" .. candle_group, param2 = node.param2})
-			elseif core.get_item_group(node.name, "lit_cake") ~= 0 then
+			elseif core.get_item_group(node.name, "lit_cake") then
 				core.set_node(nodes[n], {name = node.name:gsub("_lit", ""), param2 = node.param2})
 			end
 			exting = true
@@ -2384,20 +2374,20 @@ function mcl_potions._water_effect(pos, radius)
 		local entity = obj:get_luaentity (obj)
 
 		if mcl_burning.is_burning (obj) then
-			mcl_burning.extinguish (obj)
-			exting = true
+		mcl_burning.extinguish (obj)
+		exting = true
 		end
 
 		if entity and entity.is_mob then
-			if entity._water_sensitive then
-				obj:punch (obj, 1.0, { full_punch_interval = 1.0,
-						       damage_groups = {water_vulnerable=1}, },
-					   nil)
-				exting = true
-			elseif entity.name == "mobs_mc:axolotl" then
-				entity:reset_breath ()
-				exting = true
-			end
+		if entity.water_damage > 0 then
+			obj:punch (obj, 1.0, { full_punch_interval = 1.0,
+					   damage_groups = {water_vulnerable=1}, },
+				   nil)
+			exting = true
+		elseif entity.name == "mobs_mc:axolotl" then
+			entity:reset_breath ()
+			exting = true
+		end
 		end
 	end
 	return exting
