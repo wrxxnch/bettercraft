@@ -86,10 +86,11 @@ local function generate_on_use(vanish, effects, _, on_use, custom_effect)
 		else
 			replacement = "mcl_potions:glass_bottle"
 		end
-		itemstack = core.do_item_eat(0, replacement, itemstack,
-						 user, pointed_thing)
-		if vanish or itemstack then mcl_potions._use_potion(user) end
-
+itemstack = core.do_item_eat(0, replacement, itemstack,
+				 user, pointed_thing)
+if mcl_potions._use_potion then
+	mcl_potions._use_potion(user)
+end
 		return itemstack
 	end
 end
