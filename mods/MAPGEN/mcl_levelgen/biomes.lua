@@ -1661,6 +1661,56 @@ end
 ------------------------------------------------------------------------
 -- Nether Biomes.
 ------------------------------------------------------------------------
+------------------------------------------------------------------------
+-- Corretor de Blocos do Nether (Remove Stone e Stone Rubble)
+------------------------------------------------------------------------
+core.register_on_generated(function(minp, maxp)
+    if not minp or not maxp or not minp.y or not maxp.y then
+        return
+    end
+
+    local n_min = (mcl_vars and mcl_vars.mg_nether_min) or -29100
+    local n_max = (mcl_vars and mcl_vars.mg_nether_max) or -28900
+
+    if type(n_min) ~= "number" or type(n_max) ~= "number" then
+        return
+    end
+
+    if maxp.y < n_min or minp.y > (n_max + 150) then
+        return
+    end
+
+    local vm, emin, emax = core.get_mapgen_object("voxelmanip")
+    if not vm or not emin or not emax then
+        return
+    end
+
+    local data = vm:get_data()
+    local area = VoxelArea:new({MinEdge = emin, MaxEdge = emax})
+
+    local c_stone    = core.get_content_id("mcl_core:stone")
+    local c_rubble   = core.get_content_id("natural_habitat:stone_rubble")
+    local c_nether   = core.get_content_id("mcl_nether:netherrack")
+    local c_air      = core.get_content_id("air")
+
+    local changed = false
+
+    for i in area:iterp(minp, maxp) do
+        local node_id = data[i]
+        if node_id == c_stone then
+            data[i] = c_nether
+            changed = true
+        elseif node_id == c_rubble then
+            data[i] = c_air
+            changed = true
+        end
+    end
+
+    if changed then
+        vm:set_data(data)
+        vm:write_to_map()
+    end
+end)
 
 function mcl_levelgen.construct_nether_lut ()
 	local ZERO = { 0.0, 0.0, }
