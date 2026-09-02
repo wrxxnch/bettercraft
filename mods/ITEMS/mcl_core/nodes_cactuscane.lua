@@ -44,6 +44,18 @@ core.register_node("mcl_core:cactus", {
 		if not node_below then return false end
 		return (node_below.name == "mcl_core:cactus" or core.get_item_group(node_below.name, "sand") == 1)
 	end),
+	after_destruct = function(pos)
+		local above = {x = pos.x, y = pos.y + 1, z = pos.z}
+		local above_node = core.get_node_or_nil(above)
+		if above_node and above_node.name == "mcl_core:cactus_flower" then
+			core.remove_node(above)
+			core.add_item({
+				x = above.x + math.random() / 2 - 0.25,
+				y = above.y + 0.2,
+				z = above.z + math.random() / 2 - 0.25,
+			}, "mcl_core:cactus_flower")
+		end
+	end,
 	_mcl_hardness = 0.4,
 	_mcl_cooking_output = "mcl_dyes:green",
 	_pathfinding_class = "DAMAGE_OTHER",
