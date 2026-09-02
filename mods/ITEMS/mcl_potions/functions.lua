@@ -609,41 +609,140 @@ mcl_potions.register_effect({
 })
 
 mcl_mobs.make_physics_factor_persistent ("mcl_potions:levitation")
+-- Integração Wieldlight + Night Vision (Corrigido para mcl_potions)
+local UPDATE_INTERVAL = 0.15
+local placed_lights = {}
+local next_update = 0
 
+-- 1. Registro dos nodes de luz (Adicionado o prefixo ":" para evitar erro de nome)
+for i=2, minetest.LIGHT_MAX do
+	minetest.register_node(":mcl_wieldlight:light_"..i,{
+		drawtype = "airlike",
+		walkable = false,
+		pointable = false,
+		buildable_to = true,
+		drop = "",
+		light_source = i,
+		groups = { wieldlight = i, not_in_creative_inventory = 1 },
+	})
+end
+
+local function update_player_light(pl)
+	local name = pl:get_player_name()
+	local meta = pl:get_meta()
+	
+	-- Checa se o Night Vision está ativo no meta do player
+	local has_nv = meta:get_int("night_vision") == 1
+	local light = 0
+
+	if has_nv then
+		light = minetest.LIGHT_MAX -- Brilho máximo
+	else
+		local wield = pl:get_wielded_item():get_name()
+		-- Verificação segura do offhand
+		local offhand_item = ""
+		if mcl_offhand and mcl_offhand.get_offhand then
+			offhand_item = mcl_offhand.get_offhand(pl):get_name()
+		end
+		
+		local wl = minetest.registered_items[wield] and minetest.registered_items[wield].light_source or 0
+		local ol = minetest.registered_items[offhand_item] and minetest.registered_items[offhand_item].light_source or 0
+		light = math.min(math.max(wl, ol, 0), minetest.LIGHT_MAX)
+	end
+
+	local p = vector.round(vector.offset(pl:get_pos(), 0, 1, 0))
+	local n = minetest.get_node(p)
+	
+	if n.name ~= "air" and minetest.get_item_group(n.name, "wieldlight") == 0 then
+		local ap = minetest.find_node_near(p, 1, {"air", "group:wieldlight"})
+		if ap then
+			p = ap
+			n = minetest.get_node(p)
+		end
+	end
+
+	local ph = minetest.hash_node_position(p)
+	local has_light_node = false
+	local rm = {}
+
+	if not placed_lights[name] then placed_lights[name] = {} end
+	
+	for h, v in pairs(placed_lights[name]) do
+		local node_at_v = minetest.get_node(v).name
+		if minetest.get_item_group(node_at_v, "wieldlight") ~= 0 then
+			if light < 2 or ph ~= h then
+				table.insert(rm, v)
+				placed_lights[name][h] = nil
+			else
+				has_light_node = true
+			end
+		else
+			placed_lights[name][h] = nil
+		end
+	end
+
+	if light >= 2 and not has_light_node and n.name == "air" then
+		-- Colocando o nó com o prefixo ":"
+		minetest.set_node(p, {name="mcl_wieldlight:light_"..light})
+		placed_lights[name][ph] = p
+	end
+
+	if #rm > 0 then
+		minetest.bulk_set_node(rm, {name="air"})
+	end
+end
+
+-- 2. Registro do Efeito Night Vision
 mcl_potions.register_effect({
 	name = "night_vision",
-	description = S("Night Vision"),
-	get_tt = function()
-		return S("improved vision during the night")
-	end,
+	description = "Night Vision",
 	on_start = function(object)
-		if object:is_player () then
+		if object:is_player() then
 			object:get_meta():set_int("night_vision", 1)
-			mcl_weather.skycolor.update_sky_color({object})
-		end
-	end,
-	on_load = function(object)
-		if object:is_player () then
-			object:get_meta():set_int("night_vision", 1)
-			mcl_weather.skycolor.update_sky_color({object})
+			if mcl_weather and mcl_weather.skycolor then
+				mcl_weather.skycolor.update_sky_color({object})
+			end
+			object:override_day_night_ratio(1) -- Iluminação global (longe)
 		end
 	end,
 	on_step = function(_, object)
-		if object:is_player ()
-			and not mcl_serverplayer.is_csm_at_least (object, 2) then
-			mcl_weather.skycolor.update_sky_color({object})
+		if object:is_player() then
+			object:override_day_night_ratio(1)
 		end
 	end,
 	on_end = function(object)
-		if object:is_player () then
-		local meta = object:get_meta()
-		meta:set_int("night_vision", 0)
-		mcl_weather.skycolor.update_sky_color({object})
+		if object:is_player() then
+			object:get_meta():set_int("night_vision", 0)
+			if mcl_weather and mcl_weather.skycolor then
+				mcl_weather.skycolor.update_sky_color({object})
+			end
+			object:override_day_night_ratio(nil)
 		end
 	end,
 	particle_color = "#C2FF66",
-	uses_factor = false,
 })
+
+-- 3. Loop de atualização
+minetest.register_globalstep(function(dtime)
+	next_update = next_update - dtime
+	if next_update > 0 then return end
+
+	for _, pl in pairs(minetest.get_connected_players()) do
+		update_player_light(pl)
+	end
+	next_update = UPDATE_INTERVAL
+end)
+
+-- Limpeza ao sair do servidor
+minetest.register_on_leaveplayer(function(pl)
+	local name = pl:get_player_name()
+	if placed_lights[name] then
+		for _, v in pairs(placed_lights[name]) do
+			minetest.remove_node(v)
+		end
+		placed_lights[name] = nil
+	end
+end)
 
 mcl_potions.register_effect({
 	name = "darkness",
