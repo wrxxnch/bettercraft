@@ -112,7 +112,11 @@ function core.check_single_for_falling(pos)
 	if core.get_item_group(node.name, "supported_node_wallmounted") ~= 0 then
 		local dir = core.wallmounted_to_dir(node.param2)
 		if dir then
-			local def = core.registered_nodes[core.get_node(vector.add(pos, dir)).name]
+			local support_name = core.get_node(vector.add(pos, dir)).name
+			if support_name == "mcl_core:barrier" then
+				return false
+			end
+			local def = core.registered_nodes[support_name]
 			if def and def.drawtype == "airlike" then
 				mcl_attached.drop_attached_node(pos)
 				return true
