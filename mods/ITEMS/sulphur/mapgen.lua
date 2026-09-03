@@ -6,7 +6,9 @@ local surface_target_biomes = {
 	"mcl_biomes:plains", 
 	"mcl_biomes:mesa_plateau_fm_sandlevel", 
 	"mcl_biomes:dead_forest", 
-	"mcl_biomes:mega_taiga"
+	"mcl_biomes:mega_taiga",
+	"ExtremeHills",
+	"Plains"
 }
 
 -- Lista para as Ores e Spikes (Bioma próprio + biomas de superfície)
@@ -15,7 +17,11 @@ local all_target_biomes = {
 	"mcl_biomes:plains", 
 	"mcl_biomes:mesa_plateau_fm_sandlevel", 
 	"mcl_biomes:dead_forest", 
-	"mcl_biomes:mega_taiga"
+	"mcl_biomes:mega_taiga",
+	"ExtremeHills",
+	"ExtremeHills+",
+	"Plains",
+	"MegaSpruceTaiga"
 }
 
 --------------------------------------------------------------------------------
@@ -134,39 +140,4 @@ core.register_decoration({
 	decoration = {modname .. ":sulfur_spike_up_tip", modname .. ":sulfur_spike_down_tip"},
 })
 
---------------------------------------------------------------------------------
--- 5. REGISTRO DE ESTRUTURAS (Geysers com suporte a /locate structure)
---------------------------------------------------------------------------------
 
-if minetest.get_modpath("mcl_structures") then
-	-- Registro via API de Estruturas do MineClone
-	for i = 1, 4 do
-		mcl_structures.register_structure(modname .. ":geyser_" .. i, {
-			name = modname .. ":geyser_" .. i,
-			schematic = minetest.get_modpath(modname) .. "/schematics/geyser" .. i .. ".mts",
-			biomes = surface_target_biomes,
-			chance = 500, -- 1 em cada 500 chunks
-			y_min = 60,
-			y_max = 90,
-			flags = "place_center_x, place_center_z",
-		})
-	end
-else
-	-- Fallback caso não tenha a API: usa decoração comum
-	for i = 1, 4 do
-		core.register_decoration({
-			name = modname .. ":geyser_structure_" .. i,
-			deco_type = "schematic",
-			place_on = {"mcl_core:dirt_with_grass", "mcl_core:sand", "mcl_core:coarse_dirt"},
-			sidelen = 80,
-			noise_params = {
-				offset = 0.001, scale = 0.002, spread = {x = 250, y = 250, z = 250},
-				seed = 100 + i, octaves = 3, persist = 0.6
-			},
-			biomes = surface_target_biomes,
-			y_max = 90, y_min = 20,
-			schematic = core.get_modpath(modname) .. "/schematics/geyser" .. i .. ".mts",
-			flags = "place_center_x, place_center_z",
-		})
-	end
-end

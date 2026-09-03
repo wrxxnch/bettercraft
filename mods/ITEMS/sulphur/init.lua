@@ -1,9 +1,22 @@
 -- SPDX-License-Identifier: MIT
 local core = minetest
 local S = core.get_translator("sulphur_update")
-local modname = minetest.get_current_modname()
+local modname = "sulphur_update"
 
-dofile(core.get_modpath(modname) .. "/mapgen.lua")
+local mapgen_path = core.get_modpath(modname) .. "/mapgen.lua"
+local f = io.open(mapgen_path, "r")
+if f then
+	f:close()
+	dofile(mapgen_path)
+end
+
+-- Registro das estruturas modernas, localizáveis por /locate structure.
+local levelgen_path = core.get_modpath(modname) .. "/lg_register.lua"
+local levelgen_file = io.open(levelgen_path, "r")
+if levelgen_file then
+	levelgen_file:close()
+	dofile(levelgen_path)
+end
 
 -- Escalas visuais
 local SLIME_VISUAL_SIZE = { x = 9, y = 9 }
@@ -157,7 +170,7 @@ for i, stage in ipairs(sulfur_spike_stages) do
 			walkable = true,
 			groups = {
 				pickaxey = 1, attached_node = 1, material_sulphur = 1,
-				not_in_creative_inventory = 1, 
+				not_in_creative_inventory = (i == 2 and 0 or 1), 
 				sulfur_spike_stage = i,
 			},
 			drop = modname .. ":sulphur_stalactite",
@@ -184,7 +197,7 @@ core.register_craftitem(modname .. ":sulphur_stalactite", {
 })
 
 -------------------------------------------------------
--- GEYSER, SLIME AND EFFECTS
+-- GEYSER, SLIME E EFEITOS (O RESTANTE DO SEU CÓDIGO)
 -------------------------------------------------------
 
 
