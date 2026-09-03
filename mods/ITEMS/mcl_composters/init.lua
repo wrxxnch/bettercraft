@@ -299,8 +299,7 @@ local function register_filled_composter(level)
 		},
 		is_ground_content = false,
 		groups = {
-			handy=1, material_wood=1, deco_block=1, dirtifier=1,
-			not_in_creative_inventory=1, not_in_craft_guide=1,
+			handy=1, material_wood=1, deco_block=1, dirtifier=1, not_in_craft_guide=1,
 			flammable=2, fire_encouragement=3, fire_flammability=4,
 			comparator_signal=level, container = 1, composter = 1,
 			pathfinder_partial = 2,
