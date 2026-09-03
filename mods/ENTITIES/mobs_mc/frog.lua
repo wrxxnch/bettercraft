@@ -247,3 +247,64 @@ mcl_mobs.spawn_setup({
 })
 
 mcl_mobs.register_egg("mobs_mc:frog", S("Frog"), "#00AA00", "#db635f", 0)
+
+mcl_mobs.register_mob("mobs_mc:tadpole", {
+	description = S("Tadpole"),
+	type = "animal",
+	spawn_class = "passive",
+	damage = 8,
+	hp_min = 6,
+	hp_max = 6,
+	spawn_in_group = 9,
+	tilt_swim = true,
+	armor = 100,
+	collisionbox = { -0.2, -0.05, -0.2, 0.2, 0.5, 0.2 },
+	visual = "mesh",
+	mesh = "mobs_mc_tadpole.b3d",
+	visual_size = { x = 10, y = 10 },
+	texture_list = {
+		{"mobs_mc_tadpole.png"},
+	},
+	makes_footstep_sound = false,
+	swims = true,
+	breathes_in_water = true,
+	jump = false,
+	view_range = 16,
+	runaway = true,
+	fear_height = 4,
+	animation = {
+		speed_normal = 10, -- default animation speed
+		stand_start = 1, stand_end = 20,
+		walk_start = 40, walk_end = 80,
+		run_start = 40, run_end = 80, run_speed = 15,
+	},
+	follow = {"mcl_mobitems:slimeball"},
+	on_rightclick = function(self, clicker)
+		local item = clicker:get_wielded_item()
+		local bn = item:get_name()
+		if bn == "mcl_buckets:bucket_water" or bn == "mcl_buckets:bucket_river_water" then
+			clicker:set_wielded_item("mcl_buckets:bucket_tadpole")
+			self:safe_remove()
+			return
+		end
+		if self:follow_holding(clicker) then
+			if not core.is_creative_enabled(clicker:get_player_name()) then
+				item:take_item()
+				clicker:set_wielded_item(item)
+			end
+			self._grow_timer = self._grow_timer * 0.9
+			return
+		end
+	end,
+	on_spawn = function(self)
+		self._grow_timer = math.random(600, 1200)
+	end,
+	do_custom = function(self, dtime)
+		self._grow_timer = self._grow_timer - dtime
+		if self._grow_timer < 0 then
+			mcl_util.replace_mob(self.object, "mobs_mc:frog")
+		end
+	end
+})
+
+mcl_mobs.register_egg("mobs_mc:tadpole", S("Tadpole"), "#3B2103", "#140C05", 0)
