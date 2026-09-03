@@ -20,11 +20,11 @@ mcl_mobs.register_mob("mobs_mc:frog", {
 	-- MOVIMENTO (Ajustado para o estilo do Minecraft)
 	-------------------------------------------------
 	walk_velocity = 1.5,
-	run_velocity  = 3.0,
-	pace_bonus = 0.3,
+	run_velocity  = 1.5,
+	pace_bonus = 0.15,
 	jump = true,
-	jump_height = 1.5, -- Altura do pulo para obstáculos
-	stepheight = 1.1,
+	jump_height = 1.2, -- Altura do pulo para obstáculos
+	stepheight = 1.0,
 	fly = false,
 	water_damage = 0,
 	lava_damage = 4,
@@ -125,11 +125,11 @@ mcl_mobs.register_mob("mobs_mc:frog", {
 							y = 0,
 							z = math.cos(yaw)
 						}
-						-- Aplica velocidade de pulo
+						-- Aplica velocidade de pulo mais moderada
 						self.object:set_velocity({
-							x = dir.x * 3,
-							y = 4,
-							z = dir.z * 3
+							x = dir.x * 1.6,
+							y = 2.5,
+							z = dir.z * 1.6
 						})
 						self:set_animation("walk")
 					end
