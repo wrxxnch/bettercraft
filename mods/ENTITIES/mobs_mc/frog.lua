@@ -7,6 +7,33 @@ local textures = {
 	hot    = 3,
 }
 
+local function try_lay_frogspawn(self)
+	if not self.object then
+		return false
+	end
+
+	local pos = self.object:get_pos()
+	if not pos then
+		return false
+	end
+
+	local p1 = vector.offset(pos, -3, -1, -3)
+	local p2 = vector.offset(pos, 3, 2, 3)
+	local water_positions = core.find_nodes_in_area_under_air(p1, p2, {"group:water"})
+	if not water_positions or #water_positions == 0 then
+		return false
+	end
+
+	local chosen = water_positions[math.random(1, #water_positions)]
+	local above = vector.offset(chosen, 0, 1, 0)
+	if core.get_node(above).name ~= "air" then
+		return false
+	end
+
+	core.set_node(above, {name = "mcl_mobitems:frogspawn"})
+	return true
+end
+
 -------------------------------------------------
 -- FROG
 -------------------------------------------------
@@ -15,17 +42,21 @@ mcl_mobs.register_mob("mobs_mc:frog", {
 	type = "animal",
 	passive = true, -- Sapos são passivos, mas atacam slimes
 	group_attack = true,
+	follow = {"mcl_mobitems:slimeball"},
 
 	-------------------------------------------------
 	-- MOVIMENTO (Ajustado para o estilo do Minecraft)
 	-------------------------------------------------
-	walk_velocity = 1.5,
-	run_velocity  = 1.5,
-	pace_bonus = 0.15,
+	walk_velocity = 0.9,
+	run_velocity  = 1.1,
+	pace_bonus = 0.08,
 	jump = true,
-	jump_height = 1.2, -- Altura do pulo para obstáculos
-	stepheight = 1.0,
+	jump_height = 0.9, -- Altura do pulo para obstáculos
+	stepheight = 0.8,
 	fly = false,
+	amphibious = true,
+	breath_max = -1,
+	breathes_in_water = true,
 	water_damage = 0,
 	lava_damage = 4,
 	fall_damage = 0,
@@ -77,6 +108,29 @@ mcl_mobs.register_mob("mobs_mc:frog", {
 	},
 
 	-------------------------------------------------
+	-- INTERAÇÃO / BREEDING
+	-------------------------------------------------
+	on_rightclick = function(self, clicker)
+		local item = clicker:get_wielded_item()
+		if item:get_name() == "mcl_mobitems:slimeball" then
+			if self:follow_holding(clicker)
+				and self:feed_tame(clicker, 4, true, false) then
+				if not core.is_creative_enabled(clicker:get_player_name()) then
+					item:take_item()
+					clicker:set_wielded_item(item)
+				end
+				return
+			end
+		end
+	end,
+
+	on_breed = function(self, _)
+		self._frog_pregnant = true
+		self._frog_pregnant_timer = math.random(180, 600)
+		return false
+	end,
+
+	-------------------------------------------------
 	-- TEXTURA POR BIOMA
 	-------------------------------------------------
 	on_spawn = function(self)
@@ -106,6 +160,19 @@ mcl_mobs.register_mob("mobs_mc:frog", {
 		local pos = self.object:get_pos()
 		if not pos then return end
 
+		if self._frog_pregnant then
+			self._frog_pregnant_timer = (self._frog_pregnant_timer or 0) - dtime
+			if self._frog_pregnant_timer <= 0 then
+				if try_lay_frogspawn(self) then
+					self._frog_pregnant = false
+					self._frog_pregnant_timer = nil
+					self.state = "stand"
+				else
+					self._frog_pregnant_timer = 10
+				end
+			end
+		end
+
 		-- Timer para o comportamento de pulo
 		self._frog_timer = (self._frog_timer or 0) - dtime
 		
@@ -127,9 +194,9 @@ mcl_mobs.register_mob("mobs_mc:frog", {
 						}
 						-- Aplica velocidade de pulo mais moderada
 						self.object:set_velocity({
-							x = dir.x * 1.6,
-							y = 2.5,
-							z = dir.z * 1.6
+							x = dir.x * 1.1,
+							y = 1.9,
+							z = dir.z * 1.1
 						})
 						self:set_animation("walk")
 					end
