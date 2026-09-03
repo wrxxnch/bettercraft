@@ -481,6 +481,13 @@ core.register_node("mcl_core:dirt", {
 	_doc_items_hidden = false,
 	tiles = {"default_dirt.png"},
 	groups = {handy=1, shovely=1, dirt=1, soil=1, soil_sapling=2, soil_sugarcane=1, soil_bamboo=1, soil_fungus=1, cultivatable=2, enderman_takable=1, building_block=1, converts_to_moss=1, converts_to_mud=1},
+	drop = {
+		max_items = 1,
+		items = {
+			{items = {"mcl_mobitems:bone"}, rarity = 7},
+			{items = {"mcl_core:dirt"}},
+		}
+	},
 	sounds = mcl_sounds.node_sound_dirt_defaults(),
 	_on_shovel_place = mcl_core.make_dirtpath,
 	_on_bottle_place = 	mcl_core.bottle_dirt,
