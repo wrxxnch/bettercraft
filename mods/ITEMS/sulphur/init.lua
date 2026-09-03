@@ -170,7 +170,7 @@ for i, stage in ipairs(sulfur_spike_stages) do
 			walkable = true,
 			groups = {
 				pickaxey = 1, attached_node = 1, material_sulphur = 1,
-				not_in_creative_inventory = (i == 2 and 0 or 1), 
+				not_in_creative_inventory = 1, 
 				sulfur_spike_stage = i,
 			},
 			drop = modname .. ":sulphur_stalactite",
