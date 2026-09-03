@@ -49,7 +49,7 @@ mcl_mobs.register_mob("mobs_mc:frog", {
 	-------------------------------------------------
 	walk_velocity = 0.9,
 	run_velocity  = 1.1,
-	pace_bonus = 0.08,
+	pace_bonus = 0.3,
 	jump = true,
 	jump_height = 0.9, -- Altura do pulo para obstáculos
 	stepheight = 0.8,
@@ -272,13 +272,13 @@ mcl_mobs.register_mob("mobs_mc:tadpole", {
 	view_range = 16,
 	runaway = true,
 	fear_height = 4,
+	pace_bonus = 0.3,
 	animation = {
 		speed_normal = 10, -- default animation speed
 		stand_start = 1, stand_end = 20,
 		walk_start = 40, walk_end = 80,
 		run_start = 40, run_end = 80, run_speed = 15,
 	},
-	follow = {"mcl_mobitems:slimeball"},
 	on_rightclick = function(self, clicker)
 		local item = clicker:get_wielded_item()
 		local bn = item:get_name()
