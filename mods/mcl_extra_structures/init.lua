@@ -15,6 +15,8 @@ if not core.global_exists ("mcl_levelgen")
 	dofile(mod .. "/loggers_camp.lua") -- Load Loggers Camp
 	dofile(mod .. "/sandstone_obelisk.lua") -- Load Sandstone Obelisks
 	dofile(mod .. "/ice_tower.lua") -- Load Ice Tower
+    dofile(mod .. "/geyser_lg.lua") -- Load Geysers
+
 else
 	-- Load map generator script.
 	mcl_levelgen.register_levelgen_script (mod .. "/lg_register.lua", true)

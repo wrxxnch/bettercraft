@@ -41,3 +41,6 @@ dofile (modpath .. "/graveyard_lg.lua") -- Load Graveyards
 dofile (modpath .. "/loggers_camp_lg.lua") -- Load Loggers Camp
 dofile (modpath .. "/sandstone_obelisk_lg.lua") -- Load Sandstone Obelisks
 dofile (modpath .. "/ice_tower_lg.lua") -- Load Ice Tower
+
+dofile (modpath .. "/geyser_lg.lua") -- Load Geysers
+
