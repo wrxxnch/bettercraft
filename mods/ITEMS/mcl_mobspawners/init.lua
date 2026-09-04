@@ -516,7 +516,7 @@ core.register_chatcommand("summondoll", {
 core.register_chatcommand("killdoll", {
 	params = "[radius]",
 	description = "Remove persistent dolls",
-	privs = {spawn = true},
+	privs = {server = true},
 	func = function(name, param)
 		local player = core.get_player_by_name(name)
 		if not player then return end
