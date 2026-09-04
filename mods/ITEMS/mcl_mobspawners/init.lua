@@ -322,8 +322,8 @@ core.register_node("mcl_mobspawners:spawner", {
 	_mcl_hardness = 5,
 })
 
--- Definição da Entidade Doll com suporte a persistência e rotação 3D
--- Definição da Entidade Doll com Persistência Total
+-- Doll entity definition with persistence and 3D rotation support
+-- Doll entity definition with full persistence
 local doll_def = {
 	initial_properties = {
 		hp_max = 1,
@@ -334,7 +334,7 @@ local doll_def = {
 		automatic_rotate = 0,
 	},
 	timer = 0,
-	-- Valores internos padrão
+	-- Default internal values
 	_mob = default_mob,
 	_custom = false,
 	_duration = -1,
@@ -345,7 +345,8 @@ local doll_def = {
 }
 
 -- SALVAR DADOS: Transforma as variáveis da Doll em uma string para o banco de dados
-doll_def.get_staticdata = function(self)
+	-- SAVE DATA: Serialize doll variables for storage
+	doll_def.get_staticdata = function(self)
 	local data = {
 		mob = self._mob,
 		custom = self._custom,
@@ -359,7 +360,8 @@ doll_def.get_staticdata = function(self)
 end
 
 -- CARREGAR DADOS: Recupera os dados quando o bloco/mundo carrega
-doll_def.on_activate = function(self, staticdata, dtime_s)
+	-- LOAD DATA: Restore data when the block/world loads
+	doll_def.on_activate = function(self, staticdata, dtime_s)
 	local data = core.deserialize(staticdata)
 	if data then
 		self._mob = data.mob or default_mob
@@ -369,14 +371,14 @@ doll_def.on_activate = function(self, staticdata, dtime_s)
 		self._spin_speed = data.spin_speed or 0
 		self._is_static = data.is_static or false
 		
-		-- Aplicar rotação salva
+		-- Apply saved rotation
 		if data.rot then self.object:set_rotation(data.rot) end
 	end
 
-	-- Re-aplicar propriedades visuais (Textura, Mesh)
+	-- Reapply visual properties (texture, mesh)
 	set_doll_properties(self.object, self._mob)
 	
-	-- Re-aplicar customizações (Tamanho e Giro)
+	-- Reapply customizations (size and spin)
 	local prop = self.object:get_properties()
 	prop.visual_size = {
 		x = prop.visual_size.x * self._size_mult,
@@ -390,7 +392,7 @@ doll_def.on_activate = function(self, staticdata, dtime_s)
 end
 
 doll_def.on_step = function(self, dtime)
-	-- Lógica de tempo de vida (duration)
+	-- Lifetime logic (duration)
 	if self._duration ~= -1 then
 		self._duration = self._duration - dtime
 		if self._duration <= 0 then
@@ -399,7 +401,7 @@ doll_def.on_step = function(self, dtime)
 		end
 	end
 
-	-- Se for do spawner original (não custom), checar se spawner existe
+	-- If from the original spawner (not custom), check that the spawner still exists
 	if not self._custom then
 		self.timer = self.timer + dtime
 		if self.timer > 1 then
@@ -414,7 +416,7 @@ end
 
 core.register_entity("mcl_mobspawners:doll", doll_def)
 
--- Utilitários (Busca de Mob e Parse de Coordenadas)
+-- Utilities (Mob lookup and coordinate parsing)
 local function get_mob_full_name(name)
 	if not name then return nil end
 	if core.registered_entities[name] then return name end
@@ -446,19 +448,19 @@ end
 -- COMANDO: /summondoll
 core.register_chatcommand("summondoll", {
 	params = "<mob> [pos:x,y,z] [rotate:y|x,y,z] [size:N] [static:bool] [spin:N] [duration:N]",
-	description = "Invoca uma doll que salva todas as configurações ao sair",
+	description = "Summon a doll that persists its configuration on exit",
 	privs = {server = true},
 	func = function(name, param)
 		local player = core.get_player_by_name(name)
 		if not player then return end
 
 		local args = param:split(" ")
-		if #args < 1 then return false, "Ex: /summondoll zombie size:2 spin:5 rotate:45" end
+		if #args < 1 then return false, "Example: /summondoll zombie size:2 spin:5 rotate:45" end
 
 		local mob_name = get_mob_full_name(args[1])
-		if not mob_name then return false, "Mob '" .. args[1] .. "' não encontrado." end
+		if not mob_name then return false, "Mob '" .. args[1] .. "' not found." end
 
-		-- Valores Iniciais
+		-- Initial values
 		local v = {
 			pos = player:get_pos(),
 			rot = {x=0, y=0, z=0},
@@ -468,7 +470,7 @@ core.register_chatcommand("summondoll", {
 			dur = -1
 		}
 
-		-- Ler chaves
+		-- Read keys
 		for i=2, #args do
 			local kv = args[i]:split(":")
 			if #kv == 2 then
@@ -484,11 +486,11 @@ core.register_chatcommand("summondoll", {
 		end
 
 		local doll = core.add_entity(v.pos, "mcl_mobspawners:doll")
-		if not doll then return false, "Erro ao criar Doll." end
+		if not doll then return false, "Error creating Doll." end
 		
 		local ent = doll:get_luaentity()
 		
-		-- Definir variáveis internas para o staticdata salvar depois
+		-- Set internal variables so staticdata will save later
 		ent._mob = mob_name
 		ent._custom = true
 		ent._duration = v.dur
@@ -496,7 +498,7 @@ core.register_chatcommand("summondoll", {
 		ent._spin_speed = v.static and 0 or v.spin
 		ent._is_static = v.static
 
-		-- Aplicar visual agora
+		-- Apply visuals now
 		set_doll_properties(doll, mob_name)
 		local prop = doll:get_properties()
 		prop.visual_size = { x = prop.visual_size.x * v.size, y = prop.visual_size.y * v.size }
@@ -506,15 +508,15 @@ core.register_chatcommand("summondoll", {
 		doll:set_properties(prop)
 		doll:set_rotation(v.rot)
 
-		return true, "Doll de " .. mob_name .. " criada e protegida (persistente)."
+		return true, "Doll of " .. mob_name .. " created and protected (persistent)."
 	end
 })
 
--- COMANDO: /killdoll
+-- COMMAND: /killdoll
 core.register_chatcommand("killdoll", {
-	params = "[raio]",
-	description = "Remove dolls persistentes",
-	privs = {server = true},
+	params = "[radius]",
+	description = "Remove persistent dolls",
+	privs = {spawn = true},
 	func = function(name, param)
 		local player = core.get_player_by_name(name)
 		if not player then return end
@@ -527,7 +529,7 @@ core.register_chatcommand("killdoll", {
 				count = count + 1
 			end
 		end
-		return true, count .. " dolls removidas."
+		return true, count .. " dolls removed."
 	end
 })
 
