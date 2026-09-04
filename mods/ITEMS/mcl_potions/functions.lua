@@ -33,6 +33,16 @@ core.register_on_mods_loaded(function()
 	end
 end)
 
+function mcl_potions._use_potion(object)
+	if not object then return end
+	-- Toca o som de beber poção
+	minetest.sound_play("mcl_potions_drink", {
+		pos = object:get_pos(),
+		gain = 1.0,
+		max_hear_distance = 16
+	})
+end
+
 -- ██████╗░███████╗░██████╗░██╗░██████╗████████╗███████╗██████╗
 -- ██╔══██╗██╔════╝██╔════╝░██║██╔════╝╚══██╔══╝██╔════╝██╔══██╗
 -- ██████╔╝█████╗░░██║░░██╗░██║╚█████╗░░░░██║░░░█████╗░░██████╔╝

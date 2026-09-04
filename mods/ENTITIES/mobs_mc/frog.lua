@@ -40,19 +40,19 @@ end
 mcl_mobs.register_mob("mobs_mc:frog", {
 	description = S("Frog"),
 	type = "animal",
-	passive = true, -- Sapos são passivos, mas atacam slimes
+	passive = true,
 	group_attack = true,
 	follow = {"mcl_mobitems:slimeball"},
 
 	-------------------------------------------------
-	-- MOVIMENTO (Ajustado para o estilo do Minecraft)
+	-- MOVIMENTO (Ajustado para sair da água)
 	-------------------------------------------------
 	walk_velocity = 0.9,
 	run_velocity  = 1.1,
 	pace_bonus = 0.3,
 	jump = true,
-	jump_height = 0.9, -- Altura do pulo para obstáculos
-	stepheight = 0.8,
+	jump_height = 1.1, -- Aumentado levemente para facilitar subidas
+	stepheight = 1.1,  -- Aumentado para subir blocos direto da água
 	fly = false,
 	amphibious = true,
 	breath_max = -1,
@@ -61,7 +61,6 @@ mcl_mobs.register_mob("mobs_mc:frog", {
 	lava_damage = 4,
 	fall_damage = 0,
 	fear_height = 4,
-	
 
 	-------------------------------------------------
 	-- COMBATE
@@ -130,9 +129,6 @@ mcl_mobs.register_mob("mobs_mc:frog", {
 		return false
 	end,
 
-	-------------------------------------------------
-	-- TEXTURA POR BIOMA
-	-------------------------------------------------
 	on_spawn = function(self)
 		local pos = self.object:get_pos()
 		if not pos then return end
@@ -153,7 +149,7 @@ mcl_mobs.register_mob("mobs_mc:frog", {
 	end,
 
 	-------------------------------------------------
-	-- IA CUSTOM: ENGOLIR E PULO ESTILO SAPO
+	-- IA CUSTOM: SAÍDA DA ÁGUA E PULO
 	-------------------------------------------------
 	do_custom = function(self, dtime)
 		if not self.object then return end
@@ -173,29 +169,21 @@ mcl_mobs.register_mob("mobs_mc:frog", {
 			end
 		end
 
-		-- Timer para o comportamento de pulo
 		self._frog_timer = (self._frog_timer or 0) - dtime
+	    self._leave_water_timer = (self._leave_water_timer or 0) - dtime
 		
-		-- Se estiver no chão e o timer acabou, dá um pulo para frente
+		-- Pulo normal em terra
 		if self._frog_timer <= 0 then
 			local vel = self.object:get_velocity()
 			if vel and math.abs(vel.y) < 0.1 then
-				-- Define o próximo intervalo de pulo (aleatório entre 1 e 3 segundos)
 				self._frog_timer = 1 + math.random() * 2
-				
-				-- Se estiver parado ou andando, aplica um impulso
 				if self.state == "walk" or self.state == "attack" then
 					local yaw = self.object:get_yaw()
 					if yaw then
-						local dir = {
-							x = -math.sin(yaw),
-							y = 0,
-							z = math.cos(yaw)
-						}
-						-- Aplica velocidade de pulo mais moderada
+						local dir = {x = -math.sin(yaw), y = 0, z = math.cos(yaw)}
 						self.object:set_velocity({
 							x = dir.x * 1.1,
-							y = 1.9,
+							y = 2.0,
 							z = dir.z * 1.1
 						})
 						self:set_animation("walk")
@@ -204,7 +192,35 @@ mcl_mobs.register_mob("mobs_mc:frog", {
 			end
 		end
 
-		-- Lógica de engolir (apenas se estiver em estado de ataque)
+		-- IA PARA SAIR DA ÁGUA (PULO FORÇADO)
+		local node_at_pos = core.get_node(pos).name
+		local standing_in_is_water = core.get_item_group(node_at_pos, "water")
+		if standing_in_is_water > 0 then
+			if self._leave_water_timer <= 0 then
+				self._leave_water_timer = 2 + math.random() * 2 -- Tenta sair mais frequentemente
+				
+				-- Procura terra firme num raio curto
+				local p1 = vector.offset(pos, -3, 0, -3)
+				local p2 = vector.offset(pos, 3, 1, 3)
+				local land_nodes = core.find_nodes_in_area_under_air(p1, p2, {"group:soil","group:grass","group:sand","group:stone"})
+				
+				if land_nodes and #land_nodes > 0 then
+					local chosen = land_nodes[math.random(1, #land_nodes)]
+					local dir = vector.direction(pos, chosen)
+					
+					-- Aplica um impulso físico (Jump) para fora da água
+					self.object:set_yaw(math.atan2(-dir.x, dir.z))
+					self.object:set_velocity({
+						x = dir.x * 3.5, -- Velocidade horizontal para frente
+						y = 4.5,         -- Impulso vertical para vencer a borda do bloco
+						z = dir.z * 3.5
+					})
+					self:set_animation("jump")
+				end
+			end
+		end
+
+		-- Lógica de engolir
 		if self.state == "attack" and self.attack then
 			local tpos = self.attack:get_pos()
 			if tpos and vector.distance(pos, tpos) <= 1.5 then
@@ -225,7 +241,6 @@ mcl_mobs.register_mob("mobs_mc:frog", {
 							core.add_item(pos, drop)
 						end
 					end
-
 					core.sound_play("frog_eat", {pos = pos})
 					self:set_animation("stand")
 				end

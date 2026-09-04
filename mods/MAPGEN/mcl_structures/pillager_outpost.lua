@@ -67,7 +67,7 @@ mcl_structures.register_structure("pillager_outpost",{
 		local p1 = vector.offset(p,-9,0,-9)
 		local p2 = vector.offset(p,9,32,9)
 		mcl_structures.spawn_mobs("mobs_mc:pillager",spawnon,p1,p2,pr,5)
-		mcl_structures.spawn_mobs("mobs_mc:parrot",{"mcl_pressureplates:pressure_plate_stone_off"},p1,p2,pr,3)
+		mcl_structures.spawn_mobs("mobs_mc:allay",{"mcl_pressureplates:pressure_plate_stone_off"},p1,p2,pr,3)
 		mcl_structures.spawn_mobs("mobs_mc:iron_golem",{"mcl_redstone:button_stone_off"},p1,p2,pr,1)
 		for _,n in pairs(core.find_nodes_in_area(p1,p2,{"group:wall"})) do
 			mcl_walls.update_wall(n)
