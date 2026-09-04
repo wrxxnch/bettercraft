@@ -323,6 +323,7 @@ core.register_node("mcl_mobspawners:spawner", {
 })
 
 -- Definição da Entidade Doll com suporte a persistência e rotação 3D
+-- Definição da Entidade Doll com Persistência Total
 local doll_def = {
 	initial_properties = {
 		hp_max = 1,
@@ -330,66 +331,97 @@ local doll_def = {
 		pointable = false,
 		visual = "mesh",
 		makes_footstep_sound = false,
-		automatic_rotate = math.pi * 2.9,
+		automatic_rotate = 0,
 	},
 	timer = 0,
+	-- Valores internos padrão
 	_mob = default_mob,
 	_custom = false,
 	_duration = -1,
+	_size_mult = 1.0,
+	_spin_speed = 0,
+	_is_static = false,
 	_mcl_pistons_unmovable = true,
 }
 
--- Salva os dados para que a doll não mude ou suma ao reiniciar o servidor
+-- SALVAR DADOS: Transforma as variáveis da Doll em uma string para o banco de dados
 doll_def.get_staticdata = function(self)
-	local data = { 
-		mob = self._mob, 
-		custom = self._custom, 
+	local data = {
+		mob = self._mob,
+		custom = self._custom,
 		duration = self._duration,
+		size_mult = self._size_mult,
+		spin_speed = self._spin_speed,
+		is_static = self._is_static,
 		rot = self.object:get_rotation(),
-		prop = self.object:get_properties()
 	}
 	return core.serialize(data)
 end
 
-doll_def.on_activate = function(self, staticdata)
+-- CARREGAR DADOS: Recupera os dados quando o bloco/mundo carrega
+doll_def.on_activate = function(self, staticdata, dtime_s)
 	local data = core.deserialize(staticdata)
 	if data then
 		self._mob = data.mob or default_mob
-		self._custom = data.custom
+		self._custom = data.custom or false
 		self._duration = data.duration or -1
-		if data.prop then self.object:set_properties(data.prop) end
+		self._size_mult = data.size_mult or 1.0
+		self._spin_speed = data.spin_speed or 0
+		self._is_static = data.is_static or false
+		
+		-- Aplicar rotação salva
 		if data.rot then self.object:set_rotation(data.rot) end
 	end
+
+	-- Re-aplicar propriedades visuais (Textura, Mesh)
 	set_doll_properties(self.object, self._mob)
+	
+	-- Re-aplicar customizações (Tamanho e Giro)
+	local prop = self.object:get_properties()
+	prop.visual_size = {
+		x = prop.visual_size.x * self._size_mult,
+		y = prop.visual_size.y * self._size_mult,
+	}
+	prop.automatic_rotate = self._spin_speed
+	prop.physical = self._is_static
+	
+	self.object:set_properties(prop)
 	self.object:set_armor_groups({immortal=1})
 end
 
 doll_def.on_step = function(self, dtime)
+	-- Lógica de tempo de vida (duration)
 	if self._duration ~= -1 then
 		self._duration = self._duration - dtime
-		if self._duration <= 0 then self.object:remove() return end
-	end
-	
-	if self._custom then return end
-
-	self.timer = self.timer + dtime
-	if self.timer > 1 then
-		local n = core.get_node_or_nil(self.object:get_pos())
-		if n and n.name and n.name ~= "mcl_mobspawners:spawner" then 
-			self.object:remove() 
+		if self._duration <= 0 then
+			self.object:remove()
+			return
 		end
-		self.timer = 0
+	end
+
+	-- Se for do spawner original (não custom), checar se spawner existe
+	if not self._custom then
+		self.timer = self.timer + dtime
+		if self.timer > 1 then
+			local n = core.get_node_or_nil(self.object:get_pos())
+			if n and n.name and n.name ~= "mcl_mobspawners:spawner" then
+				self.object:remove()
+			end
+			self.timer = 0
+		end
 	end
 end
 
 core.register_entity("mcl_mobspawners:doll", doll_def)
 
--- Utilitários de busca e parse
+-- Utilitários (Busca de Mob e Parse de Coordenadas)
 local function get_mob_full_name(name)
 	if not name then return nil end
 	if core.registered_entities[name] then return name end
-	if core.registered_entities["mobs_mc:" .. name] then return "mobs_mc:" .. name end
-	if core.registered_entities["mcl_mobs:" .. name] then return "mcl_mobs:" .. name end
+	local prefixes = {"mobs_mc:", "mcl_mobs:", "mobs:"}
+	for _, p in ipairs(prefixes) do
+		if core.registered_entities[p .. name] then return p .. name end
+	end
 	return nil
 end
 
@@ -403,84 +435,85 @@ local function parse_pos(pos_str, p_pos)
 	return {x=axis(c[1], p_pos.x), y=axis(c[2], p_pos.y), z=axis(c[3], p_pos.z)}
 end
 
--- Parser de Rotação (suporta X ou X,Y,Z)
 local function parse_rotate(rot_str)
 	local c = rot_str:split(",")
 	if #c == 3 then
 		return { x=math.rad(tonumber(c[1]) or 0), y=math.rad(tonumber(c[2]) or 0), z=math.rad(tonumber(c[3]) or 0) }
-	elseif #c == 1 then
-		return { x=0, y=math.rad(tonumber(c[1]) or 0), z=0 }
 	end
-	return {x=0, y=0, z=0}
+	return { x=0, y=math.rad(tonumber(rot_str) or 0), z=0 }
 end
 
 -- COMANDO: /summondoll
 core.register_chatcommand("summondoll", {
-	params = "<mob> [pos:x,y,z] [rotate:y ou x,y,z] [size:N] [static:bool] [spin:N] [duration:N]",
-	description = "Invoca doll customizada com sistema de chaves",
+	params = "<mob> [pos:x,y,z] [rotate:y|x,y,z] [size:N] [static:bool] [spin:N] [duration:N]",
+	description = "Invoca uma doll que salva todas as configurações ao sair",
 	privs = {server = true},
 	func = function(name, param)
 		local player = core.get_player_by_name(name)
 		if not player then return end
 
 		local args = param:split(" ")
-		if #args < 1 then return false, "Uso: /summondoll <mob> pos:~,~,~ size:2 rotate:0,90,0" end
+		if #args < 1 then return false, "Ex: /summondoll zombie size:2 spin:5 rotate:45" end
 
 		local mob_name = get_mob_full_name(args[1])
-		if not mob_name then return false, "Mob não encontrado: " .. args[1] end
+		if not mob_name then return false, "Mob '" .. args[1] .. "' não encontrado." end
 
-		-- Padrões
-		local vals = {
+		-- Valores Iniciais
+		local v = {
 			pos = player:get_pos(),
-			rotate = {x=0, y=0, z=0},
+			rot = {x=0, y=0, z=0},
 			size = 1.0,
 			static = false,
 			spin = 9.1,
-			duration = -1
+			dur = -1
 		}
 
-		-- Processar chaves
+		-- Ler chaves
 		for i=2, #args do
 			local kv = args[i]:split(":")
 			if #kv == 2 then
-				local k, v = kv[1], kv[2]
-				if k == "pos" then vals.pos = parse_pos(v, vals.pos)
-				elseif k == "rotate" then vals.rotate = parse_rotate(v)
-				elseif k == "size" then vals.size = tonumber(v) or vals.size
-				elseif k == "static" then vals.static = (v == "true")
-				elseif k == "spin" then vals.spin = tonumber(v) or vals.spin
-				elseif k == "duration" then 
-					local d = tonumber(v) or 0
-					vals.duration = (d > 0) and d or -1
+				local k, val = kv[1], kv[2]
+				if k == "pos" then v.pos = parse_pos(val, v.pos)
+				elseif k == "rotate" then v.rot = parse_rotate(val)
+				elseif k == "size" then v.size = tonumber(val) or v.size
+				elseif k == "static" then v.static = (val == "true")
+				elseif k == "spin" then v.spin = tonumber(val) or v.spin
+				elseif k == "duration" then v.dur = tonumber(val) or -1
 				end
 			end
 		end
 
-		local doll = core.add_entity(vals.pos, "mcl_mobspawners:doll")
-		if not doll then return false, "Erro ao criar entidade." end
-
+		local doll = core.add_entity(v.pos, "mcl_mobspawners:doll")
+		if not doll then return false, "Erro ao criar Doll." end
+		
 		local ent = doll:get_luaentity()
-		ent._custom = true
+		
+		-- Definir variáveis internas para o staticdata salvar depois
 		ent._mob = mob_name
-		ent._duration = vals.duration
+		ent._custom = true
+		ent._duration = v.dur
+		ent._size_mult = v.size
+		ent._spin_speed = v.static and 0 or v.spin
+		ent._is_static = v.static
+
+		-- Aplicar visual agora
 		set_doll_properties(doll, mob_name)
-
 		local prop = doll:get_properties()
-		prop.visual_size = { x = prop.visual_size.x * vals.size, y = prop.visual_size.y * vals.size }
-		prop.automatic_rotate = vals.static and 0 or vals.spin
-		if vals.static then prop.physical = true end
-
+		prop.visual_size = { x = prop.visual_size.x * v.size, y = prop.visual_size.y * v.size }
+		prop.automatic_rotate = ent._spin_speed
+		prop.physical = v.static
+		
 		doll:set_properties(prop)
-		doll:set_rotation(vals.rotate)
+		doll:set_rotation(v.rot)
 
-		return true, "Doll " .. mob_name .. " invocada com sucesso."
+		return true, "Doll de " .. mob_name .. " criada e protegida (persistente)."
 	end
 })
 
 -- COMANDO: /killdoll
 core.register_chatcommand("killdoll", {
 	params = "[raio]",
-	description = "Remove dolls próximas",
+	description = "Remove dolls persistentes",
 	privs = {server = true},
 	func = function(name, param)
 		local player = core.get_player_by_name(name)
