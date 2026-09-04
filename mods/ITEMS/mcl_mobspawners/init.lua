@@ -218,6 +218,8 @@ end
 -- automatially.
 -- IF this node is placed by ANY other method (e.g. core.set_node, LuaVoxelManip), you
 -- MUST call mcl_mobspawners.setup_spawner right after the spawner has been placed.
+
+
 core.register_node("mcl_mobspawners:spawner", {
 	tiles = {"mob_spawner.png"},
 	drawtype = "glasslike",
@@ -320,8 +322,7 @@ core.register_node("mcl_mobspawners:spawner", {
 	_mcl_hardness = 5,
 })
 
--- Mob spawner doll (rotating icon inside cage)
-
+-- Definição da Entidade Doll
 local doll_def = {
 	initial_properties = {
 		hp_max = 1,
@@ -332,40 +333,172 @@ local doll_def = {
 		automatic_rotate = math.pi * 2.9,
 	},
 	timer = 0,
-	_mob = default_mob, -- name of the mob this doll represents
-	_mcl_pistons_unmovable = true
+	_mob = default_mob,
+	_mcl_pistons_unmovable = true,
+	_custom = false,
+	_duration = -1, -- -1 significa infinito
 }
 
 doll_def.get_staticdata = function(self)
-	return self._mob
+	local data = {
+		mob = self._mob,
+		custom = self._custom,
+		duration = self._duration
+	}
+	return core.serialize(data)
 end
 
 doll_def.on_activate = function(self, staticdata)
-	local mob = staticdata
-	if mob == "" or mob == nil then
-		mob = default_mob
+	local data = core.deserialize(staticdata)
+	if data then
+		self._mob = data.mob or default_mob
+		self._custom = data.custom
+		self._duration = data.duration or -1
 	end
-	set_doll_properties(self.object, mob)
+	
+	set_doll_properties(self.object, self._mob)
 	self.object:set_velocity({x=0, y=0, z=0})
 	self.object:set_acceleration({x=0, y=0, z=0})
 	self.object:set_armor_groups({immortal=1})
-
 end
 
 doll_def.on_step = function(self, dtime)
-	-- Check if spawner is still present. If not, delete the entity
+	-- Lógica de Duração (Timer)
+	if self._duration ~= -1 then
+		self._duration = self._duration - dtime
+		if self._duration <= 0 then
+			self.object:remove()
+			return
+		end
+	end
+
+	-- Se for doll de comando, não executa a limpeza automática por falta de spawner
+	if self._custom then return end
+
+	-- Lógica original do Spawner
 	self.timer = self.timer + dtime
-	local n = core.get_node_or_nil(self.object:get_pos())
 	if self.timer > 1 then
+		local n = core.get_node_or_nil(self.object:get_pos())
 		if n and n.name and n.name ~= "mcl_mobspawners:spawner" then
 			self.object:remove()
 		end
+		self.timer = 0
 	end
 end
 
-doll_def.on_punch = function() end
-
 core.register_entity("mcl_mobspawners:doll", doll_def)
+
+-- Função auxiliar para encontrar o mob mesmo sem prefixo
+local function get_mob_full_name(name)
+	if core.registered_entities[name] then return name end
+	if core.registered_entities["mobs_mc:" .. name] then return "mobs_mc:" .. name end
+	if core.registered_entities["mcl_mobs:" .. name] then return "mcl_mobs:" .. name end
+	return nil
+end
+
+-- Função auxiliar para coordenadas
+local function parse_pos(pos_str, player_pos)
+	if not pos_str or pos_str == "" or pos_str == "here" then return player_pos end
+	local parts = pos_str:split(",")
+	if #parts ~= 3 then return player_pos end
+	local function parse_axis(val, axis_val)
+		if val:sub(1, 1) == "~" then
+			return axis_val + (tonumber(val:sub(2)) or 0)
+		end
+		return tonumber(val) or axis_val
+	end
+	return {x=parse_axis(parts[1], player_pos.x), y=parse_axis(parts[2], player_pos.y), z=parse_axis(parts[3], player_pos.z)}
+end
+
+-- COMANDO: /summondoll
+core.register_chatcommand("summondoll", {
+	params = "<mob> [<pos>] [<rotate>] [<size>] [<static>] [<spin>] [<duration>]",
+	description = "Invoca uma doll customizada. Duração em segundos (0 ou vazio = infinito).",
+	privs = {server = true},
+	func = function(name, param)
+		local player = core.get_player_by_name(name)
+		if not player then return false end
+
+		local args = param:split(" ")
+		if #args < 1 then return false, "Uso: /summondoll <mob> [pos:x,y,z] [rotate] [size] [static:true/false] [spin:vel] [duration]" end
+
+		-- 1. Nome do Mob
+		local mob_name = get_mob_full_name(args[1])
+		if not mob_name then
+			return false, "Erro: Mob '" .. args[1] .. "' não encontrado."
+		end
+
+		-- 2. Parâmetros
+		local p_pos      = parse_pos(args[2], player:get_pos())
+		local p_rotate   = tonumber(args[3]) or 0
+		local p_size     = tonumber(args[4]) or 1.0
+		local p_static   = args[5] == "true"
+		local p_spin     = tonumber(args[6]) or 9.1
+		local p_duration = tonumber(args[7]) or 0
+		if p_duration <= 0 then p_duration = -1 end
+
+		-- 3. Spawn
+		local doll = core.add_entity(p_pos, "mcl_mobspawners:doll")
+		if not doll then return false, "Falha ao criar entidade." end
+
+		local ent = doll:get_luaentity()
+		ent._custom = true
+		ent._mob = mob_name
+		ent._duration = p_duration
+
+		set_doll_properties(doll, mob_name)
+
+		local prop = doll:get_properties()
+		prop.visual_size = { x = prop.visual_size.x * p_size, y = prop.visual_size.y * p_size }
+		
+		if p_static then
+			prop.automatic_rotate = 0
+		else
+			prop.automatic_rotate = p_spin
+		end
+
+		doll:set_properties(prop)
+		doll:set_yaw(math.rad(p_rotate))
+
+		return true, "Doll de " .. mob_name .. " invocada."
+	end,
+})
+
+-- COMANDO: /killdoll
+core.register_chatcommand("killdoll", {
+	params = "[<radius>]",
+	description = "Remove dolls em um raio (padrão 5 blocos)",
+	privs = {server = true},
+	func = function(name, param)
+		local player = core.get_player_by_name(name)
+		if not player then return end
+		
+		local radius = tonumber(param) or 5
+		local pos = player:get_pos()
+		local count = 0
+
+		for _, obj in ipairs(core.get_objects_inside_radius(pos, radius)) do
+			local ent = obj:get_luaentity()
+			if ent and ent.name == "mcl_mobspawners:doll" then
+				obj:remove()
+				count = count + 1
+			end
+		end
+
+		return true, count .. " dolls removidas em um raio de " .. radius
+	end,
+})
+
+-- LBM original mantido
+core.register_lbm({
+	label = "Respawn mob spawner dolls",
+	name = "mcl_mobspawners:respawn_entities",
+	nodenames = { "mcl_mobspawners:spawner" },
+	run_at_every_load = true,
+	action = function(pos)
+		respawn_doll(pos)
+	end,
+})
 
 -- FIXME: Doll can get destroyed by /clearobjects
 core.register_lbm({
