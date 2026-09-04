@@ -322,7 +322,7 @@ core.register_node("mcl_mobspawners:spawner", {
 	_mcl_hardness = 5,
 })
 
--- Definição da Entidade Doll
+-- Definição da Entidade Doll com suporte a persistência e rotação 3D
 local doll_def = {
 	initial_properties = {
 		hp_max = 1,
@@ -339,8 +339,15 @@ local doll_def = {
 	_mcl_pistons_unmovable = true,
 }
 
+-- Salva os dados para que a doll não mude ou suma ao reiniciar o servidor
 doll_def.get_staticdata = function(self)
-	local data = { mob = self._mob, custom = self._custom, duration = self._duration }
+	local data = { 
+		mob = self._mob, 
+		custom = self._custom, 
+		duration = self._duration,
+		rot = self.object:get_rotation(),
+		prop = self.object:get_properties()
+	}
 	return core.serialize(data)
 end
 
@@ -350,6 +357,8 @@ doll_def.on_activate = function(self, staticdata)
 		self._mob = data.mob or default_mob
 		self._custom = data.custom
 		self._duration = data.duration or -1
+		if data.prop then self.object:set_properties(data.prop) end
+		if data.rot then self.object:set_rotation(data.rot) end
 	end
 	set_doll_properties(self.object, self._mob)
 	self.object:set_armor_groups({immortal=1})
@@ -360,18 +369,22 @@ doll_def.on_step = function(self, dtime)
 		self._duration = self._duration - dtime
 		if self._duration <= 0 then self.object:remove() return end
 	end
+	
 	if self._custom then return end
+
 	self.timer = self.timer + dtime
 	if self.timer > 1 then
 		local n = core.get_node_or_nil(self.object:get_pos())
-		if n and n.name and n.name ~= "mcl_mobspawners:spawner" then self.object:remove() end
+		if n and n.name and n.name ~= "mcl_mobspawners:spawner" then 
+			self.object:remove() 
+		end
 		self.timer = 0
 	end
 end
 
 core.register_entity("mcl_mobspawners:doll", doll_def)
 
--- Utilitário: Encontrar Mob
+-- Utilitários de busca e parse
 local function get_mob_full_name(name)
 	if not name then return nil end
 	if core.registered_entities[name] then return name end
@@ -380,9 +393,7 @@ local function get_mob_full_name(name)
 	return nil
 end
 
--- Utilitário: Parse de Posição
 local function parse_pos(pos_str, p_pos)
-	if not pos_str then return p_pos end
 	local c = pos_str:split(",")
 	if #c ~= 3 then return p_pos end
 	local function axis(v, a)
@@ -392,39 +403,49 @@ local function parse_pos(pos_str, p_pos)
 	return {x=axis(c[1], p_pos.x), y=axis(c[2], p_pos.y), z=axis(c[3], p_pos.z)}
 end
 
+-- Parser de Rotação (suporta X ou X,Y,Z)
+local function parse_rotate(rot_str)
+	local c = rot_str:split(",")
+	if #c == 3 then
+		return { x=math.rad(tonumber(c[1]) or 0), y=math.rad(tonumber(c[2]) or 0), z=math.rad(tonumber(c[3]) or 0) }
+	elseif #c == 1 then
+		return { x=0, y=math.rad(tonumber(c[1]) or 0), z=0 }
+	end
+	return {x=0, y=0, z=0}
+end
+
 -- COMANDO: /summondoll
 core.register_chatcommand("summondoll", {
-	params = "<mob> [pos:x,y,z] [rotate:N] [size:N] [static:true/false] [spin:N] [duration:N]",
-	description = "Invoca doll usando chave:valor",
-	privs = {spawn = true},
+	params = "<mob> [pos:x,y,z] [rotate:y ou x,y,z] [size:N] [static:bool] [spin:N] [duration:N]",
+	description = "Invoca doll customizada com sistema de chaves",
+	privs = {server = true},
 	func = function(name, param)
 		local player = core.get_player_by_name(name)
 		if not player then return end
 
 		local args = param:split(" ")
-		if #args < 1 then return false, "Uso: /summondoll <mob> pos:~,~,~ size:2 ..." end
+		if #args < 1 then return false, "Uso: /summondoll <mob> pos:~,~,~ size:2 rotate:0,90,0" end
 
-		-- Primeiro argumento é sempre o mob
 		local mob_name = get_mob_full_name(args[1])
-		if not mob_name then return false, "Mob " .. args[1] .. " não encontrado." end
+		if not mob_name then return false, "Mob não encontrado: " .. args[1] end
 
-		-- Tabela de valores padrão
+		-- Padrões
 		local vals = {
 			pos = player:get_pos(),
-			rotate = 0,
+			rotate = {x=0, y=0, z=0},
 			size = 1.0,
 			static = false,
 			spin = 9.1,
 			duration = -1
 		}
 
-		-- Parser de chave:valor
+		-- Processar chaves
 		for i=2, #args do
 			local kv = args[i]:split(":")
 			if #kv == 2 then
 				local k, v = kv[1], kv[2]
 				if k == "pos" then vals.pos = parse_pos(v, vals.pos)
-				elseif k == "rotate" then vals.rotate = tonumber(v) or vals.rotate
+				elseif k == "rotate" then vals.rotate = parse_rotate(v)
 				elseif k == "size" then vals.size = tonumber(v) or vals.size
 				elseif k == "static" then vals.static = (v == "true")
 				elseif k == "spin" then vals.spin = tonumber(v) or vals.spin
@@ -435,9 +456,8 @@ core.register_chatcommand("summondoll", {
 			end
 		end
 
-		-- Spawn
 		local doll = core.add_entity(vals.pos, "mcl_mobspawners:doll")
-		if not doll then return false, "Erro ao criar doll." end
+		if not doll then return false, "Erro ao criar entidade." end
 
 		local ent = doll:get_luaentity()
 		ent._custom = true
@@ -451,9 +471,9 @@ core.register_chatcommand("summondoll", {
 		if vals.static then prop.physical = true end
 
 		doll:set_properties(prop)
-		doll:set_yaw(math.rad(vals.rotate))
+		doll:set_rotation(vals.rotate)
 
-		return true, "Doll " .. mob_name .. " invocada em " .. core.pos_to_string(vector.round(vals.pos))
+		return true, "Doll " .. mob_name .. " invocada com sucesso."
 	end
 })
 
@@ -461,7 +481,7 @@ core.register_chatcommand("summondoll", {
 core.register_chatcommand("killdoll", {
 	params = "[raio]",
 	description = "Remove dolls próximas",
-	privs = {spawn = true},
+	privs = {server = true},
 	func = function(name, param)
 		local player = core.get_player_by_name(name)
 		if not player then return end
