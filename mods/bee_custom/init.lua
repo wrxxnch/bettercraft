@@ -181,6 +181,8 @@ mcl_mobs.register_mob("bee_custom:bee", {
 		self.explore_dir = self.explore_dir or {x=1,y=0,z=0}
 		self.angry = self.angry or false
 		self.angry_timer = self.angry_timer or 0
+		self.flower_timer = self.flower_timer or 0
+		self.at_flower = self.at_flower or false
 	end,
 
 	---------------------------------------------------
@@ -193,6 +195,8 @@ mcl_mobs.register_mob("bee_custom:bee", {
 		self.explore_timer = self.explore_timer or 0
 		self.hive_timer = self.hive_timer or 0
 		self.angry_timer = self.angry_timer or 0
+		self.flower_timer = self.flower_timer or 0
+		self.at_flower = self.at_flower or false
 
 		---------------------------------------------------
 		-- ANGRY MODE
@@ -289,6 +293,18 @@ mcl_mobs.register_mob("bee_custom:bee", {
 			end
 		end
 
+		-- Se estiver pousada na flor, aguarda o tempo antes de pegar o néctar
+		if self.at_flower then
+			self.flower_timer = self.flower_timer - dtime
+			self.object:set_velocity({x=0,y=0,z=0})
+			if self.flower_timer <= 0 then
+				self.at_flower = false
+				self.has_nectar = true
+				self.object:set_properties({textures={"mobs_mc_bee_nectar.png"}})
+			end
+			return
+		end
+
 		---------------------------------------------------
 		-- BUSCA FLOR / COLMEIA
 		---------------------------------------------------
@@ -317,8 +333,10 @@ mcl_mobs.register_mob("bee_custom:bee", {
 					self.hive_timer = HIVE_TIME
 					self.object:set_properties({visual_size={x=0,y=0}, pointable=false})
 				else
-					self.has_nectar = true
-					self.object:set_properties({textures={"mobs_mc_bee_nectar.png"}})
+					-- Pousa na flor e espera alguns segundos antes de pegar o néctar
+					self.at_flower = true
+					self.flower_timer = 5 -- segundos que ficará na flor
+					self.object:set_velocity({x=0,y=0,z=0})
 				end
 			end
 			return
