@@ -1,6 +1,6 @@
 -- colored_blocks / mcl_cblocks: Colored Blocks for Minetest
 -- ==============================
--- LISTA DE CORES
+-- COLOR LIST
 -- ==============================
 local colors = {
 	{name="white", desc="White", dye="white"},
@@ -22,7 +22,7 @@ local colors = {
 }
 
 -- ==============================
--- VERIFICAÇÃO DE MODS E AMBIENTE
+-- MOD AND ENVIRONMENT CHECK
 -- ==============================
 local has_mcl_core = minetest.get_modpath("mcl_core")
 local has_stairs = minetest.get_modpath("stairs")
@@ -30,16 +30,72 @@ local has_mcl_stairs = minetest.get_modpath("mcl_stairs")
 local has_moreblocks = minetest.get_modpath("moreblocks")
 local has_mcl_moreblocks = minetest.get_modpath("mcl_moreblocks")
 
--- Definir prefixo dinâmico para evitar problemas de migração
+-- Define a dynamic prefix to avoid migration issues
 local mod_prefix = has_mcl_core and "mcl_cblocks" or "colored_blocks"
 local dye_prefix = has_mcl_core and "mcl_dyes" or "dyes"
 
 -- ==============================
--- LISTA DE NODES BASE
+-- COLOR BLOCK CONFIGURATION
+-- ==============================
+
+-- Show or hide colored blocks in the creative inventory.
+-- The default value is false.
+local show_colorblocks =
+	core.settings:get_bool("showcolorblocks", false)
+
+local function update_colorblocks_inventory()
+	for name, def in pairs(minetest.registered_nodes) do
+		if name:find("^" .. mod_prefix .. ":") then
+			def.groups = def.groups or {}
+
+			if show_colorblocks then
+				def.groups.not_in_creative_inventory = nil
+			else
+				def.groups.not_in_creative_inventory = 1
+			end
+		end
+	end
+end
+
+-- ==============================
+-- SHOWCOLORBLOCKS COMMAND
+-- ==============================
+
+minetest.register_chatcommand("showcolorblocks", {
+	params = "true|false",
+	description = "Show or hide colored blocks in the inventory",
+
+	func = function(name, param)
+		param = param:lower()
+		param = param:gsub("^%s+", "")
+		param = param:gsub("%s+$", "")
+
+		-- Use true when no parameter is provided.
+		if param == "" then
+			param = "true"
+		end
+
+		if param ~= "true" and param ~= "false" then
+			return false, "Usage: /showcolorblocks true|false"
+		end
+
+		show_colorblocks = param == "true"
+
+		core.settings:set("showcolorblocks", param)
+
+		update_colorblocks_inventory()
+
+		return true, "Colored blocks in inventory: " .. param
+	end,
+})
+
+-- ==============================
+-- BASE NODE LIST
 -- ==============================
 local base_nodes = {}
+
 if has_mcl_core then
-	-- Nodes originais do Mineclonia para compatibilidade
+	-- Original Mineclonia nodes for compatibility
 	base_nodes = {
 		"mcl_core:stonebrick",
 		"mcl_trees:wood_oak",
@@ -54,7 +110,7 @@ if has_mcl_core then
 		"mcl_core:brick_block",
 	}
 else
-	-- Nodes padrão do Minetest Game
+	-- Default Minetest Game nodes
 	base_nodes = {
 		"default:stonebrick",
 		"default:wood",
@@ -65,12 +121,16 @@ else
 end
 
 -- ==============================
--- FUNÇÃO PRINCIPAL
+-- MAIN FUNCTION
 -- ==============================
 local function register_colored_block(base_node)
 	local base_def = minetest.registered_nodes[base_node]
+
 	if not base_def then
-		minetest.log("warning", "[" .. mod_prefix .. "] Nó base não encontrado: " .. base_node)
+		minetest.log(
+			"warning",
+			"[" .. mod_prefix .. "] Base node not found: " .. base_node
+		)
 		return
 	end
 
@@ -87,33 +147,29 @@ local function register_colored_block(base_node)
 		def.description = color.desc .. " " .. base_desc
 
 		-- ==============================
-		-- TEXTURAS / CORES
+		-- TEXTURES / COLORS
 		-- ==============================
 		local new_tiles = {}
 		local base_tiles = base_def.tiles or base_def.tile_images
 
 		if type(base_tiles) == "table" then
 			for _, tile in ipairs(base_tiles) do
-				local tile_def = type(tile) == "table" and table.copy(tile) or {
-					name = tile,
-				}
+				local tile_def = type(tile) == "table"
+					and table.copy(tile)
+					or {name = tile}
 
 				local tile_name = tile_def.name
 
 				if color.name == "white" then
-					-- Branco usando white.png
 					tile_def.name = tile_name .. "^white.png"
 					tile_def.color = nil
 				elseif color.name == "silver" then
-					-- Prata usando silver.png
 					tile_def.name = tile_name .. "^silver.png"
 					tile_def.color = nil
 				elseif color.name == "gray" then
-					-- Cinza usando grey.png
 					tile_def.name = tile_name .. "^grey.png"
 					tile_def.color = nil
 				else
-					-- Outras cores continuam usando HEX
 					tile_def.color = color.hex
 				end
 
@@ -143,14 +199,12 @@ local function register_colored_block(base_node)
 		def.tiles = new_tiles
 		def.tile_images = nil
 
-
 		minetest.register_node(":" .. node_name, def)
 
-		-- =================================================================
-		-- INTEGRAÇÃO COM STAIRS / SLABS
-		-- =================================================================
+		-- ==============================
+		-- STAIRS / SLABS INTEGRATION
+		-- ==============================
 		if has_mcl_stairs and mcl_stairs.register_stair_and_slab then
-			-- No Mineclonia, usa a API mcl_stairs para manter nomes originais
 			mcl_stairs.register_stair_and_slab(
 				node_id,
 				node_name,
@@ -161,7 +215,6 @@ local function register_colored_block(base_node)
 				def.sounds
 			)
 		elseif has_stairs and stairs.register_stair_and_slab then
-			-- No Minetest Game
 			stairs.register_stair_and_slab(
 				node_id,
 				node_name,
@@ -173,14 +226,15 @@ local function register_colored_block(base_node)
 			)
 		end
 
-		-- =================================================================
-		-- INTEGRAÇÃO COM MOREBLOCKS
-		-- =================================================================
+		-- ==============================
+		-- MOREBLOCKS INTEGRATION
+		-- ==============================
 		if has_mcl_moreblocks and mcl_moreblocks.add_block then
-			-- Mineclonia: Adiciona o bloco ao sistema de formas extras
 			mcl_moreblocks.add_block(node_name)
-		elseif has_moreblocks and moreblocks.stairsplus and moreblocks.stairsplus.register_all then
-			-- Minetest Game: Registra todas as formas via stairsplus
+		elseif has_moreblocks
+			and moreblocks.stairsplus
+			and moreblocks.stairsplus.register_all then
+
 			moreblocks.stairsplus.register_all(
 				mod_prefix,
 				node_id,
@@ -195,22 +249,31 @@ local function register_colored_block(base_node)
 			)
 		end
 
-		-- Crafting shapeless
+		-- Shapeless crafting recipe
 		minetest.register_craft({
 			type = "shapeless",
 			output = node_name .. " 1",
 			recipe = {
-				dye_prefix .. ":" .. color.dye, base_node,
+				dye_prefix .. ":" .. color.dye,
+				base_node,
 			}
 		})
 	end
 end
 
 -- ==============================
--- LOOP PARA REGISTRAR TUDO
+-- REGISTER EVERYTHING
 -- ==============================
 for _, node in ipairs(base_nodes) do
 	register_colored_block(node)
 end
 
-minetest.log("action", "[" .. mod_prefix .. "] Blocos coloridos carregados com prefixo " .. mod_prefix)
+-- Apply the inventory setting after all colored blocks have been registered.
+minetest.after(0, function()
+	update_colorblocks_inventory()
+end)
+
+minetest.log(
+	"action",
+	"[" .. mod_prefix .. "] Colored blocks loaded with prefix " .. mod_prefix
+)

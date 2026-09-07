@@ -1,0 +1,2 @@
+# If enabled, colored blocks will be shown in the creative inventory.
+showcolorblocks (Show colored blocks in inventory) bool true
