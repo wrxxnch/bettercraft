@@ -309,7 +309,7 @@ for color, colordef in pairs(mcl_dyes.colors) do
 	core.register_craft({
 		output = item_name,
 		recipe = {
-			{"mcl_wool:" .. color, "mcl_wool:slab_" .. color, "mcl_wool:" .. color},
+			{"mcl_wool:slab_" .. color, "mcl_wool:slab_" .. color, "mcl_wool:slab_" .. color},
 		}
 	})
 end
