@@ -2,12 +2,7 @@ local S = core.get_translator(core.get_current_modname());
 local schempath = natural_habitat.schempath(true);
 
 local log_groups, leaves_groups, coconut_groups, coconut_hanging_groups = {}, {}, {}, {};
-if natural_habitat.is_minetest() then
-    log_groups = { tree=1, choppy=2, oddly_breakable_by_hand=1, flammable=2, };
-    coconut_hanging_groups = { choppy=2, oddly_breakable_by_hand=1, flammable=2, };
-    coconut_groups = { snappy=1, flammable=1, falling_node=1, };
-    leaves_groups = { snappy=1, flammable=1 };
-elseif natural_habitat.is_mineclonia() then
+
     log_groups = {
         handy=1, axey=1, material_wood=1, 
         flammable=3, fire_encouragement=5, fire_flammability=20, 
@@ -20,7 +15,7 @@ elseif natural_habitat.is_mineclonia() then
         handy=1, deco_block=1, compostability=65, falling_node=1,
     };
     leaves_groups = { handy=1, food=2, deco_block=1, compostability=65, };
-end;
+
 
 core.register_node("natural_habitat:coconut_palmtree_log", {
     description = S("Coconut Palmtree Log"),
@@ -53,7 +48,9 @@ core.register_node("natural_habitat:coconut_palmtree_leaves", {
     sunlight_propagates = true,
     walkable = false,
     drop = "",
-    selection_box = { type = "fixed", fixed={-0.5, -0.5, -1.5, 0.5, 0.4, 0.5} },
+    -- O mesh se estende além da caixa antiga, deixando a maior parte das
+    -- folhas visíveis fora da área selecionável para escavação.
+    selection_box = { type = "fixed", fixed={-0.8, -0.5, -3.2, 2.7, 0.8, 1.7} },
     sounds = natural_habitat.sound_wood(),
     _mcl_hardness = 1;
 });
