@@ -276,9 +276,24 @@ local function init(player)
 			end
 			return 0
 		end,
-		allow_take = function(_, listname, _, _, player)
-			if core.is_creative_enabled(player:get_player_name()) and
-				(listname == "main" or listname == "moreblocks_input" or listname == "moreblocks_output") then return -1 end
+		allow_take = function(inv, listname, index, stack, player)
+			if not core.is_creative_enabled(player:get_player_name()) then return 0 end
+
+			-- Se for o slot de saída, permitimos pegar (o item já existe lá)
+			if listname == "moreblocks_output" then
+				return stack:get_count()
+			end
+
+			-- Para o input, permitimos tirar apenas se quisermos remover o item
+			if listname == "moreblocks_input" then
+				return stack:get_count()
+			end
+
+			-- Para a lista principal (creative), mantemos o comportamento de clonar (-1)
+			if listname == "main" then
+				return -1
+			end
+
 			return 0
 		end,
 		on_move = function(inv, from_list, _, to_list)
@@ -287,8 +302,18 @@ local function init(player)
 		on_put = function(inv, listname)
 			if listname == "moreblocks_input" then update_moreblocks_output(inv) end
 		end,
-		on_take = function(inv, listname)
-			if listname == "moreblocks_input" then update_moreblocks_output(inv) end
+		on_take = function(inv, listname, index, stack, player)
+			-- Se tirou algo da saída, consuma 1 do input (ajuste a proporção conforme necessário)
+			if listname == "moreblocks_output" then
+				local input_stack = inv:get_stack("moreblocks_input", 1)
+				if not input_stack:is_empty() then
+					input_stack:take_item(1)
+					inv:set_stack("moreblocks_input", 1, input_stack)
+					update_moreblocks_output(inv)
+				end
+			elseif listname == "moreblocks_input" then
+				update_moreblocks_output(inv)
+			end
 		end,
 	}, playername)
 	inv:set_size("moreblocks_input", 1)
@@ -450,13 +475,13 @@ function mcl_inventory.set_creative_formspec(player)
 	local inv_size = players[playername].inv_size
 	local filter = players[playername].filter
 
-		if not inv_size then
-			if page == "moreblocks" then
-				local inv = core.get_inventory({ type = "detached", name = "creative_" .. playername })
-				inv_size = inv:get_size("moreblocks_output")
-			elseif page == "nix" or page == "mcl_cblocks" then -- Adicionado mcl_cblocks aqui
-				local inv = core.get_inventory({ type = "detached", name = "creative_" .. playername })
-				inv_size = inv:get_size("main")
+	if not inv_size then
+		if page == "moreblocks" then
+			local inv = core.get_inventory({ type = "detached", name = "creative_" .. playername })
+			inv_size = inv:get_size("moreblocks_output")
+		elseif page == "nix" or page == "mcl_cblocks" then -- Adicionado mcl_cblocks aqui
+			local inv = core.get_inventory({ type = "detached", name = "creative_" .. playername })
+			inv_size = inv:get_size("main")
 		elseif page and page ~= "inv" then
 			inv_size = #(inventory_lists[page])
 		else
@@ -481,14 +506,13 @@ function mcl_inventory.set_creative_formspec(player)
 
 	if name == "moreblocks" then
 		main_list = table.concat({
-			"label[0.375,0.375;", F(S("Circular Saw")), "]",
-			"label[0.375,0.75;", F(S("Input block")), "]",
+			"label[0.375,0.375;", F(S("More Blocks")), "]",
 			mcl_formspec.get_itemslot_bg_v4(0.375, 1.05, 1, 1),
 			"list[detached:creative_", playername, ";moreblocks_input;0.375,1.05;1,1;]",
 			"label[2.25,0.75;", F(S("More Blocks made from the input")), "]",
-			mcl_formspec.get_itemslot_bg_v4(2.25, 1.05, 8, 6),
-			"list[detached:creative_", playername, ";moreblocks_output;2.25,1.05;8,6;]",
-			"label[0.375,2.5;", F(S("Put a compatible full block in the input slot.")), "]",
+			--arraste um pouco pra esquerda pra caber a label
+			mcl_formspec.get_itemslot_bg_v4(2.15, 1.05, 8, 5),
+			"list[detached:creative_", playername, ";moreblocks_output;2.25,1.05;8,5;]",
 		})
 	elseif name == "inv" then
 		local armor_slot_imgs = ""
@@ -657,7 +681,10 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 	elseif fields.misc or fields.misc_outer then
 		page = "misc"
 	elseif fields.moreblocks or fields.moreblocks_outer then
-		if moreblocks and moreblocks.showmoreblocks and mcl_moreblocks and mcl_moreblocks.showmoreblocks then page = "moreblocks" end
+		if moreblocks and moreblocks.showmoreblocks and mcl_moreblocks and mcl_moreblocks.showmoreblocks then
+			page =
+			"moreblocks"
+		end
 	elseif fields.nix or fields.nix_outer then
 		page = "nix"
 	elseif fields.food or fields.food_outer then
@@ -718,12 +745,12 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 	local start_i = players[name].start_i or 0
 
 	local inv_size = 0
-		if page == "nix" or page == "mcl_cblocks" then
+	if page == "nix" or page == "mcl_cblocks" then
 		-- Depois de uma busca, o tamanho real está no inventário "detached",
 		-- não em inventory_lists[page] (que é a lista completa, sem filtro).
-			inv_size = core.get_inventory({ type = "detached", name = "creative_" .. name }):get_size("main")
-		elseif page == "moreblocks" then
-			inv_size = core.get_inventory({ type = "detached", name = "creative_" .. name }):get_size("moreblocks_output")
+		inv_size = core.get_inventory({ type = "detached", name = "creative_" .. name }):get_size("main")
+	elseif page == "moreblocks" then
+		inv_size = core.get_inventory({ type = "detached", name = "creative_" .. name }):get_size("moreblocks_output")
 	elseif page and page ~= "inv" then
 		inv_size = #(inventory_lists[page] or {})
 	end
