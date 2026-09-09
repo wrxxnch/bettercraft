@@ -1,4 +1,7 @@
+-- Controls whether the More Blocks circular-saw catalogue is shown in creative.
+local showmoreblocks = true
 mcl_moreblocks = {}
+mcl_moreblocks.showmoreblocks = showmoreblocks
 
 
 -- add nodename as a block supported by the circular saw
@@ -201,6 +204,16 @@ mcl_moreblocks.add_nodes = function()
 		--natural habitat
 		"natural_habitat:burnt_wood",
 		"natural_habitat:burnt_log",
+		-- sulphur
+		"sulphur_update:cinnabar",
+		"sulphur_update:chiseled_cinnabar",
+		"sulphur_update:polished_cinnabar",
+		"sulphur_update:cinnabar_bricks",
+		"sulphur_update:sulfur",
+		"sulphur_update:potent_sulfur",
+		"sulphur_update:chiseled_sulfur",
+		"sulphur_update:polished_sulfur",
+		"sulphur_update:sulfur_bricks",
 
 }
 

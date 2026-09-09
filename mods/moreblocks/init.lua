@@ -7,8 +7,11 @@ Copyright © 2011-2020 Hugo Locurcio and contributors.
 Licensed under the zlib license. See LICENSE.md for more information.
 =====================================================================
 --]]
-
+-- Controls whether the More Blocks circular-saw catalogue is shown in creative.
+local showmoreblocks = true
 moreblocks = {}
+moreblocks.showmoreblocks = showmoreblocks
+
 
 local modpath = minetest.get_modpath("moreblocks")
 

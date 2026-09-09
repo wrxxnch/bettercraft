@@ -43,6 +43,7 @@ local builtin_filter_ids = {
 	"all",
 	"nici",
 	"mcl_cblocks",
+	"moreblocks",
 }
 
 for _, f in pairs(builtin_filter_ids) do
@@ -232,28 +233,66 @@ local function set_inv_page(page, player)
 		creative_list = inventory_lists[page]
 	end
 
+	if page == "moreblocks" then
+		players[playername].inv_size = inv:get_size("moreblocks_output")
+		return
+	end
+
 	inv:set_size("main", #creative_list)
 	players[playername].inv_size = #creative_list
 	inv:set_list("main", creative_list)
 end
 
+local function update_moreblocks_output(inv)
+	local output = {}
+	local input = inv:get_stack("moreblocks_input", 1)
+	if circular_saw and not input:is_empty() then
+		local parts = circular_saw.known_nodes[input:get_name()]
+		if parts then
+			local modname = parts[1] == "default" and "moreblocks" or parts[1]
+			output = circular_saw:get_output_inv(modname, parts[2], input:get_count() * 8, 99)
+		end
+	end
+	inv:set_list("moreblocks_output", output)
+end
+
+local function is_moreblocks_input(stack)
+	if not circular_saw or stack:is_empty() then return false end
+	return circular_saw.known_nodes[stack:get_name()] ~= nil
+end
+
 local function init(player)
 	local playername = player:get_player_name()
-	core.create_detached_inventory("creative_" .. playername, {
-		allow_move = function()
-			return 0
-		end,
-		allow_put = function()
-			return 0
-		end,
-		allow_take = function(_, _, _, _, player)
-			if core.is_creative_enabled(player:get_player_name()) then
-				return -1
-			else
-				return 0
+	local inv = core.create_detached_inventory("creative_" .. playername, {
+		allow_move = function(inv, from_list, from_index, to_list, _, count)
+			if to_list == "moreblocks_input" and from_list == "main" then
+				return is_moreblocks_input(inv:get_stack(from_list, from_index)) and count or 0
 			end
+			return 0
+		end,
+		allow_put = function(_, listname, _, stack, player)
+			if listname == "moreblocks_input" and core.is_creative_enabled(player:get_player_name()) then
+				return is_moreblocks_input(stack) and stack:get_count() or 0
+			end
+			return 0
+		end,
+		allow_take = function(_, listname, _, _, player)
+			if core.is_creative_enabled(player:get_player_name()) and
+				(listname == "main" or listname == "moreblocks_input" or listname == "moreblocks_output") then return -1 end
+			return 0
+		end,
+		on_move = function(inv, from_list, _, to_list)
+			if from_list == "moreblocks_input" or to_list == "moreblocks_input" then update_moreblocks_output(inv) end
+		end,
+		on_put = function(inv, listname)
+			if listname == "moreblocks_input" then update_moreblocks_output(inv) end
+		end,
+		on_take = function(inv, listname)
+			if listname == "moreblocks_input" then update_moreblocks_output(inv) end
 		end,
 	}, playername)
+	inv:set_size("moreblocks_input", 1)
+	inv:set_size("moreblocks_output", 48)
 	set_inv_page("all", player)
 end
 
@@ -303,6 +342,7 @@ next_noffset("redstone")
 next_noffset("rail")
 next_noffset("brew")
 next_noffset("misc")
+next_noffset("moreblocks")
 next_noffset("nix", true)
 
 noffset_x = noffset_x_start
@@ -329,6 +369,7 @@ button_bg_postfix["redstone"] = ""
 button_bg_postfix["rail"] = ""
 button_bg_postfix["brew"] = ""
 button_bg_postfix["misc"] = ""
+button_bg_postfix["moreblocks"] = ""
 button_bg_postfix["nix"] = ""
 button_bg_postfix["default"] = ""
 button_bg_postfix["food"] = "_down"
@@ -345,6 +386,7 @@ filtername["deco"] = S("Decoration Blocks")
 filtername["redstone"] = S("Redstone")
 filtername["rail"] = S("Transportation")
 filtername["misc"] = S("Miscellaneous")
+filtername["moreblocks"] = S("More Blocks")
 filtername["nix"] = S("Search Items")
 filtername["food"] = S("Foodstuffs")
 filtername["tools"] = S("Tools")
@@ -373,6 +415,7 @@ local tab_icon = {
 	inv = "mcl_chests:chest",
 	nici = "mcl_core:barrier",
 	mcl_cblocks = "mcl_cblocks:cobble_light_blue",
+	moreblocks = "moreblocks:circular_saw",
 }
 
 -- Get the player configured stack size when taking items from creative inventory
@@ -407,10 +450,13 @@ function mcl_inventory.set_creative_formspec(player)
 	local inv_size = players[playername].inv_size
 	local filter = players[playername].filter
 
-	if not inv_size then
-		if page == "nix" or page == "mcl_cblocks" then -- Adicionado mcl_cblocks aqui
-			local inv = core.get_inventory({ type = "detached", name = "creative_" .. playername })
-			inv_size = inv:get_size("main")
+		if not inv_size then
+			if page == "moreblocks" then
+				local inv = core.get_inventory({ type = "detached", name = "creative_" .. playername })
+				inv_size = inv:get_size("moreblocks_output")
+			elseif page == "nix" or page == "mcl_cblocks" then -- Adicionado mcl_cblocks aqui
+				local inv = core.get_inventory({ type = "detached", name = "creative_" .. playername })
+				inv_size = inv:get_size("main")
 		elseif page and page ~= "inv" then
 			inv_size = #(inventory_lists[page])
 		else
@@ -433,7 +479,18 @@ function mcl_inventory.set_creative_formspec(player)
 		end
 	end
 
-	if name == "inv" then
+	if name == "moreblocks" then
+		main_list = table.concat({
+			"label[0.375,0.375;", F(S("Circular Saw")), "]",
+			"label[0.375,0.75;", F(S("Input block")), "]",
+			mcl_formspec.get_itemslot_bg_v4(0.375, 1.05, 1, 1),
+			"list[detached:creative_", playername, ";moreblocks_input;0.375,1.05;1,1;]",
+			"label[2.25,0.75;", F(S("More Blocks made from the input")), "]",
+			mcl_formspec.get_itemslot_bg_v4(2.25, 1.05, 8, 6),
+			"list[detached:creative_", playername, ";moreblocks_output;2.25,1.05;8,6;]",
+			"label[0.375,2.5;", F(S("Put a compatible full block in the input slot.")), "]",
+		})
+	elseif name == "inv" then
 		local armor_slot_imgs = ""
 		local inv = player:get_inventory()
 		if inv:get_stack("armor", 2):is_empty() then
@@ -555,6 +612,7 @@ function mcl_inventory.set_creative_formspec(player)
 		tab(name, "redstone") .. "tooltip[redstone;" .. F(filtername["redstone"]) .. "]" ..
 		tab(name, "rail") .. "tooltip[rail;" .. F(filtername["rail"]) .. "]" ..
 		tab(name, "misc") .. "tooltip[misc;" .. F(filtername["misc"]) .. "]" ..
+		((moreblocks and moreblocks.showmoreblocks and mcl_moreblocks and mcl_moreblocks.showmoreblocks) and tab(name, "moreblocks") .. "tooltip[moreblocks;" .. F(filtername["moreblocks"]) .. "]" or "") ..
 		tab(name, "nix") .. "tooltip[nix;" .. F(filtername["nix"]) .. "]" ..
 		tab(name, "food") .. "tooltip[food;" .. F(filtername["food"]) .. "]" ..
 		tab(name, "tools") .. "tooltip[tools;" .. F(filtername["tools"]) .. "]" ..
@@ -598,6 +656,8 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 		page = "rail"
 	elseif fields.misc or fields.misc_outer then
 		page = "misc"
+	elseif fields.moreblocks or fields.moreblocks_outer then
+		if moreblocks and moreblocks.showmoreblocks and mcl_moreblocks and mcl_moreblocks.showmoreblocks then page = "moreblocks" end
 	elseif fields.nix or fields.nix_outer then
 		page = "nix"
 	elseif fields.food or fields.food_outer then
@@ -658,10 +718,12 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 	local start_i = players[name].start_i or 0
 
 	local inv_size = 0
-	if page == "nix" or page == "mcl_cblocks" then
+		if page == "nix" or page == "mcl_cblocks" then
 		-- Depois de uma busca, o tamanho real está no inventário "detached",
 		-- não em inventory_lists[page] (que é a lista completa, sem filtro).
-		inv_size = core.get_inventory({ type = "detached", name = "creative_" .. name }):get_size("main")
+			inv_size = core.get_inventory({ type = "detached", name = "creative_" .. name }):get_size("main")
+		elseif page == "moreblocks" then
+			inv_size = core.get_inventory({ type = "detached", name = "creative_" .. name }):get_size("moreblocks_output")
 	elseif page and page ~= "inv" then
 		inv_size = #(inventory_lists[page] or {})
 	end
