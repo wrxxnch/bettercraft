@@ -33,8 +33,16 @@ core.register_node("natural_habitat:coconut_palmtree_log", {
     groups = log_groups,
     sunlight_propagates = true,
     sounds = natural_habitat.sound_leaves(),
-    _mcl_hardness = 3;
+    _mcl_hardness = 3,
+    _mcl_burntime = 15,
 });
+
+core.register_craft({
+    output = "natural_habitat:coconut_palmtree_log",
+    recipe = {
+        {"mcl_trees:wood_oak"},
+    }
+})
 
 core.register_node("natural_habitat:coconut_palmtree_leaves", {
     description = S("Coconut Palmtree Leaves"),
@@ -53,6 +61,7 @@ core.register_node("natural_habitat:coconut_palmtree_leaves", {
     selection_box = { type = "fixed", fixed={-0.8, -0.5, -3.2, 2.7, 0.8, 1.7} },
     sounds = natural_habitat.sound_wood(),
     _mcl_hardness = 1;
+    _mcl_burntime = 5;
 });
 
 natural_habitat.register_multinode("natural_habitat:coconut", {
@@ -177,6 +186,13 @@ core.register_craftitem("natural_habitat:coconut_water", {
 
         return core.do_item_eat(6, nil, itemstack, user, pointed_thing)
     end,
+})
+
+core.register_craft({
+    output = "mcl_trees:wood_oak",
+    recipe = {
+        {"natural_habitat:coconut_palmtree_log"},
+    }
 })
 
 -- Receita: Stick em cima do Coco

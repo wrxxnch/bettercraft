@@ -7,15 +7,6 @@ local schempath = natural_habitat.schempath(true)
 
 local groups = {}
 
-if natural_habitat.is_minetest() then
-    groups = {
-        tree = 1,
-        choppy = 2,
-        oddly_breakable_by_hand = 1,
-        flammable = 2,
-        burnt_log = 1,
-    }
-elseif natural_habitat.is_mineclonia() then
     groups = {
         handy = 1,
         axey = 1,
@@ -25,7 +16,7 @@ elseif natural_habitat.is_mineclonia() then
         fire_encouragement = 5,
         fire_flammability = 20,
     }
-end
+
 
 -- ===============================
 -- FUNÇÃO DE COLOCAÇÃO COM ROTAÇÃO
