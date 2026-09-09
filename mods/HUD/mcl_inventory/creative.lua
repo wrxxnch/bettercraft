@@ -7,9 +7,9 @@ local show_nici = core.settings:get_bool("mcl_creative_show_nici_tab", false)
 mcl_player.register_player_setting("mcl_inventory:scroll_on_creative_inventory", {
 	type = "enum",
 	options = {
-		{ name = "auto", description = S("Auto") },
+		{ name = "auto",  description = S("Auto") },
 		{ name = "false", description = S("Off") },
-		{ name = "true", description = S("On (causes problems on some client versions)") },
+		{ name = "true",  description = S("On (causes problems on some client versions)") },
 	},
 	section = "Inventory",
 	short_desc = S("Enable scrollable creative inventory"),
@@ -51,7 +51,6 @@ end
 
 -- Populate all the item tables. We only do this once.
 core.register_on_mods_loaded(function()
-
 	for name, def in pairs(core.registered_items) do
 		if (not def.groups.not_in_creative_inventory or def.groups.not_in_creative_inventory == 0) and def.description and
 			def.description ~= "" then
@@ -60,21 +59,22 @@ core.register_on_mods_loaded(function()
 			end
 
 			local function is_tool(def)
-				return (def.groups.tool and def.groups.tool ~= 0) or (def.tool_capabilities and def.tool_capabilities.damage_groups == nil)
+				return (def.groups.tool and def.groups.tool ~= 0) or
+					(def.tool_capabilities and def.tool_capabilities.damage_groups == nil)
 			end
 
 			local function is_weapon_or_armor(def)
 				return (def.groups.weapon and def.groups.weapon ~= 0) or
-				( def.groups.weapon_ranged and def.groups.weapon_ranged ~= 0 ) or
-				( def.groups.ammo and def.groups.ammo ~= 0) or
-				( def.groups.combat_item and def.groups.combat_item ~= 0 ) or
+					(def.groups.weapon_ranged and def.groups.weapon_ranged ~= 0) or
+					(def.groups.ammo and def.groups.ammo ~= 0) or
+					(def.groups.combat_item and def.groups.combat_item ~= 0) or
 					((
-						( def.groups.armor_head and def.groups.armor_head ~= 0 ) or
-					    ( def.groups.armor_torso and def.groups.armor_torso ~= 0 ) or
-						( def.groups.armor_legs and def.groups.armor_legs ~= 0 ) or
-						( def.groups.armor_feet and def.groups.armor_feet ~= 0 ) or
-						( def.groups.horse_armor and def.groups.horse_armor ~= 0 )) and
-					def.groups.non_combat_armor ~= 1)
+							(def.groups.armor_head and def.groups.armor_head ~= 0) or
+							(def.groups.armor_torso and def.groups.armor_torso ~= 0) or
+							(def.groups.armor_legs and def.groups.armor_legs ~= 0) or
+							(def.groups.armor_feet and def.groups.armor_feet ~= 0) or
+							(def.groups.horse_armor and def.groups.horse_armor ~= 0)) and
+						def.groups.non_combat_armor ~= 1)
 			end
 
 			-- Is set to true if it was added in any category besides misc
@@ -84,7 +84,7 @@ core.register_on_mods_loaded(function()
 			if name:sub(1, 12) == "mcl_cblocks:" then
 				table.insert(inventory_lists["mcl_cblocks"], name)
 				nonmisc = true
-			-- Usamos ELSEIF aqui para que, se for mcl_cblocks, ele NÃO entre em "blocks"
+				-- Usamos ELSEIF aqui para que, se for mcl_cblocks, ele NÃO entre em "blocks"
 			elseif core.get_item_group(name, "building_block") ~= 0 then
 				table.insert(inventory_lists["blocks"], name)
 				nonmisc = true
@@ -104,7 +104,7 @@ core.register_on_mods_loaded(function()
 					table.insert(inventory_lists["rail"], name)
 					nonmisc = true
 				end
-				if (core.get_item_group(name, "food") ~= 0 and core.get_item_group(name, "brewitem") == 0 ) or core.get_item_group(name, "eatable") ~= 0 then
+				if (core.get_item_group(name, "food") ~= 0 and core.get_item_group(name, "brewitem") == 0) or core.get_item_group(name, "eatable") ~= 0 then
 					table.insert(inventory_lists["food"], name)
 					nonmisc = true
 				end
@@ -173,57 +173,65 @@ local function filter_item(name, description, lang, filter)
 	return string.find(name, filter, nil, true) or string.find(desc, filter, nil, true)
 end
 
+-- Busca geral (aba "nix"/lupa), pesquisando em TODOS os itens ("all")
 local function set_inv_search(filter, player)
 	local playername = player:get_player_name()
 	local inv = core.get_inventory({ type = "detached", name = "creative_" .. playername })
 	local creative_list = {}
-	filter = filter:gsub("%s+", " ")
-	filter = string.lower(filter)
-	filter = string.trim(filter)
+	filter = string.lower(string.trim(filter))
 	local lang = core.get_player_information(playername).lang_code
-	for name, def in pairs(core.registered_items) do
-		if (not def.groups.not_in_creative_inventory or def.groups.not_in_creative_inventory == 0)
-		and def.description and
-			def.description ~= "" then
-			local name = string.lower(def.name)
-			if filter_item (name, def.description, lang, filter) then
-				if def.groups._mcl_potion == 1 then
-					local stack = ItemStack (name)
-					tt.reload_itemstack_description (stack)
-					table.insert(creative_list, stack:to_string ())
-				else
-					table.insert(creative_list, name)
-				end
-			end
-		end
 
-		if def._get_all_virtual_items then
-			for category, list in pairs(def._get_all_virtual_items()) do
-				if category ~= "nici" then
-					for _, virtual_item in pairs(list) do
-						if filter_item (virtual_item, core.strip_colors(ItemStack(virtual_item):get_description()), lang, filter) then
-							table.insert(creative_list, virtual_item)
-						end
-					end
-				end
+	for _, name in pairs(inventory_lists["all"]) do
+		local def = core.registered_items[name]
+		if def then
+			local desc = def.description or ""
+			if filter == "" or filter_item(name, desc, lang, filter) then
+				table.insert(creative_list, name)
 			end
 		end
 	end
 
-	table.sort(creative_list)
+	inv:set_size("main", #creative_list)
+	inv:set_list("main", creative_list)
+	players[playername].inv_size = #creative_list
+end
+
+-- Busca restrita à aba CBlocks
+local function set_inv_search_cblocks(filter, player)
+	local playername = player:get_player_name()
+	local inv = core.get_inventory({ type = "detached", name = "creative_" .. playername })
+	local creative_list = {}
+	filter = string.lower(string.trim(filter))
+	local lang = core.get_player_information(playername).lang_code
+
+	-- Itera APENAS sobre a lista de CBlocks
+	for _, name in pairs(inventory_lists["mcl_cblocks"]) do
+		local def = core.registered_items[name]
+		if def then
+			local desc = def.description or ""
+			if filter == "" or filter_item(name, desc, lang, filter) then
+				table.insert(creative_list, name)
+			end
+		end
+	end
 
 	inv:set_size("main", #creative_list)
 	inv:set_list("main", creative_list)
+	players[playername].inv_size = #creative_list
 end
 
 local function set_inv_page(page, player)
 	local playername = player:get_player_name()
 	local inv = core.get_inventory({ type = "detached", name = "creative_" .. playername })
-	inv:set_size("main", 0)
+
+	-- Limpa o filtro de busca ao trocar de aba
+	players[playername].filter = ""
+
 	local creative_list = {}
-	if inventory_lists[page] then -- Standard filter
+	if inventory_lists[page] then
 		creative_list = inventory_lists[page]
 	end
+
 	inv:set_size("main", #creative_list)
 	players[playername].inv_size = #creative_list
 	inv:set_list("main", creative_list)
@@ -400,7 +408,7 @@ function mcl_inventory.set_creative_formspec(player)
 	local filter = players[playername].filter
 
 	if not inv_size then
-		if page == "nix" then
+		if page == "nix" or page == "mcl_cblocks" then -- Adicionado mcl_cblocks aqui
 			local inv = core.get_inventory({ type = "detached", name = "creative_" .. playername })
 			inv_size = inv:get_size("main")
 		elseif page and page ~= "inv" then
@@ -428,11 +436,26 @@ function mcl_inventory.set_creative_formspec(player)
 	if name == "inv" then
 		local armor_slot_imgs = ""
 		local inv = player:get_inventory()
-		if inv:get_stack("armor", 2):is_empty() then armor_slot_imgs = armor_slot_imgs .. "image[3.5,0.375;1,1;mcl_inventory_empty_armor_slot_helmet.png]" end
-		if inv:get_stack("armor", 3):is_empty() then armor_slot_imgs = armor_slot_imgs .. "image[3.5,2.125;1,1;mcl_inventory_empty_armor_slot_chestplate.png]" end
-		if inv:get_stack("armor", 4):is_empty() then armor_slot_imgs = armor_slot_imgs .. "image[7.25,0.375;1,1;mcl_inventory_empty_armor_slot_leggings.png]" end
-		if inv:get_stack("armor", 5):is_empty() then armor_slot_imgs = armor_slot_imgs .. "image[7.25,2.125;1,1;mcl_inventory_empty_armor_slot_boots.png]" end
-		if inv:get_stack("offhand", 1):is_empty() then armor_slot_imgs = armor_slot_imgs .. "image[2.25,1.25;1,1;mcl_inventory_empty_armor_slot_shield.png]" end
+		if inv:get_stack("armor", 2):is_empty() then
+			armor_slot_imgs = armor_slot_imgs ..
+				"image[3.5,0.375;1,1;mcl_inventory_empty_armor_slot_helmet.png]"
+		end
+		if inv:get_stack("armor", 3):is_empty() then
+			armor_slot_imgs = armor_slot_imgs ..
+				"image[3.5,2.125;1,1;mcl_inventory_empty_armor_slot_chestplate.png]"
+		end
+		if inv:get_stack("armor", 4):is_empty() then
+			armor_slot_imgs = armor_slot_imgs ..
+				"image[7.25,0.375;1,1;mcl_inventory_empty_armor_slot_leggings.png]"
+		end
+		if inv:get_stack("armor", 5):is_empty() then
+			armor_slot_imgs = armor_slot_imgs ..
+				"image[7.25,2.125;1,1;mcl_inventory_empty_armor_slot_boots.png]"
+		end
+		if inv:get_stack("offhand", 1):is_empty() then
+			armor_slot_imgs = armor_slot_imgs ..
+				"image[2.25,1.25;1,1;mcl_inventory_empty_armor_slot_shield.png]"
+		end
 
 		local stack_size = get_stack_size(player)
 
@@ -465,7 +488,8 @@ function mcl_inventory.set_creative_formspec(player)
 			"tooltip[__mcl_player_settings;" .. F(S("Player settings")) .. "]",
 		})
 
-		listrings = listrings .. "listring[current_player;armor]listring[current_player;main]listring[current_player;offhand]listring[current_player;main]"
+		listrings = listrings ..
+			"listring[current_player;armor]listring[current_player;main]listring[current_player;offhand]listring[current_player;main]"
 	else
 		local scroll_setting = mcl_player.get_player_setting(player, "mcl_inventory:scroll_on_creative_inventory", "auto")
 		local scroll = scroll_setting == "true"
@@ -495,7 +519,9 @@ function mcl_inventory.set_creative_formspec(player)
 	end
 
 	local function tab(current_tab, this_tab)
-		local bg_img = (current_tab == this_tab) and ("crafting_creative_active" .. button_bg_postfix[this_tab] .. ".png") or ("crafting_creative_inactive" .. button_bg_postfix[this_tab] .. ".png")
+		local bg_img = (current_tab == this_tab) and
+			("crafting_creative_active" .. button_bg_postfix[this_tab] .. ".png") or
+			("crafting_creative_inactive" .. button_bg_postfix[this_tab] .. ".png")
 		return table.concat({
 			"style[" .. this_tab .. ";border=false;bgimg=;bgimg_pressed=]",
 			"style[" .. this_tab .. "_outer;border=false;bgimg=" .. bg_img .. ";bgimg_pressed=" .. bg_img .. "]",
@@ -504,8 +530,9 @@ function mcl_inventory.set_creative_formspec(player)
 		})
 	end
 
-	local caption = (name ~= "inv" and filtername[name]) and ("label[0.375,0.375;" .. F(C(mcl_formspec.label_color, filtername[name])) .. "]") or ""
-	local nici = show_nici and (tab(name, "nici") .. "tooltip[nici;"..F(filtername["nici"]).."]") or ""
+	local caption = (name ~= "inv" and filtername[name]) and
+		("label[0.375,0.375;" .. F(C(mcl_formspec.label_color, filtername[name])) .. "]") or ""
+	local nici = show_nici and (tab(name, "nici") .. "tooltip[nici;" .. F(filtername["nici"]) .. "]") or ""
 	local touch_enabled = is_touch_enabled(playername)
 	players[playername].last_touch_enabled = touch_enabled
 
@@ -523,36 +550,37 @@ function mcl_inventory.set_creative_formspec(player)
 		main_list,
 		caption,
 		listrings,
-		tab(name, "blocks") .. "tooltip[blocks;"..F(filtername["blocks"]).."]"..
-		tab(name, "deco") .. "tooltip[deco;"..F(filtername["deco"]).."]"..
-		tab(name, "redstone") .. "tooltip[redstone;"..F(filtername["redstone"]).."]"..
-		tab(name, "rail") .. "tooltip[rail;"..F(filtername["rail"]).."]"..
-		tab(name, "misc") .. "tooltip[misc;"..F(filtername["misc"]).."]"..
-		tab(name, "nix") .. "tooltip[nix;"..F(filtername["nix"]).."]"..
-		tab(name, "food") .. "tooltip[food;"..F(filtername["food"]).."]"..
-		tab(name, "tools") .. "tooltip[tools;"..F(filtername["tools"]).."]"..
-		tab(name, "combat") .. "tooltip[combat;"..F(filtername["combat"]).."]"..
-		tab(name, "mobs") .. "tooltip[mobs;"..F(filtername["mobs"]).."]"..
-		tab(name, "brew") .. "tooltip[brew;"..F(filtername["brew"]).."]"..
-		tab(name, "matr") .. "tooltip[matr;"..F(filtername["matr"]).."]",
+		tab(name, "blocks") .. "tooltip[blocks;" .. F(filtername["blocks"]) .. "]" ..
+		tab(name, "deco") .. "tooltip[deco;" .. F(filtername["deco"]) .. "]" ..
+		tab(name, "redstone") .. "tooltip[redstone;" .. F(filtername["redstone"]) .. "]" ..
+		tab(name, "rail") .. "tooltip[rail;" .. F(filtername["rail"]) .. "]" ..
+		tab(name, "misc") .. "tooltip[misc;" .. F(filtername["misc"]) .. "]" ..
+		tab(name, "nix") .. "tooltip[nix;" .. F(filtername["nix"]) .. "]" ..
+		tab(name, "food") .. "tooltip[food;" .. F(filtername["food"]) .. "]" ..
+		tab(name, "tools") .. "tooltip[tools;" .. F(filtername["tools"]) .. "]" ..
+		tab(name, "combat") .. "tooltip[combat;" .. F(filtername["combat"]) .. "]" ..
+		tab(name, "mobs") .. "tooltip[mobs;" .. F(filtername["mobs"]) .. "]" ..
+		tab(name, "brew") .. "tooltip[brew;" .. F(filtername["brew"]) .. "]" ..
+		tab(name, "matr") .. "tooltip[matr;" .. F(filtername["matr"]) .. "]",
 		nici,
-		tab(name, "inv") .. "tooltip[inv;"..F(filtername["inv"]).."]",
+		tab(name, "inv") .. "tooltip[inv;" .. F(filtername["inv"]) .. "]",
 		--mcl_cblocks and mcl_colorblocks
-		
-		tab(name, "mcl_cblocks") .. "tooltip[mcl_cblocks;"..F(filtername["mcl_cblocks"]).."]"
+
+		tab(name, "mcl_cblocks") .. "tooltip[mcl_cblocks;" .. F(filtername["mcl_cblocks"]) .. "]"
 	})
 
-	if name == "nix" then
+	if name == "nix" or name == "mcl_cblocks" then
 		formspec = formspec .. "field[5.325,0.15;6.1,0.6;search;;" .. core.formspec_escape(filter or "") .. "]" ..
 			"field_enter_after_edit[search;true]field_close_on_enter[search;false]set_focus[search;true]"
 	end
 	formspec = formspec .. "container_end[]"
 	if pagenum then formspec = formspec .. "p" .. tostring(pagenum) end
-	mcl_player.set_inventory_formspec (player, formspec, 0)
+	mcl_player.set_inventory_formspec(player, formspec, 0)
 end
 
 core.register_on_player_receive_fields(function(player, formname, fields)
 	local page = nil
+	local is_search = false
 	if not core.is_creative_enabled(player:get_player_name()) then return end
 	if formname ~= "" or fields.quit == "true" then return end
 	local scrollbar_event = core.explode_scrollbar_event(fields.scroll)
@@ -560,48 +588,95 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 
 	local name = player:get_player_name()
 
-	if fields.blocks or fields.blocks_outer then page = "blocks"
-	elseif fields.deco or fields.deco_outer then page = "deco"
-	elseif fields.redstone or fields.redstone_outer then page = "redstone"
-	elseif fields.rail or fields.rail_outer then page = "rail"
-	elseif fields.misc or fields.misc_outer then page = "misc"
-	elseif fields.nix or fields.nix_outer then page = "nix"
-	elseif fields.food or fields.food_outer then page = "food"
-	elseif fields.tools or fields.tools_outer then page = "tools"
-	elseif fields.combat or fields.combat_outer then page = "combat"
-	elseif fields.mobs or fields.mobs_outer then page = "mobs"
-	elseif fields.brew or fields.brew_outer then page = "brew"
-	elseif fields.matr or fields.matr_outer then page = "matr"
-	elseif fields.nici or fields.nici_outer then page = "nici"
-	elseif fields.mcl_cblocks or fields.mcl_cblocks_outer then page = "mcl_cblocks" 
-	elseif fields.inv or fields.inv_outer then page = "inv"
-	elseif fields.search then
-		set_inv_search(fields.search, player)
+	if fields.blocks or fields.blocks_outer then
+		page = "blocks"
+	elseif fields.deco or fields.deco_outer then
+		page = "deco"
+	elseif fields.redstone or fields.redstone_outer then
+		page = "redstone"
+	elseif fields.rail or fields.rail_outer then
+		page = "rail"
+	elseif fields.misc or fields.misc_outer then
+		page = "misc"
+	elseif fields.nix or fields.nix_outer then
 		page = "nix"
+	elseif fields.food or fields.food_outer then
+		page = "food"
+	elseif fields.tools or fields.tools_outer then
+		page = "tools"
+	elseif fields.combat or fields.combat_outer then
+		page = "combat"
+	elseif fields.mobs or fields.mobs_outer then
+		page = "mobs"
+	elseif fields.brew or fields.brew_outer then
+		page = "brew"
+	elseif fields.matr or fields.matr_outer then
+		page = "matr"
+	elseif fields.nici or fields.nici_outer then
+		page = "nici"
+	elseif fields.mcl_cblocks or fields.mcl_cblocks_outer then
+		page = "mcl_cblocks"
+	elseif fields.inv or fields.inv_outer then
+		page = "inv"
+	elseif fields.search then
+		is_search = true
+		local current_page = players[name].page
+		if current_page == "mcl_cblocks" then
+			set_inv_search_cblocks(fields.search, player)
+			page = "mcl_cblocks" -- Mantém o jogador na aba CBlocks
+		else
+			set_inv_search(fields.search, player)
+			page = "nix" -- Comportamento padrão para outras abas
+		end
 	elseif fields.__switch_stack then
 		set_stack_size(player, get_stack_size(player) == 1 and 64 or 1)
 	end
 
+	-- Posição de rolagem/paginação
+	if fields.creative_prev then
+		players[name].start_i = math.max(0, (players[name].start_i or 0) - (9 * 5))
+	elseif fields.creative_next then
+		players[name].start_i = (players[name].start_i or 0) + (9 * 5)
+	elseif is_search or (page and page ~= players[name].page) then
+		players[name].start_i = 0
+	end
+
+	-- Troca/atualiza a página.
+	-- IMPORTANTE: não chamar set_inv_page numa ação de busca (is_search == true),
+	-- pois isso sobrescreveria a lista já filtrada pela lista completa (sem filtro).
+	-- Esse era exatamente o motivo da busca na aba CBlocks "voltar pra página 1"
+	-- mostrando todos os blocos, e não os resultados da busca.
 	if page then
-		if page ~= "inv" and page ~= "nix" then set_inv_page(page, player) end
+		if not is_search and page ~= "inv" and page ~= "nix" then
+			set_inv_page(page, player)
+		end
 		players[name].page = page
 	else
 		page = players[name].page
 	end
 
 	local start_i = players[name].start_i or 0
-	if fields.creative_prev then start_i = start_i - 9 * 5
-	elseif fields.creative_next then start_i = start_i + 9 * 5
-	else start_i = 0 end
-	
+
 	local inv_size = 0
-	if page == "nix" then inv_size = core.get_inventory({ type = "detached", name = "creative_" .. name }):get_size("main")
-	elseif page and page ~= "inv" then inv_size = #(inventory_lists[page] or {}) end
-	
+	if page == "nix" or page == "mcl_cblocks" then
+		-- Depois de uma busca, o tamanho real está no inventário "detached",
+		-- não em inventory_lists[page] (que é a lista completa, sem filtro).
+		inv_size = core.get_inventory({ type = "detached", name = "creative_" .. name }):get_size("main")
+	elseif page and page ~= "inv" then
+		inv_size = #(inventory_lists[page] or {})
+	end
+
 	players[name].inv_size = inv_size
 	if start_i < 0 or start_i >= inv_size then start_i = 0 end
 	players[name].start_i = start_i
-	players[name].filter = (not fields.nix and fields.search) and fields.search or ""
+
+	if is_search then
+		players[name].filter = fields.search
+	elseif page ~= "nix" and page ~= "mcl_cblocks" then
+		players[name].filter = ""
+	end
+	-- se page for "nix"/"mcl_cblocks" sem ser busca (ex: creative_prev/next,
+	-- __switch_stack), mantém o filtro atual em players[name].filter
 
 	mcl_inventory.set_creative_formspec(player)
 	mcl_inventory.show_inventory(player)
