@@ -2,7 +2,7 @@ local S = core.get_translator("mobs_mc")
 
 local textures = {
 	cold   = 1,
-	snowy = 1,
+	snowy  = 1,
 	medium = 2,
 	hot    = 3,
 }
@@ -14,14 +14,14 @@ local function try_lay_frogspawn(self)
 
 	local p1 = vector.offset(pos, -3, -1, -3)
 	local p2 = vector.offset(pos, 3, 2, 3)
-	local water_positions = core.find_nodes_in_area_under_air(p1, p2, {"group:water"})
+	local water_positions = core.find_nodes_in_area_under_air(p1, p2, { "group:water" })
 	if not water_positions or #water_positions == 0 then return false end
 
 	local chosen = water_positions[math.random(1, #water_positions)]
 	local above = vector.offset(chosen, 0, 1, 0)
 	if core.get_node(above).name ~= "air" then return false end
 
-	core.set_node(above, {name = "mcl_mobitems:frogspawn"})
+	core.set_node(above, { name = "mcl_mobitems:frogspawn" })
 	return true
 end
 
@@ -29,58 +29,61 @@ end
 -- FROG
 -------------------------------------------------
 mcl_mobs.register_mob("mobs_mc:frog", {
-	description = S("Frog"),
-	type = "animal",
-	passive = true,
-	group_attack = true,
-	follow = {"mcl_mobitems:slimeball"},
-	pace_bonus = 0.5,
+	description       = S("Frog"),
+	type              = "animal",
+	passive           = true,
+	group_attack      = true,
+	follow            = { "mcl_mobitems:slimeball" },
+	pace_bonus        = 0.5,
 
 	-------------------------------------------------
 	-- MOVIMENTO
 	-------------------------------------------------
-    walk_velocity = 0.9,
-	run_velocity  = 1.1,
-	jump = true,
-	jump_height = 1.5,
-	stepheight = 1.1,
-	amphibious = true,
+	walk_velocity     = 0.9,
+	run_velocity      = 1.1,
+	jump              = true,
+	jump_height       = 1.5,
+	stepheight        = 1.1,
+	amphibious        = true,
 	breathes_in_water = true,
-	breath_max = -1,
-	water_damage = 0,
-	fall_damage = 0,
-	fear_height = 5,
+	breath_max        = -1,
+	water_damage      = 0,
+	fall_damage       = 0,
+	fear_height       = 5,
 
 	-------------------------------------------------
 	-- COMBATE E VIDA
 	-------------------------------------------------
-	attack_type = "melee",
-	damage = 1,
-	hp_min = 10,
-	hp_max = 10,
-	armor = 100,
+	attack_type       = "melee",
+	damage            = 1,
+	hp_min            = 10,
+	hp_max            = 10,
+	armor             = 100,
 
 	-------------------------------------------------
 	-- VISUAL
 	-------------------------------------------------
-	collisionbox = {-0.3, 0, -0.3, 0.3, 0.4, 0.3},
-	visual = "mesh",
-	mesh = "mobs_mc_frog.b3d",
-	visual_size = {x = 10, y = 10},
-	texture_list = {
-		{"mobs_mc_frog.png"},
-		{"mobs_mc_frog_temperate.png"},
-		{"mobs_mc_frog_warm.png"},
+	collisionbox      = { -0.3, 0, -0.3, 0.3, 0.4, 0.3 },
+	visual            = "mesh",
+	mesh              = "mobs_mc_frog.b3d",
+	visual_size       = { x = 10, y = 10 },
+	texture_list      = {
+		{ "mobs_mc_frog.png" },
+		{ "mobs_mc_frog_temperate.png" },
+		{ "mobs_mc_frog_warm.png" },
 	},
 
-	animation = {
+	animation         = {
 		speed_normal = 15,
-		stand_start = 1, stand_end = 80,
-		walk_start  = 90, walk_end  = 105,
-		jump_start = 90, jump_end = 105,
+		stand_start = 1,
+		stand_end = 80,
+		walk_start = 90,
+		walk_end = 105,
+		jump_start = 90,
+		jump_end = 105,
 	},
 
-	on_rightclick = function(self, clicker)
+	on_rightclick     = function(self, clicker)
 		local item = clicker:get_wielded_item()
 		if item:get_name() == "mcl_mobitems:slimeball" then
 			if self:follow_holding(clicker) and self:feed_tame(clicker, 4, true, false) then
@@ -93,13 +96,13 @@ mcl_mobs.register_mob("mobs_mc:frog", {
 		end
 	end,
 
-	on_breed = function(self, _)
+	on_breed          = function(self, _)
 		self._frog_pregnant = true
 		self._frog_pregnant_timer = math.random(180, 600)
 		return false
 	end,
 
-	on_spawn = function(self)
+	on_spawn          = function(self)
 		local pos = self.object:get_pos()
 		if not pos then return end
 		local bd = core.get_biome_data(pos)
@@ -108,13 +111,13 @@ mcl_mobs.register_mob("mobs_mc:frog", {
 		local bdef = core.registered_biomes[bname]
 		if not bdef then return end
 		self.texture_selected = textures[bdef._mcl_biome_type] or textures.medium
-		self:set_properties({textures = self.texture_list[self.texture_selected]})
+		self:set_properties({ textures = self.texture_list[self.texture_selected] })
 	end,
 
 	-------------------------------------------------
 	-- IA CUSTOM
 	-------------------------------------------------
-	do_custom = function(self, dtime)
+	do_custom         = function(self, dtime)
 		if not self.object then return end
 		local pos = self.object:get_pos()
 		if not pos then return end
@@ -136,16 +139,16 @@ mcl_mobs.register_mob("mobs_mc:frog", {
 		-- Se o mob quer andar mas a velocidade horizontal é quase zero
 		if self.state == "walk" or self.state == "attack" then
 			local v = self.object:get_velocity()
-			local h_speed = math.sqrt(v.x^2 + v.z^2)
-			
+			local h_speed = math.sqrt(v.x ^ 2 + v.z ^ 2)
+
 			if h_speed < 0.1 then
 				self._stuck_timer = (self._stuck_timer or 0) + dtime
 				if self._stuck_timer > 1.2 then -- Se parado por 1.2 segundos tentando andar
 					-- Pulo de fuga: Direção aleatória e força vertical
 					local rand_yaw = math.random() * math.pi * 2
 					self.object:set_yaw(rand_yaw)
-					local dir = {x = -math.sin(rand_yaw), y = 0, z = math.cos(rand_yaw)}
-					
+					local dir = { x = -math.sin(rand_yaw), y = 0, z = math.cos(rand_yaw) }
+
 					self.object:set_velocity({
 						x = dir.x * 3.5,
 						y = 5.2, -- Pulo alto para sair de buracos/cercas
@@ -161,7 +164,7 @@ mcl_mobs.register_mob("mobs_mc:frog", {
 
 		-- 3. DETECÇÃO DE ÁGUA E SAÍDA
 		local node_pos = core.get_node(pos).name
-		local node_below = core.get_node({x=pos.x, y=pos.y-0.5, z=pos.z}).name
+		local node_below = core.get_node({ x = pos.x, y = pos.y - 0.5, z = pos.z }).name
 		local in_water = core.get_item_group(node_pos, "water") ~= 0 or core.get_item_group(node_below, "water") ~= 0
 
 		if not in_water then
@@ -173,7 +176,7 @@ mcl_mobs.register_mob("mobs_mc:frog", {
 				if vel and (math.abs(vel.x) > 0.1 or math.abs(vel.z) > 0.1) then
 					local yaw = self.object:get_yaw()
 					if yaw then
-						local dir = {x = -math.sin(yaw), y = 0, z = math.cos(yaw)}
+						local dir = { x = -math.sin(yaw), y = 0, z = math.cos(yaw) }
 						self.object:add_velocity({
 							x = dir.x * 2.5,
 							y = 4.2,
@@ -190,21 +193,22 @@ mcl_mobs.register_mob("mobs_mc:frog", {
 				self._water_exit_timer = 1.0
 				local p1 = vector.offset(pos, -4, -1, -4)
 				local p2 = vector.offset(pos, 4, 1, 4)
-				local land = core.find_nodes_in_area_under_air(p1, p2, {"group:soil","group:grass","group:sand","group:stone","group:tree","group:wood"})
-				
+				local land = core.find_nodes_in_area_under_air(p1, p2,
+					{ "group:soil", "group:grass", "group:sand", "group:stone", "group:tree", "group:wood" })
+
 				if #land > 0 then
 					local target = land[math.random(#land)]
 					local dir = vector.direction(pos, target)
 					self.object:set_yaw(math.atan2(-dir.x, dir.z))
 					self.object:set_velocity({
-						x = dir.x * 5, 
-						y = 6.0, 
+						x = dir.x * 5,
+						y = 6.0,
 						z = dir.z * 5
 					})
 					self:set_animation("jump")
 				else
 					-- Apenas boiar/pular se não vir terra
-					self.object:add_velocity({x=0, y=2.5, z=0})
+					self.object:add_velocity({ x = 0, y = 2.5, z = 0 })
 				end
 			end
 		end
@@ -225,7 +229,7 @@ mcl_mobs.register_mob("mobs_mc:frog", {
 						}
 						core.add_item(pos, drops[self.texture_selected or 2])
 					end
-					core.sound_play("frog_eat", {pos = pos})
+					core.sound_play("frog_eat", { pos = pos })
 					self:set_animation("stand")
 				end
 			end
@@ -241,7 +245,11 @@ mcl_mobs.spawn_setup({
 	type_of_spawning = "ground",
 	dimension = "overworld",
 	aoc = 9,
-	biomes = {"Swampland","MangroveSwamp"},
+	biomes = { 
+		"Swampland",
+		"Swampland_shore",
+		"MangroveSwamp",
+		"MangroveSwamp_shore", },
 	chance = 30,
 })
 
@@ -252,13 +260,14 @@ mcl_mobs.register_mob("mobs_mc:tadpole", {
 	type = "animal",
 	spawn_class = "passive",
 	damage = 0,
-	hp_min = 6, hp_max = 6,
+	hp_min = 6,
+	hp_max = 6,
 	pace_bonus = 0.3,
 	armor = 100,
 	visual = "mesh",
 	mesh = "mobs_mc_tadpole.b3d",
 	visual_size = { x = 10, y = 10 },
-	texture_list = {{"mobs_mc_tadpole.png"}},
+	texture_list = { { "mobs_mc_tadpole.png" } },
 	swims = true,
 	breathes_in_water = true,
 	on_spawn = function(self) self._grow_timer = math.random(600, 1200) end,
