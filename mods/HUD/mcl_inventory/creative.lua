@@ -305,10 +305,10 @@ local function init(player)
 		on_take = function(inv, listname, index, stack, player)
 			-- Se tirou algo da saída, consuma 1 do input (ajuste a proporção conforme necessário)
 			if listname == "moreblocks_output" then
-				local input_stack = inv:get_stack("moreblocks_input", 1)
+				local input_stack = inv:get_stack("moreblocks_input", 0)
 				if not input_stack:is_empty() then
-					input_stack:take_item(1)
-					inv:set_stack("moreblocks_input", 1, input_stack)
+					input_stack:take_item(0)
+					inv:set_stack("moreblocks_input", 0, input_stack)
 					update_moreblocks_output(inv)
 				end
 			elseif listname == "moreblocks_input" then
