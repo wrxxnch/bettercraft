@@ -264,6 +264,9 @@ function mcl_serverplayer.init_player (client_state, player)
 			riptide_eligible = riptide_eligible,
 		})
 	end
+	if client_state.proto >= 14 then
+		mcl_maps.clear_player_hud (player)
+	end
 end
 
 function mcl_serverplayer.sprinting_locally (player)

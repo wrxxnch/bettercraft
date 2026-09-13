@@ -191,6 +191,31 @@ mcl_inv_nodes_movable (Movable inventory nodes) bool true
 # Allow players to create Minecraft-like maps.
 enable_real_maps (Real maps) bool true
 
+# Enable the map grid utilized by earlier releases of Mineclonia.
+#
+# If enabled, the map grid will commence at 0, 0, rather than -64, 64,
+# so that 0, 0 will exist at the south-west corner of a map created at
+# that position, rather than at the center.
+#
+# Being a mapgen setting, when configured here it will influence all
+# worlds launched from this Luanti installation or with this
+# minetest.conf in effect, unless another value is specified in
+# map_meta.txt.  This option may be configured for individual worlds
+# by editing map_meta.txt.
+mcl_use_old_map_grid (Use old map grid) bool false
+
+# Enable minimap-style shading in cartography.
+#
+# If enabled, shading of pixels in maps will be performed with
+# reference to the normal of the surface at each position, rather than
+# the difference between the height of the node at such position and
+# the position above, as in Minecraft.
+#
+# Enabling this option produces maps where large or tall terrain
+# features are more legible, and which are more visually akin to the
+# built-in minimap.
+mcl_enable_minimap_map_shading (Use minimap-style shading in maps) bool false
+
 # Place bonus chest near players' initial spawn point
 mcl_bonus_chest (Bonus chest) bool false
 
