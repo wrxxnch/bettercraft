@@ -43,7 +43,8 @@ end
 local texture_colors = load_json_file("colors")
 local palettes = load_json_file("palettes")
 local storage = core.get_mod_storage ()
-
+core.settings:set ("enable_real_maps", "true")
+local enable_real_maps = true
 local map_colors_by_cid = {}
 
 local rshift = bit.rshift
@@ -73,7 +74,7 @@ core.register_on_mods_loaded (function ()
 	for i = 0, 65535 do
 		map_colors_by_cid[i] = nil
 	end
-	for k, v in pairs (texture_colors) do
+		for k, v in pairs (texture_colors) do
 		local ok, cid = pcall (core.get_content_id, k)
 		if not ok then
 			core.log ("warning", string.format ("[mcl_maps]: colors.json contains unknown node `%s'.", k))
@@ -91,9 +92,21 @@ core.register_on_mods_loaded (function ()
 			map_colors_by_cid[cid] = by_param2
 		else
 			map_colors_by_cid[cid] = encode_rgb (v[1], v[2], v[3])
+			end
 		end
-	end
-end)
+		for _, name in ipairs ({
+			"mcl_trees:tree_pale_oak",
+			"mcl_trees:bark_pale_oak",
+			"mcl_trees:leaves_pale_oak",
+			"mcl_trees:stripped_pale_oak",
+			"mcl_trees:stripped_bark_pale_oak",
+		}) do
+			local ok, cid = pcall (core.get_content_id, name)
+			if ok then
+				map_colors_by_cid[cid] = encode_rgb (145, 145, 145)
+			end
+		end
+	end)
 
 local formspec_escapes = {
 	["\\"] = "\\\\",
@@ -801,6 +814,7 @@ core.register_craftitem ("mcl_maps:map_locked", {
 })
 
 local map_update_cnt = 0
+local map_update_serial = 0
 local N = 4 -- Number of rows to update on each globalstep.
 mcl_maps.N = N
 local STEPS_PER_MAP = MAP_DATA_LENGTH / N
@@ -942,6 +956,9 @@ function update_all_maps ()
 		end
 	end
 	mcl_serverplayer.send_cartography_updates (updates, map_update_cnt)
+	if next (updates) then
+		map_update_serial = map_update_serial + 1
+	end
 	map_update_cnt = (map_update_cnt + 3) % STEPS_PER_MAP
 end
 
@@ -1611,6 +1628,7 @@ core.register_on_joinplayer(function(player)
 		treasure = player:hud_add (treasure_def),
 		marker = player:hud_add (marker_def),
 		light = core.LIGHT_MAX,
+		map_update_serial = -1,
 	}
 end)
 
@@ -1688,7 +1706,8 @@ mcl_player.register_globalstep (function (player)
 		return
 	end
 
-	if hud.wielditem and hud.wielditem:equals (wield) then
+	if hud.wielditem and hud.wielditem:equals (wield)
+			and hud.map_update_serial == map_update_serial then
 		texture = hud.last_texture
 		id = hud.last_map_id
 	else
@@ -1696,6 +1715,7 @@ mcl_player.register_globalstep (function (player)
 		hud.wielditem = wield
 		hud.last_texture = texture
 		hud.last_map_id = id
+		hud.map_update_serial = map_update_serial
 
 		local map_name = wield:get_name ()
 		if texture and map_name ~= "mcl_maps:map_locked" then
