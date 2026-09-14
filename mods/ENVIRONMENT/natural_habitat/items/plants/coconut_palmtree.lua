@@ -14,7 +14,7 @@ local log_groups, leaves_groups, coconut_groups, coconut_hanging_groups = {}, {}
     coconut_groups = {
         handy=1, deco_block=1, compostability=65, falling_node=1,
     };
-    leaves_groups = { handy=1, food=2, deco_block=1, compostability=65, };
+    leaves_groups = { handy=1, deco_block=1, compostability=65, };
 
 
 core.register_node("natural_habitat:coconut_palmtree_log", {
