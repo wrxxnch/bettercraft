@@ -554,7 +554,13 @@ local v1 = vector.new ()
 local v2 = vector.new ()
 local vm_y1
 local vm, area, cids, param2 = nil, nil, {}, {}
-
+local function close_vm (voxelmanip)
+	if mcl_util.vm_close then
+		mcl_util.vm_close (voxelmanip)
+	else
+		voxelmanip:close ()
+	end
+end
 local function vm_get_node_raw (x, y, z)
 	-- X Y and Z are otherwise guaranteed to exist within the VM.
 	if y > vm_y1 then
@@ -574,7 +580,7 @@ local function prepare_map_generation_vm (map, y1)
 	v2.y = y1 + MAP_UPDATE_AREA_Y - 1
 	v2.z = map.z_start + (MAP_UPDATE_AREA + 1) * map.scale
 	if vm then
-		mcl_util.vm_close (vm)
+		close_vm (vm)
 	end
 	vm = VoxelManip (v1, v2)
 	vm:get_data (cids)
@@ -585,7 +591,7 @@ end
 local function prepare_map_generation ()
 	map_get_node_raw = core.get_node_raw
 	if vm then
-		mcl_util.vm_close (vm)
+		close_vm (vm)
 		vm = nil
 	end
 end
