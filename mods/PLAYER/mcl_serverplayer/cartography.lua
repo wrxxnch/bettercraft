@@ -110,6 +110,13 @@ end
 
 function mcl_serverplayer.step_maps (state, player, dtime)
 	local wielditem = player:get_wielded_item ()
+	if core.get_item_group (wielditem:get_name (), "filled_map") <= 0 then
+		local inv = player:get_inventory ()
+		local offhand = inv and inv:get_stack ("offhand", 1)
+		if offhand and core.get_item_group (offhand:get_name (), "filled_map") > 0 then
+			wielditem = offhand
+		end
+	end
 	local meta = wielditem:get_meta ()
 	local name = wielditem:get_name ()
 

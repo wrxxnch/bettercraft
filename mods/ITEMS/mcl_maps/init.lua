@@ -796,6 +796,7 @@ core.register_craftitem ("mcl_maps:map", {
 	groups = {
 		not_in_creative_inventory = 1,
 		filled_map = 1,
+		offhand_item = 1,
 		tool = 1,
 	},
 })
@@ -809,6 +810,7 @@ core.register_craftitem ("mcl_maps:map_locked", {
 	groups = {
 		not_in_creative_inventory = 1,
 		filled_map = 1,
+		offhand_item = 1,
 		tool = 1,
 	},
 })
@@ -916,12 +918,24 @@ local function update_one_map (nodepos, map)
 end
 
 local realize_explorer_map
+local function get_active_map_item (player)
+	local item = player:get_wielded_item ()
+	if core.get_item_group (item:get_name (), "filled_map") > 0 then
+		return item
+	end
+	local inv = player:get_inventory ()
+	local offhand = inv and inv:get_stack ("offhand", 1)
+	if offhand and core.get_item_group (offhand:get_name (), "filled_map") > 0 then
+		return offhand
+	end
+	return item
+end
 
 function update_all_maps ()
 	local updates = {}
 	prepare_map_generation ()
 	for player, pos in mcl_player.iterate_connected_players () do
-		local wielditem = player:get_wielded_item ()
+		local wielditem = get_active_map_item (player)
 		local nodepos = mcl_util.get_nodepos (pos)
 		local item_name = wielditem:get_name ()
 		local map_id, explorer_map_id
@@ -1166,6 +1180,7 @@ local explorer_map_toplevel = {
 		not_in_creative_inventory = 1,
 		filled_map = 1,
 		explorer_map = 1,
+		offhand_item = 1,
 		tool = 1,
 	},
 	_on_entity_step = explorer_map_on_entity_step,
@@ -1699,6 +1714,11 @@ end
 
 mcl_player.register_globalstep (function (player)
 	local wield = player:get_wielded_item ()
+	local offhand = player:get_inventory ():get_stack ("offhand", 1)
+	if core.get_item_group (wield:get_name (), "filled_map") <= 0
+		and core.get_item_group (offhand:get_name (), "filled_map") > 0 then
+		wield = offhand
+	end
 	local hud = huds[player]
 	local texture, id
 

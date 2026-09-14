@@ -209,28 +209,18 @@ function mcl_itemframes.tpl_entity:set_item(itemstack, pos)
 	local def = mcl_itemframes.registered_itemframes[ndef._mcl_itemframe]
 	self._item = itemstack:get_name()
 	self._stack = itemstack
-	self._map_id = get_map_id(itemstack)
+	self._map_id = load_map_id (itemstack)
 
 	local dir = core.wallmounted_to_dir(core.get_node(pos).param2)
 	self.object:set_pos(vector.add(self._itemframe_pos, dir * 0.42))
 	self.object:set_rotation(vector.dir_to_rotation(dir))
 
 	if self._map_id then
-		local unran_callback = true
-		mcl_maps.load_map(self._map_id, function(texture)
-			unran_callback = false
-			if self.object and self.object:get_pos() then
-				self.object:set_properties(table.merge(map_props, {textures = {texture}}))
-			end
-		end)
-		-- dirty recursive hack because dynamic_add_media is unreliable
-		-- (and subsequently, mcl_maps.load_map is just as unreliable)
-		core.after(0, function()
-			if unran_callback then
-				update_entity(pos)
-			end
-		end)
-		return
+		local texture = mcl_maps.load_map_texture (self._map_id)
+		if texture then
+			self.object:set_properties(table.merge(map_props, {textures = {texture}}))
+			return
+		end
 	end
 	local idef = itemstack:get_definition()
 	local ws = idef.wield_scale
