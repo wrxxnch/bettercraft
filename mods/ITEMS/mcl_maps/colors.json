@@ -8745,9 +8745,9 @@
 		99
 	],
 	"default_acacia_leaves.png": [
-		114,
 		112,
-		74
+		132,
+		48
 	],
 	"mcl_core_frosted_ice_2.png": [
 		153,
@@ -8810,9 +8810,9 @@
 		42
 	],
 	"mcl_core_grass_block_side_overlay.png": [
-		153,
-		142,
-		123
+		92,
+		148,
+		54
 	],
 	"mcl_core_glass_gray.png": [
 		75,
@@ -9070,9 +9070,9 @@
 		75
 	],
 	"default_jungleleaves.png": [
-		146,
-		136,
-		117
+		54,
+		122,
+		48
 	],
 	"mcl_core_glass_light_blue_detail.png": [
 		101,
@@ -9590,9 +9590,9 @@
 		126
 	],
 	"mcl_core_grass_block_top.png": [
-		141,
-		130,
-		113
+		92,
+		148,
+		54
 	],
 	"mcl_core_glass_yellow.png": [
 		228,

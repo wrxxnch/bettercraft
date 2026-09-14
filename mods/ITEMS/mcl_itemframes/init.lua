@@ -223,7 +223,7 @@ function mcl_itemframes.tpl_entity:set_item(itemstack, pos)
 		end
 	end
 	local idef = itemstack:get_definition()
-	local ws = idef.wield_scale
+	local ws = idef.wield_scale or {x = 1, y = 1, z = 1}
 	self.object:set_properties(table.merge(base_props, {
 		wield_item = self._item,
 		visual_size = {x = base_props.visual_size.x / ws.x, y = base_props.visual_size.y / ws.y},

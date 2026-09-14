@@ -47,7 +47,8 @@ local function refresh_cartography(pos, player)
 	if map and texture and marker:is_empty() then
 		formspec = formspec .. table.concat{base_map_bg, base_map_img}
 	elseif map and texture and marker then
-		if marker_name == "mcl_maps:empty_map" then
+			if marker_name == "mcl_maps:map_empty"
+				or marker_name == "mcl_maps:empty_map" then
 			formspec = formspec .. table.concat({
 				"image[6.125,0.5;3,3;mcl_maps_map_background.png]",
 				"image[6.375,0.75;2.5,2.5;" .. texture .. "]",
@@ -97,9 +98,12 @@ minetest.register_node("mcl_cartography_table:cartography_table", {
 	allow_metadata_inventory_put = function(pos, listname, index, stack, player)
 		if minetest.is_protected(pos, player:get_player_name()) or listname == "output" then
 			return 0
-		else
-			if index == 2 and not stack:get_name():find("filled_map") then return 0 end
-			if index == 1 and not allowed_to_put[stack:get_name()] then return 0 end
+			else
+				if index == 2
+					and minetest.get_item_group(stack:get_name(), "filled_map") <= 0 then
+					return 0
+				end
+				if index == 1 and not allowed_to_put[stack:get_name()] then return 0 end
 			return stack:get_count()
 		end
 	end,

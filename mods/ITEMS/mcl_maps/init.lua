@@ -11,16 +11,18 @@ local worldpath = core.get_worldpath()
 local map_textures_path = worldpath .. "/mcl_maps/"
 
 local detected_old_maps = false
-if core.path_exists (map_textures_path) then
-	for _, name in ipairs (core.get_dir_list (map_textures_path)) do
+local map_texture_files = core.get_dir_list (map_textures_path)
+if map_texture_files then
+	for _, name in ipairs (map_texture_files) do
 		if name:find ("^mcl_maps_map_texture_") then
 			detected_old_maps = true
 			break
 		end
 	end
-else
-	core.mkdir (map_textures_path)
 end
+-- get_dir_list may return an empty list for a directory that does not
+-- exist on older Luanti versions. mkdir is safe when it already exists.
+core.mkdir (map_textures_path)
 
 local use_old_map_grid
 	= core.get_mapgen_setting ("mcl_use_old_map_grid")
@@ -458,7 +460,7 @@ end
 local function allocate_map_id ()
 	local base = os.date ("map_%Y%m%d%H%M%S_")
 	local i = 0
-	while core.path_exists (map_name (base .. i)) do
+	while mcl_util.file_exists (map_name (base .. i)) do
 		i = i + 1
 	end
 
@@ -498,14 +500,24 @@ local function write_map_data (id, map)
 	serialize_data (bin, map.heightmap, #bin)
 	local image = table.concat (bin)
 
-	local rc = core.safe_file_write (map_name (id), str)
-	if not rc then
-		error ("Could not write map metadata for " .. id)
+	local function write_file (filename, data)
+		local file, err = io.open (filename, "wb")
+		if not file then
+			return false, err
+		end
+		local ok, write_err = file:write (data)
+		local close_ok, close_err = file:close ()
+		return ok and close_ok ~= false, write_err or close_err
 	end
 
-	local rc = core.safe_file_write (image_name (id), image)
+	local rc, err = write_file (map_name (id), str)
 	if not rc then
-		error ("Could not write map data for " .. id)
+		error ("Could not write map metadata for " .. id .. ": " .. tostring (err))
+	end
+
+	rc, err = write_file (image_name (id), image)
+	if not rc then
+		error ("Could not write map data for " .. id .. ": " .. tostring (err))
 	end
 end
 
@@ -815,6 +827,29 @@ core.register_craftitem ("mcl_maps:map_locked", {
 	},
 })
 
+core.register_craftitem ("mcl_maps:magic_map", {
+	description = S ("Magic Map"),
+	_tt_help = S ("A map that updates as you explore."),
+	_doc_items_longdesc = S ("This map continuously records the terrain around you while it is held."),
+	_doc_items_usagehelp = S ("Craft a map with an amethyst shard, then hold it to update the explored area."),
+	inventory_image = "mcl_maps_map_filled.png^(mcl_maps_map_filled_markings.png^[colorize:#a878d8)",
+	on_place = use_filled_map,
+	on_secondary_use = use_filled_map,
+	groups = {
+		not_in_creative_inventory = 1,
+		filled_map = 1,
+		magic_map = 1,
+		offhand_item = 1,
+		tool = 1,
+	},
+})
+
+core.register_craft ({
+	type = "shapeless",
+	output = "mcl_maps:magic_map",
+	recipe = { "mcl_maps:map", "mcl_amethyst:amethyst_shard" },
+})
+
 local map_update_cnt = 0
 local map_update_serial = 0
 local N = 4 -- Number of rows to update on each globalstep.
@@ -822,7 +857,7 @@ mcl_maps.N = N
 local STEPS_PER_MAP = MAP_DATA_LENGTH / N
 local STEP_MASK = 0x1f
 
-local function update_one_map_unscaled (nodepos, map)
+local function update_one_map_unscaled (nodepos, map, update_all_rows)
 	local radius = CIRCLE_RADIUS
 	local xmin = nodepos.x - radius
 	local xmax = nodepos.x + radius - 1
@@ -842,7 +877,7 @@ local function update_one_map_unscaled (nodepos, map)
 		local player_x = nodepos.x - map.x_start
 		local player_z = nodepos.z - map.z_start
 		for i = z1, z2 do
-			if band (i, STEP_MASK) == map_update_cnt then
+			if update_all_rows or band (i, STEP_MASK) == map_update_cnt then
 				local d = mathabs (i - player_z)
 				local r = mathsqrt (CIRCLE_RADIUS_SQR - d * d)
 				local x1 = mathmax (x1, floor (player_x - r + 0.5))
@@ -874,7 +909,7 @@ local function update_one_map_unscaled (nodepos, map)
 	return map_updated
 end
 
-local function update_one_map (nodepos, map)
+local function update_one_map (nodepos, map, update_all_rows)
 	local scale = map.scale - 1
 	local radius = CIRCLE_RADIUS
 	local xmin = nodepos.x - radius
@@ -896,7 +931,7 @@ local function update_one_map (nodepos, map)
 		local player_x = nodepos.x - map.x_start
 		local player_z = nodepos.z - map.z_start
 		for i = z1, z2 do
-			if band (i, STEP_MASK) == map_update_cnt then
+			if update_all_rows or band (i, STEP_MASK) == map_update_cnt then
 				local d = mathabs (lshift (i, scale) - player_z)
 				local r = mathsqrt (CIRCLE_RADIUS_SQR - d * d)
 				local x1 = mathmax (x1, floor (player_x - r + 0.5))
@@ -920,11 +955,17 @@ end
 local realize_explorer_map
 local function get_active_map_item (player)
 	local item = player:get_wielded_item ()
-	if core.get_item_group (item:get_name (), "filled_map") > 0 then
+	if core.get_item_group (item:get_name (), "magic_map") > 0 then
 		return item
 	end
 	local inv = player:get_inventory ()
 	local offhand = inv and inv:get_stack ("offhand", 1)
+	if offhand and core.get_item_group (offhand:get_name (), "magic_map") > 0 then
+		return offhand
+	end
+	if core.get_item_group (item:get_name (), "filled_map") > 0 then
+		return item
+	end
 	if offhand and core.get_item_group (offhand:get_name (), "filled_map") > 0 then
 		return offhand
 	end
@@ -939,7 +980,7 @@ function update_all_maps ()
 		local nodepos = mcl_util.get_nodepos (pos)
 		local item_name = wielditem:get_name ()
 		local map_id, explorer_map_id
-		if item_name == "mcl_maps:map" then
+		if core.get_item_group (item_name, "magic_map") > 0 then
 			local meta = wielditem:get_meta ()
 			map_id = meta:get_string ("mcl_maps:map_id")
 		elseif core.get_item_group (item_name, "explorer_map") > 0 then
@@ -950,10 +991,11 @@ function update_all_maps ()
 			local dim = mcl_worlds.pos_to_dimension (nodepos)
 			if map and map.dimension == dim then
 				local updated
+				local update_all_rows = explorer_map_id ~= nil
 				if map.scale == 1 then
-					updated = update_one_map_unscaled (nodepos, map)
+					updated = update_one_map_unscaled (nodepos, map, update_all_rows)
 				else
-					updated = update_one_map (nodepos, map)
+					updated = update_one_map (nodepos, map, update_all_rows)
 				end
 
 				if updated then
@@ -1713,12 +1755,7 @@ function mcl_maps.clear_player_hud (player)
 end
 
 mcl_player.register_globalstep (function (player)
-	local wield = player:get_wielded_item ()
-	local offhand = player:get_inventory ():get_stack ("offhand", 1)
-	if core.get_item_group (wield:get_name (), "filled_map") <= 0
-		and core.get_item_group (offhand:get_name (), "filled_map") > 0 then
-		wield = offhand
-	end
+	local wield = get_active_map_item (player)
 	local hud = huds[player]
 	local texture, id
 
@@ -1921,6 +1958,16 @@ mcl_maps.describe_map = describe_map
 
 local function on_craft (itemstack, _, old_craft_grid, _)
 	local stack_name = itemstack:get_name ()
+	if stack_name == "mcl_maps:magic_map" then
+		for _, stack in ipairs (old_craft_grid) do
+			if stack:get_name () == "mcl_maps:map" then
+				local meta = itemstack:get_meta ()
+				meta:from_table (stack:get_meta ():to_table ())
+				tt.reload_itemstack_description (itemstack)
+				return itemstack
+			end
+		end
+	end
 	if stack_name == "mcl_maps:map" then
 		-- Does the old craft grid contain the recipe for
 		-- scaling maps?
@@ -1948,6 +1995,16 @@ end
 
 local function on_craft_predict (itemstack, _, old_craft_grid, _)
 	local stack_name = itemstack:get_name ()
+	if stack_name == "mcl_maps:magic_map" then
+		for _, stack in ipairs (old_craft_grid) do
+			if stack:get_name () == "mcl_maps:map" then
+				local meta = itemstack:get_meta ()
+				meta:from_table (stack:get_meta ():to_table ())
+				tt.reload_itemstack_description (itemstack)
+				return itemstack
+			end
+		end
+	end
 	if stack_name == "mcl_maps:map" then
 		-- Does the old craft grid contain the recipe for
 		-- scaling maps?
@@ -2035,7 +2092,7 @@ local function convert_old_map_1 (itemstack)
 	if not id or id == "" then
 		local data_file = map_textures_path .. "mcl_maps_map_texture_"
 			.. old_map_id .. ".tga"
-		if not core.path_exists (data_file) then
+		if not mcl_util.file_exists (data_file) then
 			local msg = S ("The map data previously generated for this map does not exist.")
 			return nil, msg
 		end
