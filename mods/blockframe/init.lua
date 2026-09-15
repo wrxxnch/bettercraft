@@ -97,16 +97,60 @@ end
 -- FUNÇÕES AUXILIARES
 --------------------------------------------------
 local function parse_vec(str, def)
-	if not str then return def end
-	if type(str) == "table" then return str end
-	local vals = {}
-	for n in str:gmatch("([^,]+)") do
-		table.insert(vals, tonumber(n))
-	end
-	if #vals == 1 then return {x=vals[1], y=vals[1], z=vals[1]} end
-	if #vals == 2 then return {x=vals[1], y=vals[2], z=vals[2]} end
-	if #vals >= 3 then return {x=vals[1], y=vals[2], z=vals[3]} end
-	return def
+    if str == nil then
+        return def
+    end
+
+    if type(str) == "table" then
+        return str
+    end
+
+    if type(str) == "number" then
+        return {
+            x = str,
+            y = str,
+            z = str
+        }
+    end
+
+    if type(str) ~= "string" then
+        return def
+    end
+
+    local vals = {}
+
+    for n in str:gmatch("([^,]+)") do
+        local value = tonumber(n)
+        if value then
+            table.insert(vals, value)
+        end
+    end
+
+    if #vals == 1 then
+        return {
+            x = vals[1],
+            y = vals[1],
+            z = vals[1]
+        }
+    end
+
+    if #vals == 2 then
+        return {
+            x = vals[1],
+            y = vals[2],
+            z = vals[2]
+        }
+    end
+
+    if #vals >= 3 then
+        return {
+            x = vals[1],
+            y = vals[2],
+            z = vals[3]
+        }
+    end
+
+    return def
 end
 
 local function snap(v, step)
