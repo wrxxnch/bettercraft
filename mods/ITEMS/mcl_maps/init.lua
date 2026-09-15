@@ -197,7 +197,6 @@ local function produce_heightmap_turn_1 (map, x1, y1, z1, base, i_start, i_end)
 					  z_start, y1, y1 + MAP_UPDATE_AREA_Y - 1)
 	end
 end
-
 local LIGHT_DIR = 1.0 / mathsqrt (3.0)
 
 -- https://maven.fabricmc.net/docs/yarn-1.21.5+build.1/net/minecraft/item/FilledMapItem.html#updateColors(net.minecraft.world.World,net.minecraft.entity.Entity,net.minecraft.item.map.MapState)
@@ -219,7 +218,7 @@ local LIGHT_DIR = 1.0 / mathsqrt (3.0)
 -- is sampled in this implementation on grounds of performance.
 
 local function produce_rgb_turn (map, z1, base_first, base, base_next,
-				 i_start, i_end)
+				 i_start, i_end, only_new)
 	local scale = map.scale - 1
 	local x_start = map.x_start
 	local z_start = map.z_start + lshift (z1, scale)
@@ -229,6 +228,7 @@ local function produce_rgb_turn (map, z1, base_first, base, base_next,
 	local cz = z1 - MAP_DATA_LENGTH - 1
 
 	for i = i_start, i_end do
+		if not only_new or data[base + i] == 0 then
 		local current = heightmap[base + i]
 		local x_pos = x_start + lshift (i - 1, scale)
 		local cid, _, param2
@@ -277,6 +277,7 @@ local function produce_rgb_turn (map, z1, base_first, base, base_next,
 					 0x0000ff00)
 			data[base + i] = bor (0xff000000, c1, c2)
 		end
+		end
 	end
 end
 
@@ -296,7 +297,7 @@ local function produce_heightmap_turn (map, x1, y1, z1, n)
 				  x1 + n + 1)
 end
 
-local function produce_map_turn (map, x1, y1, z1, n)
+local function produce_map_turn (map, x1, y1, z1, n, only_new)
 	-- Each index addresses a row of MAP_SIDE_LENGTH elements in
 	-- DATA and HEIGHTMAP representing the maximum recorded height
 	-- and the current value of the map at that row.
@@ -307,7 +308,7 @@ local function produce_map_turn (map, x1, y1, z1, n)
 	local i_start, i_end
 		= x1 + 1, mathmin (x1 + n, MAP_DATA_LENGTH)
 	produce_rgb_turn (map, z1, idx_first, idx_turn,
-			  idx_next, i_start, i_end)
+			  idx_next, i_start, i_end, only_new)
 end
 
 local function alloc_map_data ()
@@ -832,29 +833,6 @@ core.register_craftitem ("mcl_maps:map_locked", {
 	},
 })
 
-core.register_craftitem ("mcl_maps:magic_map", {
-	description = S ("Magic Map"),
-	_tt_help = S ("A map that updates as you explore."),
-	_doc_items_longdesc = S ("This map continuously records the terrain around you while it is held."),
-	_doc_items_usagehelp = S ("Craft a map with an amethyst shard, then hold it to update the explored area."),
-	inventory_image = "mcl_maps_map_filled.png^(mcl_maps_map_filled_markings.png^[colorize:#a878d8)",
-	on_place = use_filled_map,
-	on_secondary_use = use_filled_map,
-	groups = {
-		not_in_creative_inventory = 1,
-		filled_map = 1,
-		magic_map = 1,
-		offhand_item = 1,
-		tool = 1,
-	},
-})
-
-core.register_craft ({
-	type = "shapeless",
-	output = "mcl_maps:magic_map",
-	recipe = { "mcl_maps:map", "mcl_amethyst:amethyst_shard" },
-})
-
 core.register_craftitem ("mcl_maps:exploration_map", {
 	description = S ("Exploration Map"),
 	_tt_help = S ("Reveals the terrain as you travel."),
@@ -885,7 +863,7 @@ mcl_maps.N = N
 local STEPS_PER_MAP = MAP_DATA_LENGTH / N
 local STEP_MASK = 0x1f
 
-local function update_one_map_unscaled (nodepos, map, update_all_rows)
+local function update_one_map_unscaled (nodepos, map, update_all_rows, overwrite_existing)
 	local radius = CIRCLE_RADIUS
 	local xmin = nodepos.x - radius
 	local xmax = nodepos.x + radius - 1
@@ -928,7 +906,7 @@ local function update_one_map_unscaled (nodepos, map, update_all_rows)
 						produce_heightmap_turn (map, x1, y1, i + 1,
 									x2 - x1 + 1)
 					end
-					produce_map_turn (map, x1, y1, i, x2 - x1 + 1)
+					produce_map_turn (map, x1, y1, i, x2 - x1 + 1, not overwrite_existing)
 					map_updated = true
 				end
 			end
@@ -937,7 +915,7 @@ local function update_one_map_unscaled (nodepos, map, update_all_rows)
 	return map_updated
 end
 
-local function update_one_map (nodepos, map, update_all_rows)
+local function update_one_map (nodepos, map, update_all_rows, overwrite_existing)
 	local scale = map.scale - 1
 	-- A scaled map represents more world nodes per pixel.  Explorer
 	-- maps must therefore scan a proportionally larger world radius;
@@ -979,7 +957,7 @@ local function update_one_map (nodepos, map, update_all_rows)
 					produce_heightmap_turn (map, x1, y1, i - 1, cnt)
 					produce_heightmap_turn (map, x1, y1, i, cnt)
 					produce_heightmap_turn (map, x1, y1, i + 1, cnt)
-					produce_map_turn (map, x1, y1, i, cnt)
+					produce_map_turn (map, x1, y1, i, cnt, not overwrite_existing)
 					map_updated = true
 				end
 			end
@@ -991,14 +969,8 @@ end
 local realize_explorer_map
 local function get_active_map_item (player)
 	local item = player:get_wielded_item ()
-	if core.get_item_group (item:get_name (), "magic_map") > 0 then
-		return item
-	end
 	local inv = player:get_inventory ()
 	local offhand = inv and inv:get_stack ("offhand", 1)
-	if offhand and core.get_item_group (offhand:get_name (), "magic_map") > 0 then
-		return offhand
-	end
 	if core.get_item_group (item:get_name (), "filled_map") > 0 then
 		return item
 	end
@@ -1016,10 +988,7 @@ function update_all_maps ()
 		local nodepos = mcl_util.get_nodepos (pos)
 		local item_name = wielditem:get_name ()
 		local map_id, explorer_map_id
-		if core.get_item_group (item_name, "magic_map") > 0 then
-			local meta = wielditem:get_meta ()
-			map_id = meta:get_string ("mcl_maps:map_id")
-		elseif core.get_item_group (item_name, "explorer_map") > 0 then
+		if core.get_item_group (item_name, "explorer_map") > 0 then
 			map_id, explorer_map_id = realize_explorer_map (wielditem)
 		elseif core.get_item_group (item_name, "exploration_map") > 0 then
 			map_id = wielditem:get_meta ():get_string ("mcl_maps:map_id")
@@ -1036,10 +1005,11 @@ function update_all_maps ()
 			if map and map.dimension == dim then
 				local updated
 				local update_all_rows = explorer_map_id ~= nil
+				local overwrite_existing = false
 				if map.scale == 1 then
-					updated = update_one_map_unscaled (nodepos, map, update_all_rows)
+					updated = update_one_map_unscaled (nodepos, map, update_all_rows, overwrite_existing)
 				else
-					updated = update_one_map (nodepos, map, update_all_rows)
+					updated = update_one_map (nodepos, map, update_all_rows, overwrite_existing)
 				end
 
 				if updated then
@@ -2012,8 +1982,7 @@ mcl_maps.describe_map = describe_map
 
 local function on_craft (itemstack, _, old_craft_grid, _)
 	local stack_name = itemstack:get_name ()
-	if stack_name == "mcl_maps:magic_map"
-		or stack_name == "mcl_maps:exploration_map" then
+	if stack_name == "mcl_maps:exploration_map" then
 		for _, stack in ipairs (old_craft_grid) do
 			if stack:get_name () == "mcl_maps:map" then
 				local meta = itemstack:get_meta ()
@@ -2050,8 +2019,7 @@ end
 
 local function on_craft_predict (itemstack, _, old_craft_grid, _)
 	local stack_name = itemstack:get_name ()
-	if stack_name == "mcl_maps:magic_map"
-		or stack_name == "mcl_maps:exploration_map" then
+	if stack_name == "mcl_maps:exploration_map" then
 		for _, stack in ipairs (old_craft_grid) do
 			if stack:get_name () == "mcl_maps:map" then
 				local meta = itemstack:get_meta ()

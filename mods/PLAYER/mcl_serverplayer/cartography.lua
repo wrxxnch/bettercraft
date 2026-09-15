@@ -112,10 +112,7 @@ function mcl_serverplayer.step_maps (state, player, dtime)
 	local wielditem = player:get_wielded_item ()
 	local inv = player:get_inventory ()
 	local offhand = inv and inv:get_stack ("offhand", 1)
-	if core.get_item_group (wielditem:get_name (), "magic_map") <= 0
-		and offhand and core.get_item_group (offhand:get_name (), "magic_map") > 0 then
-		wielditem = offhand
-	elseif core.get_item_group (wielditem:get_name (), "filled_map") <= 0
+	if core.get_item_group (wielditem:get_name (), "filled_map") <= 0
 		and offhand and core.get_item_group (offhand:get_name (), "filled_map") > 0 then
 		wielditem = offhand
 	end
