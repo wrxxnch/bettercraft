@@ -7,6 +7,11 @@ local modname = core.get_current_modname()
 local modpath = core.get_modpath(modname)
 local S = core.get_translator(modname)
 
+-- Maximum map width, in chunks, available through the cartography table.
+-- Server owners can change this value to tune map enlargement.
+local MAX_CARTOGRAPHY_CHUNKS = 256
+mcl_maps.MAX_CARTOGRAPHY_CHUNKS = MAX_CARTOGRAPHY_CHUNKS
+
 local worldpath = core.get_worldpath()
 local map_textures_path = worldpath .. "/mcl_maps/"
 
@@ -850,6 +855,29 @@ core.register_craft ({
 	recipe = { "mcl_maps:map", "mcl_amethyst:amethyst_shard" },
 })
 
+core.register_craftitem ("mcl_maps:exploration_map", {
+	description = S ("Exploration Map"),
+	_tt_help = S ("Reveals the terrain as you travel."),
+	_doc_items_longdesc = S ("This map records new terrain around you as you walk while holding it."),
+	_doc_items_usagehelp = S ("Craft a map with a compass, then explore while holding it."),
+	inventory_image = "mcl_maps_map_filled.png^(mcl_maps_map_filled_markings.png^[colorize:#4b86c5)",
+	on_place = use_filled_map,
+	on_secondary_use = use_filled_map,
+	groups = {
+		not_in_creative_inventory = 1,
+		filled_map = 1,
+		exploration_map = 1,
+		offhand_item = 1,
+		tool = 1,
+	},
+})
+
+core.register_craft ({
+	type = "shapeless",
+	output = "mcl_maps:exploration_map",
+	recipe = { "mcl_maps:map", "mcl_compass:compass" },
+})
+
 local map_update_cnt = 0
 local map_update_serial = 0
 local N = 4 -- Number of rows to update on each globalstep.
@@ -911,7 +939,15 @@ end
 
 local function update_one_map (nodepos, map, update_all_rows)
 	local scale = map.scale - 1
+	-- A scaled map represents more world nodes per pixel.  Explorer
+	-- maps must therefore scan a proportionally larger world radius;
+	-- otherwise an enlarged map only reveals the small area around the
+	-- current position and appears not to update while travelling.
 	local radius = CIRCLE_RADIUS
+	if update_all_rows then
+		radius = CIRCLE_RADIUS * lshift (1, scale)
+	end
+	local radius_sqr = radius * radius
 	local xmin = nodepos.x - radius
 	local xmax = nodepos.x + radius - 1
 	local data_compass = lshift (MAP_DATA_LENGTH - 1, scale)
@@ -933,7 +969,7 @@ local function update_one_map (nodepos, map, update_all_rows)
 		for i = z1, z2 do
 			if update_all_rows or band (i, STEP_MASK) == map_update_cnt then
 				local d = mathabs (lshift (i, scale) - player_z)
-				local r = mathsqrt (CIRCLE_RADIUS_SQR - d * d)
+					local r = mathsqrt (radius_sqr - d * d)
 				local x1 = mathmax (x1, floor (player_x - r + 0.5))
 				local x2 = mathmin (x2, floor (player_x + r + 0.5))
 				if x2 >= x1 then
@@ -985,6 +1021,14 @@ function update_all_maps ()
 			map_id = meta:get_string ("mcl_maps:map_id")
 		elseif core.get_item_group (item_name, "explorer_map") > 0 then
 			map_id, explorer_map_id = realize_explorer_map (wielditem)
+		elseif core.get_item_group (item_name, "exploration_map") > 0 then
+			map_id = wielditem:get_meta ():get_string ("mcl_maps:map_id")
+		elseif core.get_item_group (item_name, "filled_map") > 0
+			and item_name ~= "mcl_maps:map_locked" then
+			-- Ordinary filled maps record each area when the player
+			-- reaches it, just like exploration maps.  Locked maps are
+			-- deliberately excluded from all live updates.
+			map_id = wielditem:get_meta ():get_string ("mcl_maps:map_id")
 		end
 		if map_id and map_id ~= "" then
 			local map = load_map_data (map_id)
@@ -1439,6 +1483,10 @@ end
 function realize_explorer_map (stack)
 	local meta = stack:get_meta ()
 	local id = meta:get_int ("mcl_maps:explorer_map_id")
+	local scaled_map_id = meta:get_string ("mcl_maps:map_id")
+	if scaled_map_id ~= "" then
+		return scaled_map_id, id
+	end
 	local map_id = maybe_realize_explorer_map (id)
 	if map_id then
 		return map_id, id
@@ -1503,7 +1551,10 @@ mcl_levelgen.register_loot_postprocessor ("mcl_maps:initialize_explorer_maps",
 -- Map item scaling.
 ------------------------------------------------------------------------
 
-local MAX_MAP_SCALE = 5
+local MAX_MAP_SCALE = 1
+while 8 * lshift (1, MAX_MAP_SCALE - 1) < MAX_CARTOGRAPHY_CHUNKS do
+	MAX_MAP_SCALE = MAX_MAP_SCALE + 1
+end
 mcl_maps.MAX_MAP_SCALE = MAX_MAP_SCALE
 
 local function scale_map_data_1 (gx, gz, scale, dim)
@@ -1579,7 +1630,7 @@ end
 mcl_maps.scale_map_data = scale_map_data
 
 function mcl_maps.scale_map_item (stack)
-	local map_id = stack:get_meta ():get_string ("mcl_maps:map_id")
+	local map_id = mcl_maps.load_map_id (stack)
 	local map = load_map_data (map_id)
 	if not map then
 		return nil
@@ -1587,9 +1638,12 @@ function mcl_maps.scale_map_item (stack)
 
 	local id, dst = scale_map_data (map)
 	if dst then
-		local stack = ItemStack ("mcl_maps:map")
-		stack:get_meta ():set_string ("mcl_maps:map_id", id)
-		return stack
+		dst.structure_pos = map.structure_pos
+		write_map_data (id, dst)
+		local scaled = ItemStack (stack:get_name ())
+		scaled:get_meta ():from_table (stack:get_meta ():to_table ())
+		scaled:get_meta ():set_string ("mcl_maps:map_id", id)
+		return scaled
 	end
 	return nil
 end
@@ -1958,7 +2012,8 @@ mcl_maps.describe_map = describe_map
 
 local function on_craft (itemstack, _, old_craft_grid, _)
 	local stack_name = itemstack:get_name ()
-	if stack_name == "mcl_maps:magic_map" then
+	if stack_name == "mcl_maps:magic_map"
+		or stack_name == "mcl_maps:exploration_map" then
 		for _, stack in ipairs (old_craft_grid) do
 			if stack:get_name () == "mcl_maps:map" then
 				local meta = itemstack:get_meta ()
@@ -1995,7 +2050,8 @@ end
 
 local function on_craft_predict (itemstack, _, old_craft_grid, _)
 	local stack_name = itemstack:get_name ()
-	if stack_name == "mcl_maps:magic_map" then
+	if stack_name == "mcl_maps:magic_map"
+		or stack_name == "mcl_maps:exploration_map" then
 		for _, stack in ipairs (old_craft_grid) do
 			if stack:get_name () == "mcl_maps:map" then
 				local meta = itemstack:get_meta ()

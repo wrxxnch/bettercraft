@@ -44,10 +44,10 @@ local function refresh_cartography(pos, player)
 
 	if texture then base_map_img = "image[5.375,0.75;3.5,3.5;" .. texture .. "]" end
 
-	if map and texture and marker:is_empty() then
-		formspec = formspec .. table.concat{base_map_bg, base_map_img}
-	elseif map and texture and marker then
-			if marker_name == "mcl_maps:map_empty"
+		if map and texture and marker:is_empty() then
+			formspec = formspec .. table.concat{base_map_bg, base_map_img}
+		elseif map and texture and marker then
+				if marker_name == "mcl_maps:map_empty"
 				or marker_name == "mcl_maps:empty_map" then
 			formspec = formspec .. table.concat({
 				"image[6.125,0.5;3,3;mcl_maps_map_background.png]",
@@ -56,8 +56,25 @@ local function refresh_cartography(pos, player)
 				"image[5.375,1.75;2.5,2.5;" .. texture .. "]"
 			})
 
-			inv:set_stack("output", 1, map)
-		elseif marker_name == "mcl_panes:pane_natural_flat" then
+				inv:set_stack("output", 1, map)
+			elseif marker_name == "mcl_core:paper" then
+				local scaled = mcl_maps.scale_map_item (map)
+				if scaled then
+					local scaled_texture = mcl_maps.load_map_item (scaled)
+					formspec = formspec .. table.concat {
+						base_map_bg,
+						base_map_img,
+						"image[8.375,3.75;0.5,0.5;mcl_core_barrier.png]",
+					}
+					if scaled_texture then
+						formspec = formspec .. "image[6.125,0.5;3,3;mcl_maps_map_background.png]"
+							.. "image[6.375,0.75;2.5,2.5;" .. scaled_texture .. "]"
+					end
+					inv:set_stack("output", 1, scaled)
+				else
+					formspec = formspec .. base_map_bg .. base_map_img
+				end
+			elseif marker_name == "mcl_panes:pane_natural_flat" then
 			formspec = formspec .. table.concat({
 				base_map_bg, base_map_img, "image[8.375,3.75;0.5,0.5;mcl_core_barrier.png]"
 			})
@@ -72,7 +89,9 @@ end
 
 local allowed_to_put = {
 	--["mcl_core:paper"] = true, Requires missing features with increasing map size
+	["mcl_maps:map_empty"] = true,
 	["mcl_maps:empty_map"] = true,
+	["mcl_core:paper"] = true,
 	["mcl_panes:pane_natural_flat"] = true
 }
 
@@ -110,11 +129,15 @@ minetest.register_node("mcl_cartography_table:cartography_table", {
 	on_metadata_inventory_put = function(pos, _, _, _, player)
 		refresh_cartography(pos, player)
 	end,
-	on_metadata_inventory_take = function(pos, listname, _, _, player)
-		local inv = minetest.get_meta(pos):get_inventory()
-		if listname == "output" then
-			local marker = inv:get_stack("input", 1)
-			marker:take_item()
+		on_metadata_inventory_take = function(pos, listname, _, _, player)
+			local inv = minetest.get_meta(pos):get_inventory()
+			if listname == "output" then
+				local marker = inv:get_stack("input", 1)
+				local output = inv:get_stack("output", 1)
+				if marker:get_name() == "mcl_core:paper" and not output:is_empty() then
+					inv:set_stack("input", 2, output)
+				end
+				marker:take_item()
 			inv:set_stack("input", 1, marker)
 		else
 			inv:set_stack("output", 1, "")
