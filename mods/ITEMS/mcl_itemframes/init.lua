@@ -13,6 +13,8 @@ local base_props = {
 	physical = false,
 	pointable = false,
 	textures = {"blank.png"},
+	-- This was effectively true already.
+	static_save = false,
 }
 
 local map_props = {
@@ -86,17 +88,13 @@ local function drop_item(pos)
 	remove_entity(pos)
 end
 
-local function get_map_id(itemstack)
-	local map_id = itemstack:get_meta():get_string("mcl_maps:id")
-	if map_id == "" then map_id = nil end
-	return map_id
-end
+local load_map_id = mcl_maps.load_map_id
 
 local function rotate_entity(pos, rot)
 	local l = find_entity(pos)
 	local meta = core.get_meta(pos)
 	local itemstack = meta:get_inventory():get_stack("main", 1)
-	local is_map = (get_map_id(itemstack) and 1 or 0)
+	local is_map = (load_map_id(itemstack) and 1 or 0)
 	if l then
 		l.object:set_rotation(vector.add(l.object:get_rotation(), vector.new(0, 0, 0.25 * math.pi * (rot or 1) * (is_map + 1))))
 		meta:set_int("mcl_item_rotation", (meta:get_int("mcl_item_rotation") + (rot == nil and 1 or 0)) % 8)
@@ -141,6 +139,8 @@ function mcl_itemframes.tpl_node.on_rightclick(pos, _, clicker, ostack, _)
 	local imeta = ostack:get_meta()
 	local nmeta = core.get_meta(pos)
 	nmeta:set_string("infotext", imeta:get_string("name"))
+	nmeta:set_string ("mcl_itemframes:dynamic_map_id", "")
+	nmeta:set_string ("mcl_itemframes:dynamic_map_texture", "")
 	local itemstack = pstack:take_item()
 	drop_item(pos)
 	inv:set_stack("main", 1, itemstack)
@@ -165,6 +165,18 @@ end
 
 function mcl_itemframes.tpl_node.on_rotate()
 	return false
+end
+
+local function find_cached_map_texture (pos, dynamic_id)
+	local meta = core.get_meta (pos)
+	if meta:get_string ("mcl_itemframes:dynamic_map_id") == dynamic_id then
+		return meta:get_string ("mcl_itemframes:dynamic_map_texture")
+	else
+		local texture = mcl_maps.load_map_texture (dynamic_id)
+		meta:set_string ("mcl_itemframes:dynamic_map_id", dynamic_id)
+		meta:set_string ("mcl_itemframes:dynamic_map_texture", texture)
+		return texture
+	end
 end
 
 -- Entity functions
@@ -197,66 +209,25 @@ function mcl_itemframes.tpl_entity:set_item(itemstack, pos)
 	local def = mcl_itemframes.registered_itemframes[ndef._mcl_itemframe]
 	self._item = itemstack:get_name()
 	self._stack = itemstack
-	self._map_id = get_map_id(itemstack)
+	self._map_id = load_map_id (itemstack)
 
 	local dir = core.wallmounted_to_dir(core.get_node(pos).param2)
 	self.object:set_pos(vector.add(self._itemframe_pos, dir * 0.42))
 	self.object:set_rotation(vector.dir_to_rotation(dir))
 
 	if self._map_id then
-		local unran_callback = true
-		mcl_maps.load_map(self._map_id, function(texture)
-			unran_callback = false
-			if self.object and self.object:get_pos() then
-				self.object:set_properties(table.merge(map_props, {textures = {texture}}))
-			end
-		end)
-		-- dirty recursive hack because dynamic_add_media is unreliable
-		-- (and subsequently, mcl_maps.load_map is just as unreliable)
-		core.after(0, function()
-			if unran_callback then
-				update_entity(pos)
-			end
-		end)
-		return
+		local texture = mcl_maps.load_map_texture (self._map_id)
+		if texture then
+			self.object:set_properties(table.merge(map_props, {textures = {texture}}))
+			return
+		end
 	end
 	local idef = itemstack:get_definition()
-	local ws = idef.wield_scale
+	local ws = idef.wield_scale or {x = 1, y = 1, z = 1}
 	self.object:set_properties(table.merge(base_props, {
 		wield_item = self._item,
 		visual_size = {x = base_props.visual_size.x / ws.x, y = base_props.visual_size.y / ws.y},
 	}, prop_overrides or {}, def.object_properties or {}))
-end
-
-function mcl_itemframes.tpl_entity:get_staticdata()
-	local s = {
-		item = self._item,
-		itemframe_pos = self._itemframe_pos,
-		itemstack = self._itemstack,
-		map_id = self._map_id
-	}
-	s.props = self.object:get_properties()
-	return core.serialize(s)
-end
-
-function mcl_itemframes.tpl_entity:on_activate(staticdata, dtime_s)
-	local s = core.deserialize(staticdata)
-	if (type(staticdata) == "string" and dtime_s and dtime_s > 0) then
-		-- try to re-initialize items without proper staticdata
-		local p = core.find_node_near(self.object:get_pos(), 1, {"group:itemframe"})
-		self.object:remove()
-		if p then
-			update_entity(p)
-		end
-		return
-	elseif s then
-		self._itemframe_pos = vector.copy (s.itemframe_pos)
-		self._itemstack = s.itemstack
-		self._item = s.item
-		self._map_id = s.map_id
-		update_entity(self._itemframe_pos)
-		return
-	end
 end
 
 function mcl_itemframes.tpl_entity:on_step(dtime)
