@@ -1696,7 +1696,7 @@ core.register_on_joinplayer(function(player)
 	local map_def = {
 		type = "image",
 		text = "blank.png",
-		position = { x = 0.75, y = 0.8 },
+		position = { x = 0.25, y = 0.8 },
 		alignment = { x = 0, y = -1 },
 		offset = { x = 0, y = 0 },
 		scale = { x = 2, y = 2 },
