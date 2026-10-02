@@ -224,12 +224,15 @@ local function produce_rgb_turn (map, z1, base_first, base, base_next,
 	local z_start = map.z_start + lshift (z1, scale)
 	local heightmap = map.heightmap
 	local data = map.data
+	local explored = map.explored
 	local map_r = 4.0 / (lshift (1, scale) + 4.0)
 	local cz = z1 - MAP_DATA_LENGTH - 1
 
 	for i = i_start, i_end do
-		if not only_new or data[base + i] == 0 then
-		local current = heightmap[base + i]
+		local pixel = base + i
+		if not only_new or (explored and not explored[pixel])
+			or (not explored and data[pixel] == 0) then
+		local current = heightmap[pixel]
 		local x_pos = x_start + lshift (i - 1, scale)
 		local cid, _, param2
 			= map_get_node_raw (x_pos, current, z_start)
@@ -275,7 +278,10 @@ local function produce_rgb_turn (map, z1, base_first, base, base_next,
 					 0x00ff00ff)
 			local c2 = band (rshift (band (rgb, 0x0000ff00) * rv, 8),
 					 0x0000ff00)
-			data[base + i] = bor (0xff000000, c1, c2)
+			data[pixel] = bor (0xff000000, c1, c2)
+			if explored then
+				explored[pixel] = true
+			end
 		end
 		end
 	end
@@ -592,6 +598,12 @@ local function load_map_1 (id)
 		assert (type (map.structure_pos.y) == "number")
 		assert (type (map.structure_pos.z) == "number")
 		map.structure_pos = vector.copy (map.structure_pos)
+	end
+	-- Structure/explorer maps start with a biome-stippled canvas.  Keep
+	-- discovery state separately so the background does not prevent the
+	-- terrain from being drawn when the player reaches an area.
+	if map.structure_pos and not map.explored then
+		map.explored = {}
 	end
 
 	local file = assert (io.open (image_name (id), "rb"))
@@ -1146,6 +1158,7 @@ local function create_explorer_map_1 (pos)
 	local id = allocate_map_id ()
 	local map = create_new_map_1 (id, pos, dim)
 	map.structure_pos = vector.copy (pos)
+	map.explored = {}
 	fill_explorer_map (map, pos.y)
 	write_map_data (id, map)
 	return id, map
@@ -1609,6 +1622,18 @@ function mcl_maps.scale_map_item (stack)
 	local id, dst = scale_map_data (map)
 	if dst then
 		dst.structure_pos = map.structure_pos
+		if map.explored then
+			dst.explored = {}
+			for z = 0, MAP_DATA_LENGTH - 1 do
+				for x = 0, MAP_DATA_LENGTH - 1 do
+					local src = (z * 2 + 1) * MAP_SIDE_LENGTH + (x * 2 + 2)
+					local dst_index = (z + 1) * MAP_SIDE_LENGTH + (x + 2)
+					if map.explored[src] then
+						dst.explored[dst_index] = true
+					end
+				end
+			end
+		end
 		write_map_data (id, dst)
 		local scaled = ItemStack (stack:get_name ())
 		scaled:get_meta ():from_table (stack:get_meta ():to_table ())
@@ -1696,7 +1721,7 @@ core.register_on_joinplayer(function(player)
 	local map_def = {
 		type = "image",
 		text = "blank.png",
-		position = { x = 0.25, y = 0.8 },
+		position = { x = 0.75, y = 0.8 },
 		alignment = { x = 0, y = -1 },
 		offset = { x = 0, y = 0 },
 		scale = { x = 2, y = 2 },
