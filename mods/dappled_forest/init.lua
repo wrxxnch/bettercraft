@@ -82,3 +82,4 @@ register_poplar_leaf_variant("yellow", "dappled_forest_yellow_poplar_leaves.png"
 
 dofile(modpath .. "/lg_register.lua")
 dofile(modpath .. "/hay_bed.lua")
+dofile(modpath .. "/functions.lua")

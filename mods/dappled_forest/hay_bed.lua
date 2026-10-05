@@ -1,14 +1,11 @@
 -- Hay Bed entity for BetterCraft/Mineclonia.
--- It is intentionally not a node: it is 0.5 node high and uses Get Comfortable
--- (mcl_cozy.lay) to make the player lie down without setting a respawn point.
+-- It uses the regular mcl_beds sleep/night-skip flow, but calls the
+-- no-respawn variant so entering it never changes the player's spawn point.
 
 local modname = core.get_current_modname()
 local hay_def = core.registered_nodes["mcl_farming:hay_block"]
 local hay_tiles = hay_def and hay_def.tiles or {"mcl_farming_hay_block.png"}
 local hay_texture = hay_tiles[1]
-
--- Entity cube textures need six entries. Reuse the actual hay block definition,
--- not a copied texture, so texture packs can replace it normally.
 local cube_textures = {}
 for i = 1, 6 do
 	cube_textures[i] = hay_tiles[((i - 1) % #hay_tiles) + 1]
@@ -31,31 +28,38 @@ local function can_place(pos, player)
 	end
 	local node = core.get_node_or_nil(pos)
 	local above = core.get_node_or_nil(vector.offset(pos, 0, 1, 0))
-	if not node or not above then return false end
-	local above_def = core.registered_nodes[above.name]
-	return above_def and above_def.buildable_to
+	local above_def = above and core.registered_nodes[above.name]
+	return node and above_def and above_def.buildable_to
 end
 
 local function find_bed(pos)
 	for _, object in ipairs(core.get_objects_inside_radius(pos, 0.35)) do
 		local entity = object:get_luaentity()
-		if entity and entity.name == ENTITY_NAME then
-			return object
+		if entity and entity.name == ENTITY_NAME then return object end
+	end
+end
+
+local function wake_sleepers_on_bed(pos)
+	if not mcl_beds or not mcl_beds.player or not mcl_beds.bed_pos then return end
+	for name in pairs(mcl_beds.player) do
+		local bed_pos = mcl_beds.bed_pos[name]
+		if bed_pos and vector.distance(pos, bed_pos) <= 2 then
+			local player = core.get_player_by_name(name)
+			if player then mcl_beds.kick_player(player) end
 		end
 	end
 end
 
 local function lie_down(object, player)
 	if not player or not player:is_player() then return end
-	if not mcl_cozy or not mcl_cozy.lay then
-		core.chat_send_player(player:get_player_name(), "Get Comfortable (mcl_cozy) is required to use the Hay Bed.")
+	if not mcl_beds or not mcl_beds.on_rightclick_no_spawn then
+		core.chat_send_player(player:get_player_name(), "This BetterCraft version needs the no-respawn bed API.")
 		return
 	end
 	local entity = object:get_luaentity()
 	if not entity then return end
 	local pos = entity.base_pos or vector.round(object:get_pos())
-	local node = {name = "mcl_farming:hay_block", param2 = entity.param2 or 0}
-	mcl_cozy.lay(pos, node, player)
+	mcl_beds.on_rightclick_no_spawn(pos, player, true, entity.param2 or 0)
 end
 
 core.register_entity(ENTITY_NAME, {
@@ -92,12 +96,10 @@ core.register_entity(ENTITY_NAME, {
 
 	on_punch = function(self, puncher)
 		if puncher and puncher:is_player() then
-			local stack = ItemStack(ITEM_NAME)
-			local inventory = puncher:get_inventory()
-			local leftover = inventory:add_item("main", stack)
-			if leftover and not leftover:is_empty() then
-				core.add_item(puncher:get_pos(), leftover)
-			end
+			local pos = self.base_pos or vector.round(self.object:get_pos())
+			wake_sleepers_on_bed(pos)
+			local leftover = puncher:get_inventory():add_item("main", ItemStack(ITEM_NAME))
+			if leftover and not leftover:is_empty() then core.add_item(puncher:get_pos(), leftover) end
 			self.object:remove()
 		end
 	end,
@@ -105,9 +107,9 @@ core.register_entity(ENTITY_NAME, {
 
 core.register_craftitem(ITEM_NAME, {
 	description = "Hay Bed",
-	_tt_help = "A half-height bed for sleeping without setting a spawn point",
-	inventory_image = hay_texture,
-	wield_image = hay_texture,
+	_tt_help = "A thin bed that sleeps without setting a spawn point",
+	inventory_image = "haybed.png",
+	wield_image = "haybed.png",
 	stack_max = 1,
 	groups = {handy = 1, deco_block = 1},
 	on_place = function(itemstack, placer, pointed_thing)
@@ -129,6 +131,5 @@ core.register_craft({
 	output = ITEM_NAME,
 	recipe = {
 		{"mcl_farming:hay_block", "mcl_farming:hay_block", "mcl_farming:hay_block"},
-		{"group:wood", "group:wood", "group:wood"},
 	},
 })
