@@ -108,8 +108,8 @@ core.register_entity(ENTITY_NAME, {
 core.register_craftitem(ITEM_NAME, {
 	description = "Hay Bed",
 	_tt_help = "A thin bed that sleeps without setting a spawn point",
-	inventory_image = "haybed.png",
-	wield_image = "haybed.png",
+	inventory_image = "strawbed.png",
+	wield_image = "strawbed.png",
 	stack_max = 1,
 	groups = {handy = 1, deco_block = 1},
 	on_place = function(itemstack, placer, pointed_thing)
