@@ -214,6 +214,8 @@ mcl_moreblocks.add_nodes = function()
 		"sulphur_update:chiseled_sulfur",
 		"sulphur_update:polished_sulfur",
 		"sulphur_update:sulfur_bricks",
+		"mcl_farming:hay_block",
+
 
 }
 
