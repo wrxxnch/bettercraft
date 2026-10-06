@@ -6,6 +6,13 @@ local modname = core.get_current_modname()
 local hay_def = core.registered_nodes["mcl_farming:hay_block"]
 local hay_tiles = hay_def and hay_def.tiles or {"mcl_farming_hay_block.png"}
 local hay_texture = hay_tiles[1]
+if type(hay_texture) == "table" then
+	-- Some Luanti versions normalize tile definitions into tables.
+	hay_texture = hay_texture.name or hay_texture[1]
+end
+-- Prefix the texture with the actual mod name. This avoids texture lookup
+-- differences between Luanti/Minetest builds when the item is a craftitem.
+local ITEM_TEXTURE = "strawbed.png"
 local cube_textures = {}
 for i = 1, 6 do
 	cube_textures[i] = hay_tiles[((i - 1) % #hay_tiles) + 1]
@@ -108,15 +115,15 @@ core.register_entity(ENTITY_NAME, {
 core.register_craftitem(ITEM_NAME, {
 	description = "Hay Bed",
 	_tt_help = "A thin bed that sleeps without setting a spawn point",
-	inventory_image = "strawbed.png",
-	wield_image = "strawbed.png",
+	inventory_image = ITEM_TEXTURE,
+	wield_image = ITEM_TEXTURE,
 	stack_max = 1,
 	groups = {handy = 1, deco_block = 1},
 	on_place = function(itemstack, placer, pointed_thing)
 		if pointed_thing.type ~= "node" or not placer then return itemstack end
 		local pos = pointed_thing.above
 		if not can_place(pos, placer) or find_bed(pos) then return itemstack end
-		local entity = core.add_entity(vector.offset(pos, 0, 0.1, 0), ENTITY_NAME)
+		local entity = core.add_entity(vector.offset(pos, 0, -0.5, 0), ENTITY_NAME)
 		if not entity then return itemstack end
 		local luaentity = entity:get_luaentity()
 		luaentity.base_pos = vector.copy(pos)
