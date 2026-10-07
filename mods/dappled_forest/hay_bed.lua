@@ -117,7 +117,7 @@ core.register_craftitem(ITEM_NAME, {
 	_tt_help = "A thin bed that sleeps without setting a spawn point",
 	inventory_image = ITEM_TEXTURE,
 	wield_image = ITEM_TEXTURE,
-	stack_max = 1,
+	stack_max = 16,
 	groups = {handy = 1, deco_block = 1},
 	on_place = function(itemstack, placer, pointed_thing)
 		if pointed_thing.type ~= "node" or not placer then return itemstack end
