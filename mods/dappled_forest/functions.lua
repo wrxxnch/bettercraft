@@ -3,6 +3,7 @@ local F = core.formspec_escape
 
 local player_in_bed = 0
 local is_sp = core.is_singleplayer()
+mcl_beds.no_night_skip = mcl_beds.no_night_skip or {}
 
 -- Helper functions
 
@@ -65,7 +66,7 @@ local function prevents_sleep(mob_def,mob_ent)
 	return true
 end
 
-local function lay_down(player, pos, bed_pos, state, skip, no_spawn, forced_param2)
+local function lay_down(player, pos, bed_pos, state, skip, no_spawn, forced_param2, no_night_skip, allow_day, center_override)
 	local name = player:get_player_name()
 	local hud_flags = player:hud_get_flags()
 
@@ -79,6 +80,9 @@ local function lay_down(player, pos, bed_pos, state, skip, no_spawn, forced_para
 		dir = core.facedir_to_dir(param2)
 		bed_pos2 = {x = bed_pos.x - dir.x, y = bed_pos.y, z = bed_pos.z - dir.z}
 		bed_center = {x = bed_pos.x - dir.x/2, y = bed_pos.y + 0.1, z = bed_pos.z - dir.z/2}
+		if center_override then
+			bed_center = center_override
+		end
 
 		-- Hay Bed opts out of the respawn point while keeping the normal sleep flow.
 		if not no_spawn and mcl_spawn.set_spawn_pos(player, bed_pos, nil) then
@@ -86,7 +90,7 @@ local function lay_down(player, pos, bed_pos, state, skip, no_spawn, forced_para
 		end
 
 
-		if not mcl_beds.is_night() and mcl_weather.get_weather() ~= "thunder" then
+		if not allow_day and not mcl_beds.is_night() and mcl_weather.get_weather() ~= "thunder" then
 			return false, S("You can only sleep at night or during a thunderstorm.")
 		end
 
@@ -129,10 +133,13 @@ local function lay_down(player, pos, bed_pos, state, skip, no_spawn, forced_para
 	-- stand up
 	if state ~= nil and not state then
 		local p = mcl_beds.pos[name] or nil
-		if mcl_beds.player[name] then
-			mcl_beds.player[name] = nil
-			player_in_bed = player_in_bed - 1
-		end
+			if mcl_beds.player[name] then
+				if not mcl_beds.no_night_skip[name] then
+					player_in_bed = player_in_bed - 1
+				end
+				mcl_beds.player[name] = nil
+			end
+			mcl_beds.no_night_skip[name] = nil
 		mcl_beds.pos[name] = nil
 		mcl_beds.bed_pos[name] = nil
 		if p then
@@ -168,10 +175,13 @@ local function lay_down(player, pos, bed_pos, state, skip, no_spawn, forced_para
 			return false, S("It's too dangerous to sleep here!")
 		end
 
-		mcl_beds.player[name] = 1
-		mcl_beds.pos[name] = pos
-		mcl_beds.bed_pos[name] = bed_pos2
-		player_in_bed = player_in_bed + 1
+			mcl_beds.player[name] = 1
+			mcl_beds.no_night_skip[name] = no_night_skip or nil
+			mcl_beds.pos[name] = pos
+			mcl_beds.bed_pos[name] = bed_pos2
+			if not no_night_skip then
+				player_in_bed = player_in_bed + 1
+			end
 		-- physics, eye_offset, etc
 		if not mcl_serverplayer.is_csm_capable (player) then
 			player:set_eye_offset({x = 0, y = -13, z = 0}, {x = 0, y = 0, z = 0})
@@ -215,7 +225,9 @@ local function update_formspecs(finished, players)
 
 	if finished then
 		for name,_ in pairs(mcl_beds.player) do
-			core.close_formspec(name, "mcl_beds_form")
+			if not mcl_beds.no_night_skip[name] then
+				core.close_formspec(name, "mcl_beds_form")
+			end
 		end
 		return
 	elseif not is_sp then
@@ -255,8 +267,10 @@ local function update_formspecs(finished, players)
 		form_n = form_n .. "label[0.5,1;"..F(text).."]"
 	end
 
-	for name,_ in pairs(mcl_beds.player) do
-		core.show_formspec(name, "mcl_beds_form", form_n)
+		for name,_ in pairs(mcl_beds.player) do
+			if not mcl_beds.no_night_skip[name] then
+				core.show_formspec(name, "mcl_beds_form", form_n)
+			end
 	end
 end
 
@@ -287,8 +301,10 @@ end
 -- Throw all players out of bed
 function mcl_beds.kick_players()
 	for name, _ in pairs(mcl_beds.player) do
-		local player = core.get_player_by_name(name)
-		lay_down(player, nil, nil, false)
+		if not mcl_beds.no_night_skip[name] then
+			local player = core.get_player_by_name(name)
+			lay_down(player, nil, nil, false)
+		end
 	end
 	update_formspecs(false)
 end
@@ -378,7 +394,7 @@ function mcl_beds.on_rightclick(pos, player, is_top)
 			local sleep_hud_message = S("@1/@2 players currently in bed.", player_in_bed, math.ceil(players_in_bed_setting() * ges / 100))
 			for _, player in pairs(connected_players) do
 				-- only send message to players not sleeping and in the "overworld"
-				if not mcl_beds.player[player:get_player_name()] and mcl_worlds.pos_to_dimension(player:get_pos()) == "overworld" then
+					if not mcl_beds.player[player:get_player_name()] and mcl_worlds.pos_to_dimension(player:get_pos()) == "overworld" then
 					-- clear, old message is still being displayed
 					if mcl_title.params_get(player) then mcl_title.clear(player) end
 					mcl_title.set(player, "actionbar", {text=sleep_hud_message, color="white", stay=60})
@@ -398,7 +414,8 @@ end
 
 -- Same sleep/night-skip/validation flow as a regular bed, but without setting
 -- a respawn point. This is used by entity-backed beds such as Hay Bed.
-function mcl_beds.on_rightclick_no_spawn(pos, player, is_top, param2)
+function mcl_beds.on_rightclick_no_spawn(pos, player, is_top, param2, options)
+	options = options or {}
 	if player:get_meta():get_string("mcl_beds:sleeping") == "true" then
 		return
 	end
@@ -406,16 +423,18 @@ function mcl_beds.on_rightclick_no_spawn(pos, player, is_top, param2)
 	local ppos = player:get_pos()
 	if not mcl_beds.player[name] then
 		local target = is_top and pos or mcl_beds.get_bed_top(pos)
-		local message = select(2, lay_down(player, ppos, target, nil, nil, true, param2))
+		local message = select(2, lay_down(player, ppos, target, nil, nil, true, param2, options.no_night_skip, options.allow_day, options.center_override))
 		if message then
 			mcl_title.set(player, "actionbar", {text=message, color="white", stay=60})
 		end
 	else
 		lay_down(player, nil, nil, false)
 	end
-	update_formspecs(false)
-	if player_in_bed > 0 then
-		core.after(5, recheck_in_beds)
+	if not options.silent then
+		update_formspecs(false)
+		if player_in_bed > 0 then
+			core.after(5, recheck_in_beds)
+		end
 	end
 end
 

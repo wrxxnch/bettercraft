@@ -66,8 +66,39 @@ local function lie_down(object, player)
 	local entity = object:get_luaentity()
 	if not entity then return end
 	local pos = entity.base_pos or vector.round(object:get_pos())
-	mcl_beds.on_rightclick_no_spawn(pos, player, true, entity.param2 or 0)
+	mcl_beds.on_rightclick_no_spawn(pos, player, true, entity.param2 or 0, {
+		allow_day = true,
+		no_night_skip = true,
+		silent = true,
+		center_override = {x = pos.x, y = pos.y + 0.1, z = pos.z},
+	})
 end
+
+-- Resting is cancelled by any intentional movement, jump or crouch, just as
+-- the previous Hay Bed implementation did. Only silent daytime sleepers are
+-- handled here; regular beds keep the normal mcl_beds controls/formspec.
+core.register_globalstep(function()
+	if not mcl_beds or not mcl_beds.no_night_skip then return end
+	local to_wake = {}
+	for name in pairs(mcl_beds.no_night_skip) do
+		local player = core.get_player_by_name(name)
+		if not player then
+			to_wake[#to_wake + 1] = name
+		else
+			local control = player:get_player_control()
+			if control.up or control.down or control.left or control.right
+				or control.jump or control.sneak or control.aux1 then
+				to_wake[#to_wake + 1] = name
+			end
+		end
+	end
+	for _, name in ipairs(to_wake) do
+		local player = core.get_player_by_name(name)
+		if player and mcl_beds.player[name] then
+			mcl_beds.kick_player(player)
+		end
+	end
+end)
 
 core.register_entity(ENTITY_NAME, {
 	initial_properties = {
