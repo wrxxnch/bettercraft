@@ -66,10 +66,15 @@ local function lie_down(object, player)
 	local entity = object:get_luaentity()
 	if not entity then return end
 	local pos = entity.base_pos or vector.round(object:get_pos())
+	local thunder = mcl_weather and mcl_weather.get_weather and mcl_weather.get_weather() == "thunder"
+	local is_night_sleep = mcl_beds.is_night() or thunder
 	mcl_beds.on_rightclick_no_spawn(pos, player, true, entity.param2 or 0, {
 		allow_day = true,
-		no_night_skip = true,
-		silent = true,
+		-- Daytime: just lie down. Night/thunderstorm: count as a sleeper and
+		-- allow the normal mcl_beds night skip logic to run.
+		no_night_skip = not is_night_sleep,
+		-- Daytime rest stays silent; nighttime sleep uses the normal bed window.
+		silent = not is_night_sleep,
 		center_override = {x = pos.x, y = pos.y + 0.1, z = pos.z},
 	})
 end

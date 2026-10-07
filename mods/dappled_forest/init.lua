@@ -7,7 +7,7 @@ mcl_trees.register_wood("poplar", {
 	readable_name = "Poplar",
 	sign_color = "#A86F45",
 	tree_schems = {
-		{file = modpath .. "/schematics/poplar_tree_orange.mts"},
+		{file = modpath .. "/schematics/poplar_tree.mts"},
 		{file = modpath .. "/schematics/poplar_tree_red.mts"},
 		{file = modpath .. "/schematics/poplar_tree_yellow.mts"},
 	},
@@ -43,25 +43,19 @@ mcl_trees.register_wood("poplar", {
 	},
 	sign = {
 		inventory_image = "dappled_forest_poplar_sign.png",
-	},
-	boat = {
-		item = {
-			inventory_image = "dappled_forest_poplar_boat.png",
-			wield_image = "dappled_forest_poplar_boat.png",
-		},
-	},
-	chest_boat = {
-		item = {
-			inventory_image = "dappled_forest_poplar_chest_boat.png",
-			wield_image = "dappled_forest_poplar_chest_boat.png",
-		},
+		wield_image = "dappled_forest_poplar_sign.png",
+		tiles = {"dappled_forest_poplar_sign_uv.png"},
 	},
 	trapdoor = {
 		tile_front = "dappled_forest_poplar_trapdoor.png",
 		tile_side = "dappled_forest_poplar_trapdoor_side.png",
 		wield_image = "dappled_forest_poplar_trapdoor.png",
 	},
-	hanging_sign = true,
+	hanging_sign = {
+		inventory_image = "dappled_forest_poplar_hanging_sign.png",
+		wield_image = "dappled_forest_poplar_hanging_sign.png",
+		tiles = {"dappled_forest_poplar_hanging_sign_uv.png"},
+	},
 })
 
 -- Dappled Forest seasonal leaf variants. They share the Poplar sapling drop

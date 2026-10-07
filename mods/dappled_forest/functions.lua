@@ -432,9 +432,9 @@ function mcl_beds.on_rightclick_no_spawn(pos, player, is_top, param2, options)
 	end
 	if not options.silent then
 		update_formspecs(false)
-		if player_in_bed > 0 then
-			core.after(5, recheck_in_beds)
-		end
+	end
+	if player_in_bed > 0 then
+		core.after(5, recheck_in_beds)
 	end
 end
 
