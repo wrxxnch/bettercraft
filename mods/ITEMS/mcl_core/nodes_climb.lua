@@ -146,3 +146,13 @@ core.register_node("mcl_core:vine", {
 	_mcl_hardness = 0.2,
 	on_rotate = false,
 })
+
+--3 strings with 3 vines crafting
+core.register_craft({
+	output = "mcl_mobitems:string 3",
+	recipe = {
+		{"", "mcl_core:vine", ""},
+		{"", "mcl_core:vine", ""},
+		{"", "mcl_core:vine", ""},
+	}
+})
