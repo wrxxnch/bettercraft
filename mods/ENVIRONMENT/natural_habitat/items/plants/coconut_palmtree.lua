@@ -37,13 +37,6 @@ core.register_node("natural_habitat:coconut_palmtree_log", {
     _mcl_burntime = 15,
 });
 
-core.register_craft({
-    output = "natural_habitat:coconut_palmtree_log",
-    recipe = {
-        {"mcl_trees:wood_oak"},
-    }
-})
-
 core.register_node("natural_habitat:coconut_palmtree_leaves", {
     description = S("Coconut Palmtree Leaves"),
     drawtype = "mesh",
@@ -189,7 +182,7 @@ core.register_craftitem("natural_habitat:coconut_water", {
 })
 
 core.register_craft({
-    output = "mcl_trees:wood_oak",
+    output = "mcl_trees:wood_oak 4",
     recipe = {
         {"natural_habitat:coconut_palmtree_log"},
     }
