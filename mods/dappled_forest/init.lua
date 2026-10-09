@@ -46,6 +46,24 @@ mcl_trees.register_wood("poplar", {
 		wield_image = "dappled_forest_poplar_sign.png",
 		tiles = {"dappled_forest_poplar_sign_uv.png"},
 	},
+	boat = {
+		item = {
+			inventory_image = "dappled_forest_poplar_boat.png",
+			wield_image = "dappled_forest_poplar_boat.png",
+		},
+		object = {
+			textures = {"dappled_forest_poplar_boat_uv.png", "blank.png"},
+		},
+	},
+	chest_boat = {
+		item = {
+			inventory_image = "dappled_forest_poplar_chest_boat.png",
+			wield_image = "dappled_forest_poplar_chest_boat.png",
+		},
+		object = {
+			textures = {"dappled_forest_poplar_boat_uv.png", "blank.png"},
+		},
+	},
 	trapdoor = {
 		tile_front = "dappled_forest_poplar_trapdoor.png",
 		tile_side = "dappled_forest_poplar_trapdoor_side.png",
@@ -74,6 +92,8 @@ end
 register_poplar_leaf_variant("red", "dappled_forest_red_poplar_leaves.png")
 register_poplar_leaf_variant("yellow", "dappled_forest_yellow_poplar_leaves.png")
 
+dofile(modpath .. "/polypore.lua")
+dofile(modpath .. "/vegetation.lua")
 dofile(modpath .. "/lg_register.lua")
 dofile(modpath .. "/hay_bed.lua")
 dofile(modpath .. "/functions.lua")
