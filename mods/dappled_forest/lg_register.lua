@@ -170,14 +170,25 @@ end
 core.register_on_generated(function(minp, maxp, blockseed)
 	local rng = PseudoRandom((blockseed or 0) + 41317)
 	local trees = 0
+	local base_grass = "mcl_core:dirt_with_grass"
+	local surface_y_by_x = {}
 
-	-- 1) troca a grama do bioma pela grama laranja
-	if core.registered_nodes[ORANGE_GRASS] then
-		local grass = core.find_nodes_in_area_under_air(minp, maxp, { "mcl_core:dirt_with_grass" })
-		for _, p in ipairs(grass) do
-			if dappled_biome_at({ x = p.x, y = p.y + 1, z = p.z }) then
-				core.swap_node(p, { name = ORANGE_GRASS })
+	local grass = core.find_nodes_in_area_under_air(minp, maxp, { base_grass, ORANGE_GRASS })
+	for _, p in ipairs(grass) do
+		if p.y > minp.y and p.y < maxp.y then
+			local surface_y_by_z = surface_y_by_x[p.x]
+			if not surface_y_by_z then
+				surface_y_by_z = {}
+				surface_y_by_x[p.x] = surface_y_by_z
 			end
+			if not surface_y_by_z[p.z] or p.y > surface_y_by_z[p.z] then
+				surface_y_by_z[p.z] = p.y
+			end
+		end
+
+		if core.registered_nodes[ORANGE_GRASS] and core.get_node(p).name == base_grass
+				and dappled_biome_at({ x = p.x, y = p.y + 1, z = p.z }) then
+			core.swap_node(p, { name = ORANGE_GRASS })
 		end
 	end
 
@@ -185,17 +196,11 @@ core.register_on_generated(function(minp, maxp, blockseed)
 	for attempt = 1, 25 do
 		local x = rng:next(minp.x + 2, maxp.x - 2)
 		local z = rng:next(minp.z + 2, maxp.z - 2)
-		local surface_y
+		local surface_y_by_z = surface_y_by_x[x]
+		local surface_y = surface_y_by_z and surface_y_by_z[z]
 
-		for y = maxp.y - 1, minp.y + 1, -1 do
-			if is_grass(core.get_node({ x = x, y = y, z = z }).name) then
-				surface_y = y + 1
-				break
-			end
-		end
-
-		if surface_y and dappled_biome_at({ x = x, y = surface_y, z = z }) then
-			if place_poplar_tree(x, surface_y, z, rng) then
+		if surface_y and dappled_biome_at({ x = x, y = surface_y + 1, z = z }) then
+			if place_poplar_tree(x, surface_y + 1, z, rng) then
 				trees = trees + 1
 			end
 		end
@@ -205,14 +210,11 @@ core.register_on_generated(function(minp, maxp, blockseed)
 	for attempt = 1, 10 + trees * 3 do
 		local x = rng:next(minp.x, maxp.x)
 		local z = rng:next(minp.z, maxp.z)
+		local surface_y_by_z = surface_y_by_x[x]
+		local surface_y = surface_y_by_z and surface_y_by_z[z]
 
-		for y = maxp.y - 1, minp.y + 1, -1 do
-			if is_grass(core.get_node({ x = x, y = y, z = z }).name) then
-				if dappled_biome_at({ x = x, y = y + 1, z = z }) then
-					try_red_shrub(x, y + 1, z)
-				end
-				break
-			end
+		if surface_y and dappled_biome_at({ x = x, y = surface_y + 1, z = z }) then
+			try_red_shrub(x, surface_y + 1, z)
 		end
 	end
 end)
