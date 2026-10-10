@@ -120,7 +120,13 @@ Edit the `config` table at the top of `init.lua`:
 - `seconds_per_stage = 1200` — oxidation pace; drop to e.g. `30` to watch it age.
 - `chest_radius = 8` — how far it looks for chests to sort (kept small so it stays within one room rather than couriering items between rooms).
 - `organize_cooldown = 6` — seconds between sort trips.
-- `path_recheck = 1.5` — seconds between recomputing the route to a chest.
+- `path_recheck = 3.0` — seconds between recomputing the route to a chest; this
+  is intentionally conservative because engine A* is synchronous and shares a
+  global server time budget with other mobs.
+- `path_search_extra = 3` — extra nodes added to the chest radius for each A*
+  search.
+- `path_attempts = 8` — maximum stand-position candidates tried per recheck.
+- `path_failed_retry = 10` — seconds before retrying a route that was not found.
 - `unreachable_ttl = 20` — seconds it ignores a chest it couldn't path to.
 - `chest_dwell`, `seek_timeout`, `walk_speed` / `seek_speed`, idle/walk burst times.
 
