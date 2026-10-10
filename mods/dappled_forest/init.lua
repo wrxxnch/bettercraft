@@ -7,7 +7,7 @@ mcl_trees.register_wood("poplar", {
 	readable_name = "Poplar",
 	sign_color = "#A86F45",
 	tree_schems = {
-		{file = modpath .. "/schematics/poplar_tree.mts"},
+		{file = modpath .. "/schematics/poplar_tree_orange.mts"},
 		{file = modpath .. "/schematics/poplar_tree_red.mts"},
 		{file = modpath .. "/schematics/poplar_tree_yellow.mts"},
 	},
