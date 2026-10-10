@@ -7,11 +7,14 @@ local function get_tree_size(schem_file_name)
 
 	if size == nil then
 		-- Serialize and return schematic as Lua table. Expensive!
-		local schem_lua = loadstring(
-			core.serialize_schematic(schem_file_name, "lua",
+		local schem_data = core.serialize_schematic(schem_file_name, "lua",
 			{ lua_use_comments = false, lua_num_indent_spaces = 0 })
-				.. " return schematic"
-		)()
+		
+		if not schem_data then
+			return nil
+		end
+		
+		local schem_lua = loadstring(schem_data .. " return schematic")()
 
 		if not schem_lua then
 			return nil
