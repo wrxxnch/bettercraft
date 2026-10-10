@@ -83,7 +83,10 @@ local function mintree_dequeue (self, item, prfiority)
 	if size > 0 then
 		shift_down (self, heap[1], 1)
 	end
-	heap.idx = nil
+	-- Clear the index on the node that was actually removed.  Leaving the
+	-- stale index set makes contains() report a removed node as queued and can
+	-- corrupt later decrease/increase-key operations under heavy pathfinding.
+	n.idx = nil
 	return n
 end
 
@@ -470,8 +473,21 @@ local function d (node1, node2)
 end
 
 local function h_to_nearest_target (node, context)
+	local targets = context.targets
+	local target_count = #targets
 	local best_distance
-	for _, target in ipairs (context.targets) do
+	if target_count == 1 then
+		local target = targets[1]
+		local distance = manhattan3d (node.x, node.y, node.z,
+					 target.x, target.y, target.z)
+		if not target.best_distance or target.best_distance > distance then
+			target.best_distance = distance
+			target.best_node = node
+		end
+		return distance
+	end
+	for i = 1, target_count do
+		local target = targets[i]
 		local d = manhattan3d (node.x, node.y, node.z,
 				       target.x, target.y, target.z)
 		if not best_distance or d < best_distance then
@@ -586,6 +602,11 @@ function mob_class:gwp_cycle (context, timeout)
 
 	-- Convert this timeout to us.
 	timeout = math.round (timeout * 1e6)
+	-- A zero budget must not execute one extra A* iteration.  The repeat loop
+	-- below intentionally performs work before checking its elapsed time.
+	if timeout <= 0 then
+		return false, 0
+	end
 	context.fall_distance = self:gwp_safe_fall_distance ()
 	repeat
 		if set:empty () or n_total + 1 > maxnodes then
@@ -2067,12 +2088,15 @@ local PATHFIND_TIMEOUT  = 10.0 / 1000
 -- Number of seconds spent pathfinding during this step.
 local pathfinding_quota = PATHFIND_PER_STEP
 local mobs_this_step = 0
+local quota_warning_timer = 0
 -- local pathfinding_history = {  }
 
 core.register_globalstep (function (dtime)
 		nodes_this_step = {}
-		if pathfinding_quota <= 0.0 then
+		quota_warning_timer = math.max (0, quota_warning_timer - dtime)
+		if pathfinding_quota <= 0.0 and quota_warning_timer <= 0 then
 			core.log ("warning", "Global pathfinding quota exceeded...")
+			quota_warning_timer = 1.0
 		end
 		-- if record_pathfinding_stats then
 		-- 	if #pathfinding_history >= 20 then
@@ -3014,7 +3038,7 @@ function mob_class:next_waypoint (dtime)
 		-- out, or the pathfinding time quota is exhausted.
 		mobs_this_step = mobs_this_step + 1
 		local quota = pathfinding_quota
-		if quota < 0 then
+		if quota <= 0 then
 			return
 		end
 		local ctx = self.pathfinding_context
