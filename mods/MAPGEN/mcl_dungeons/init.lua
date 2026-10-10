@@ -16,7 +16,11 @@ local max_y = mcl_vars.mg_overworld_max - 1
 -- Calculate the number of dungeon spawn attempts
 -- In Minecraft, there 8 dungeon spawn attempts Minecraft chunk (16*256*16 = 65536 blocks).
 -- Minetest chunks don't have this size, so scale the number accordingly.
-local attempts = math.ceil(((mcl_vars.chunksize * mcl_vars.MAP_BLOCKSIZE) ^ 3) / 8192) -- 63 = 80*80*80/8192
+-- Cap the scaled value because a single mapchunk can otherwise schedule dozens
+-- of nested emerge_area() operations while it is still being generated.
+local scaled_attempts = math.ceil(((mcl_vars.chunksize * mcl_vars.MAP_BLOCKSIZE) ^ 3) / 8192)
+local configured_attempts = tonumber(core.settings:get("mcl_dungeons_attempts"))
+local attempts = math.max(1, math.min(configured_attempts or 8, scaled_attempts, 16))
 
 local dungeonsizes = {
 	{ x=5, y=4, z=5},
@@ -377,8 +381,14 @@ local function dungeons_nodes(minp, maxp, blockseed)
 			local z = pr:next(minp.z, maxp.z-dim.z-1)
 			local p1 = {x=x,y=y,z=z}
 			local p2 = {x = x+dim.x+1, y = y+dim.y+1, z = z+dim.z+1}
-			core.log("verbose","[mcl_dungeons] size=" ..core.pos_to_string(dim) .. ", emerge from "..core.pos_to_string(p1) .. " to " .. core.pos_to_string(p2))
-			core.emerge_area(p1, p2, ecb_spawn_dungeon, {p1=p1, p2=p2, dim=dim, pr=pr})
+			core.log("verbose","[mcl_dungeons] queue from " .. core.pos_to_string(p1) .. " to " .. core.pos_to_string(p2))
+			-- dungeons_nodes() runs from the mapgen/emerge callback. Calling
+			-- emerge_area() here re-enters map generation and can recursively
+			-- invoke this generator until luanti.exe exhausts its stack.
+			-- The candidate area is already part of the current mapchunk, so
+			-- defer only the main-thread placement callback instead.
+			core.after(0, ecb_spawn_dungeon, nil, nil, 0,
+				{p1=p1, p2=p2, dim=dim, pr=pr})
 		end
 	end
 end

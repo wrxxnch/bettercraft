@@ -24,6 +24,10 @@ mcl_generate_ores (Generate ores) bool true
 # Enable Luanti mapgen dungeons
 mcl_enable_mt_dungeons (Native Luanti dungeons) bool false
 
+# Maximum custom dungeon placement attempts per generated mapchunk.
+# Lower values reduce mapgen and emerge pressure during exploration.
+mcl_dungeons_attempts (Custom dungeon attempts per mapchunk) int 8 1 16
+
 # If enabled, the "flat" map generator generates a Classic Superflat world:
 # Completely flat, 1 layer of grass blocks on top of 2 layers of dirt on
 # top of a final layer of bedrock. No caves, trees or plants.

@@ -72,8 +72,12 @@ local config = {
 	-- Pathfinding (engine A*, like Mineclonia's own mobs/villagers). Lets the
 	-- golem route AROUND walls to reach a chest, and -- crucially -- give up at
 	-- once when a chest is walled off with no way to it, instead of grinding
-	-- against the wall until seek_timeout.
-	path_recheck      = 1.5,  -- seconds between path recomputes while travelling
+	-- against the wall until seek_timeout. Keep this conservative: each
+	-- find_path call competes with every other mob for the server quota.
+	path_recheck      = 3.0,  -- seconds between path recomputes while travelling
+	path_search_extra = 3,    -- search only a little beyond the chest radius
+	path_attempts     = 8,    -- hard cap for stand-position candidates
+	path_failed_retry = 10,   -- seconds before retrying a failed route
 	unreachable_ttl   = 20,   -- ignore a chest we couldn't reach for this long
 
 	-- Wandering (self-contained AI; no mob framework).
@@ -914,59 +918,61 @@ end
 
 -- Engine A* pathfinding -- the same builtin Mineclonia's mobs/villagers use --
 -- so the golem routes AROUND obstacles instead of pushing into them, and knows
--- when a chest simply can't be reached. A chest node is solid (walkable), so the
--- pathfinder can't stand ON it; we aim at the chest, and if that yields nothing
--- we try the four floor tiles beside it (one of them is where the golem stands
--- to open it). Returns a waypoint list, or nil when there is no path at all.
--- Floor tiles a golem might stand on to reach a chest: the 4 orthogonal AND 4
--- diagonal neighbours (a chest tucked in a corner may only be approachable from a
--- diagonal). Each is tried at the chest's level, one step down, and one step up,
--- since the standable tile beside a chest can sit at any of those on uneven ground.
-local PATH_NEIGHBORS = {
-	{ x = 1, z = 0 }, { x = -1, z = 0 }, { x = 0, z = 1 }, { x = 0, z = -1 },
-	{ x = 1, z = 1 }, { x = 1, z = -1 }, { x = -1, z = 1 }, { x = -1, z = -1 },
-}
-local PATH_DY = { 0, -1, 1 }
-local function compute_path(self, target)
-	local pos = self.object:get_pos()
-	if not pos then return nil end
-	local s = { x = math.floor(pos.x + 0.5), y = math.floor(pos.y + 0.5), z = math.floor(pos.z + 0.5) }
-	local g = { x = math.floor(target.x + 0.5), y = math.floor(target.y + 0.5), z = math.floor(target.z + 0.5) }
-	local sd = config.chest_radius + 6   -- search budget: a bit past the work radius
-	-- max_jump 1 matches the 1.05 stepheight; max_drop 2 lets it path down ledges.
-	local way = core.find_path(s, g, sd, 1, 2, "A*_noprefetch")
-	if way then return way end
-	-- A chest node is solid, so the pathfinder can't stand on it -- aim instead at a
-	-- standable floor tile beside it. The extra candidates (and the level offsets)
-	-- are only reached when the direct attempt fails, i.e. when we're about to give
-	-- up anyway, so the cost is bounded.
-	for _, dy in ipairs(PATH_DY) do
-		for _, n in ipairs(PATH_NEIGHBORS) do
-			way = core.find_path(s, { x = g.x + n.x, y = g.y + dy, z = g.z + n.z }, sd, 1, 2, "A*_noprefetch")
+	-- when a chest simply can't be reached. A chest node is solid (walkable), so the
+	-- pathfinder can't stand ON it; we target bounded stand positions beside it.
+	-- Orthogonal positions are tried first, then diagonals for corner layouts.
+	-- The old implementation tried 1 direct target plus 24 combinations (8
+	-- neighbours x 3 heights) on every recheck.
+	local PATH_NEIGHBORS = {
+		{ x = 1, z = 0 }, { x = -1, z = 0 }, { x = 0, z = 1 }, { x = 0, z = -1 },
+		{ x = 1, z = 1 }, { x = 1, z = -1 }, { x = -1, z = 1 }, { x = -1, z = -1 },
+	}
+	local function compute_path(self, target)
+		local pos = self.object:get_pos()
+		if not pos then return nil end
+		local s = { x = math.floor(pos.x + 0.5), y = math.floor(pos.y + 0.5), z = math.floor(pos.z + 0.5) }
+		local g = { x = math.floor(target.x + 0.5), y = math.floor(target.y + 0.5), z = math.floor(target.z + 0.5) }
+		local sd = config.chest_radius + config.path_search_extra
+		-- A chest node is solid, so ask for a standable tile beside it.  Limit the
+		-- number of A* calls; this is deliberately synchronous engine work.
+		for i, n in ipairs(PATH_NEIGHBORS) do
+			if i > config.path_attempts then break end
+			local way = core.find_path(s, { x = g.x + n.x, y = g.y, z = g.z + n.z }, sd, 1, 2, "A*_noprefetch")
 			if way then return way end
 		end
+		return nil
 	end
-	return nil
-end
 
 -- Walk toward `target` along a pathfound route, recomputing periodically. Returns
 -- "moving" while it makes its way there, or "blocked" when no path exists -- the
 -- caller's cue to give up on this chest rather than shove against a wall. We still
 -- hand each leg to travel_toward, whose short sidestep handles the fine wiggle of
 -- bumping another entity between waypoints.
-local function follow_path(self, target, speed_factor, dtime)
-	self._path_cool = (self._path_cool or 0) - dtime
-	-- (Re)plan when we have no route, the goal moved, or the timer elapsed.
-	local goal_moved = not self._path_goal or vector.distance(self._path_goal, target) > 1
-	if not self._path or self._path_cool <= 0 or goal_moved then
-		local way = compute_path(self, target)
-		self._path_cool = config.path_recheck
-		if not way then
-			self._path, self._path_goal = nil, nil
-			return "blocked"
+	local function follow_path(self, target, speed_factor, dtime)
+		self._path_cool = (self._path_cool or 0) - dtime
+		-- (Re)plan when we have no route, the goal moved, or the timer elapsed.
+		local goal_moved = not self._path_goal or vector.distance(self._path_goal, target) > 1
+		if not self._path or self._path_cool <= 0 or goal_moved then
+			local target_key = core.hash_node_position({
+				x = math.floor(target.x + 0.5),
+				y = math.floor(target.y + 0.5),
+				z = math.floor(target.z + 0.5),
+			})
+			if self._path_failed_key == target_key
+				and (self._path_failed_until or 0) > core.get_us_time() / 1e6 then
+				return "blocked"
+			end
+			local way = compute_path(self, target)
+			self._path_cool = config.path_recheck
+			if not way then
+				self._path, self._path_goal = nil, nil
+				self._path_failed_key = target_key
+				self._path_failed_until = core.get_us_time() / 1e6 + config.path_failed_retry
+				return "blocked"
+			end
+			self._path_failed_key, self._path_failed_until = nil, nil
+			self._path, self._path_goal, self._path_idx = way, vector.new(target), 1
 		end
-		self._path, self._path_goal, self._path_idx = way, vector.new(target), 1
-	end
 
 	-- Drop waypoints we've reached so we always steer toward the next one.
 	local pos = self.object:get_pos()
